@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Camera,
+  ChevronDown,
+  ChevronUp,
   Eraser,
   Hand,
   Highlighter,
@@ -16,9 +18,12 @@ import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import {
   cloneAnnotationsMap,
+  computeScrollThumbMetrics,
+  computeScrollTopFromTrackY,
   countTotalStrokes,
   createInitialAnnotationHistory,
   eraseStrokesNearPoint,
+  estimateVisiblePage,
   hasPdfHeader,
   loadPaperAnnotations,
   normalizePointerToPage,
@@ -103,6 +108,7 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
   const drawCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const liveStrokeRef = useRef<AnnotationStroke | null>(null);
   const isDrawingRef = useRef(false);
+  const activePointersRef = useRef<Set<number>>(new Set());
   const [dims, setDims] = useState<{ width: number; height: number } | null>(null);
 
   useEffect(() => {
@@ -191,6 +197,15 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
     if (activeTool === 'pan') return;
     if (e.button !== 0 && e.pointerType === 'mouse') return;
 
+    activePointersRef.current.add(e.pointerId);
+    // Multi-touch guard: if user puts a second finger down to scroll/zoom, cancel accidental nascent stroke
+    if (activePointersRef.current.size > 1) {
+      isDrawingRef.current = false;
+      liveStrokeRef.current = null;
+      redrawOverlay();
+      return;
+    }
+
     const canvas = drawCanvasRef.current;
     if (!canvas) return;
     canvas.setPointerCapture(e.pointerId);
@@ -216,6 +231,7 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (activePointersRef.current.size > 1) return;
     if (!isDrawingRef.current || activeTool === 'pan') return;
     const canvas = drawCanvasRef.current;
     if (!canvas) return;
@@ -238,6 +254,7 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
   };
 
   const finishStroke = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    activePointersRef.current.delete(e.pointerId);
     if (!isDrawingRef.current) return;
     isDrawingRef.current = false;
 
@@ -313,9 +330,50 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
   );
 
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const draggingRailRef = useRef<{ active: boolean; grabOffsetRatio: number }>({
+    active: false,
+    grabOffsetRatio: 0.5,
+  });
+  const [scrollState, setScrollState] = useState({
+    scrollTop: 0,
+    scrollHeight: 0,
+    clientHeight: 0,
+    trackHeight: 400,
+  });
   const pageCanvasesRef = useRef<
     Record<number, { pdfCanvas: HTMLCanvasElement | null; drawCanvas: HTMLCanvasElement | null }>
   >({});
+
+  const syncScrollMetrics = useCallback(() => {
+    const el = containerRef.current;
+    const track = trackRef.current;
+    if (!el) return;
+    setScrollState({
+      scrollTop: el.scrollTop,
+      scrollHeight: el.scrollHeight,
+      clientHeight: el.clientHeight,
+      trackHeight: track ? track.clientHeight : 400,
+    });
+  }, []);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const raf = window.requestAnimationFrame(syncScrollMetrics);
+    const timer = window.setTimeout(syncScrollMetrics, 250);
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => syncScrollMetrics());
+      observer.observe(el);
+      if (trackRef.current) observer.observe(trackRef.current);
+    }
+    return () => {
+      window.cancelAnimationFrame(raf);
+      window.clearTimeout(timer);
+      observer?.disconnect();
+    };
+  }, [pdfDoc, numPages, zoom, loading, syncScrollMetrics]);
 
   // Sync annotations map from localStorage when switching papers
   useEffect(() => {
@@ -493,6 +551,96 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     () => Array.from({ length: numPages }, (_, i) => i + 1),
     [numPages]
   );
+
+  const thumbMetrics = useMemo(
+    () =>
+      computeScrollThumbMetrics({
+        scrollTop: scrollState.scrollTop,
+        scrollHeight: scrollState.scrollHeight,
+        clientHeight: scrollState.clientHeight,
+        trackHeight: scrollState.trackHeight,
+        minThumbHeight: 60,
+      }),
+    [scrollState]
+  );
+
+  const visiblePage = useMemo(
+    () =>
+      estimateVisiblePage({
+        scrollTop: scrollState.scrollTop,
+        scrollHeight: scrollState.scrollHeight,
+        clientHeight: scrollState.clientHeight,
+        numPages,
+      }),
+    [scrollState, numPages]
+  );
+
+  const applyRailPointerY = useCallback(
+    (clientY: number, grabOffsetRatio: number) => {
+      const container = containerRef.current;
+      const track = trackRef.current;
+      if (!container || !track) return;
+      const rect = track.getBoundingClientRect();
+      const nextTop = computeScrollTopFromTrackY({
+        pointerY: clientY,
+        trackTop: rect.top,
+        trackHeight: rect.height,
+        thumbHeight: thumbMetrics.thumbHeight,
+        scrollHeight: container.scrollHeight,
+        clientHeight: container.clientHeight,
+        grabOffsetRatio,
+      });
+      container.scrollTop = nextTop;
+      syncScrollMetrics();
+    },
+    [thumbMetrics.thumbHeight, syncScrollMetrics]
+  );
+
+  const handleTrackPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!thumbMetrics.canScroll) return;
+    e.preventDefault();
+    const track = trackRef.current;
+    if (!track) return;
+    track.setPointerCapture(e.pointerId);
+
+    const rect = track.getBoundingClientRect();
+    const localY = e.clientY - rect.top;
+    const hitThumb =
+      localY >= thumbMetrics.thumbTop &&
+      localY <= thumbMetrics.thumbTop + thumbMetrics.thumbHeight;
+    const grabRatio = hitThumb
+      ? (localY - thumbMetrics.thumbTop) / Math.max(1, thumbMetrics.thumbHeight)
+      : 0.5;
+
+    draggingRailRef.current = { active: true, grabOffsetRatio: grabRatio };
+    applyRailPointerY(e.clientY, grabRatio);
+  };
+
+  const handleTrackPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!draggingRailRef.current.active) return;
+    e.preventDefault();
+    applyRailPointerY(e.clientY, draggingRailRef.current.grabOffsetRatio);
+  };
+
+  const handleTrackPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!draggingRailRef.current.active) return;
+    draggingRailRef.current.active = false;
+    const track = trackRef.current;
+    if (track && track.hasPointerCapture(e.pointerId)) {
+      try {
+        track.releasePointerCapture(e.pointerId);
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  const stepScroll = (direction: -1 | 1) => {
+    const container = containerRef.current;
+    if (!container) return;
+    const delta = Math.max(180, Math.round(container.clientHeight * 0.72));
+    container.scrollBy({ top: direction * delta, behavior: 'smooth' });
+  };
 
   return (
     <div
@@ -672,70 +820,130 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
         </div>
       </div>
 
-      {/* Scrollable Multi-Page PDF + Canvas Workspace */}
-      <div
-        ref={containerRef}
-        className={`w-full ${heightClass} overflow-auto p-4 space-y-4 bg-slate-200/70`}
-      >
-        {loading && (
-          <div className="h-full min-h-[320px] flex flex-col items-center justify-center gap-3 text-sm text-slate-600">
-            <Loader2 className="w-5 h-5 animate-spin text-blue-700" />
-            <span>Rendering PDF pages for annotation...</span>
-          </div>
-        )}
-
-        {!loading && errorMsg && (
-          <div className="max-w-lg mx-auto my-12 p-5 bg-white border border-slate-200 rounded-xl text-center space-y-3">
-            <p className="text-sm text-slate-700 leading-relaxed">{errorMsg}</p>
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              {onFallbackViewer && (
-                <button
-                  type="button"
-                  onClick={onFallbackViewer}
-                  className="px-3.5 py-2 text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded-lg cursor-pointer"
-                >
-                  Switch to Web Viewer
-                </button>
-              )}
-              {externalUrl && (
-                <a
-                  href={externalUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3.5 py-2 text-xs font-semibold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 rounded-lg"
-                >
-                  Open PDF Directly
-                </a>
-              )}
+      {/* Scrollable Multi-Page PDF + Dedicated Wide Touch Scroll Rail */}
+      <div className="flex items-stretch w-full">
+        <div
+          ref={containerRef}
+          onScroll={syncScrollMetrics}
+          style={{ touchAction: 'pan-x pan-y' }}
+          className={`flex-1 min-w-0 ${heightClass} overflow-auto px-5 sm:px-8 py-5 space-y-5 bg-slate-200/70 pdf-annotator-scroll`}
+        >
+          {loading && (
+            <div className="h-full min-h-[320px] flex flex-col items-center justify-center gap-3 text-sm text-slate-600">
+              <Loader2 className="w-5 h-5 animate-spin text-blue-700" />
+              <span>Rendering PDF pages for annotation...</span>
             </div>
-          </div>
-        )}
+          )}
 
-        {!loading &&
-          !errorMsg &&
-          pdfDoc &&
-          pageNumbers.map((pageNumber) => (
-            <PdfPageCanvas
-              key={`${paperKey}-p${pageNumber}`}
-              pdfDoc={pdfDoc}
-              pageNumber={pageNumber}
-              scale={zoom}
-              strokes={history.present[pageNumber] || []}
-              activeTool={tool}
-              activeColor={activeColor}
-              activeSize={activeSize}
-              onCommitStroke={handleCommitStroke}
-              onEraseAtPoint={handleEraseAtPoint}
-              registerCanvases={registerCanvases}
-            />
-          ))}
+          {!loading && errorMsg && (
+            <div className="max-w-lg mx-auto my-12 p-5 bg-white border border-slate-200 rounded-xl text-center space-y-3">
+              <p className="text-sm text-slate-700 leading-relaxed">{errorMsg}</p>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {onFallbackViewer && (
+                  <button
+                    type="button"
+                    onClick={onFallbackViewer}
+                    className="px-3.5 py-2 text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded-lg cursor-pointer"
+                  >
+                    Switch to Web Viewer
+                  </button>
+                )}
+                {externalUrl && (
+                  <a
+                    href={externalUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3.5 py-2 text-xs font-semibold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 rounded-lg"
+                  >
+                    Open PDF Directly
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+
+          {!loading &&
+            !errorMsg &&
+            pdfDoc &&
+            pageNumbers.map((pageNumber) => (
+              <PdfPageCanvas
+                key={`${paperKey}-p${pageNumber}`}
+                pdfDoc={pdfDoc}
+                pageNumber={pageNumber}
+                scale={zoom}
+                strokes={history.present[pageNumber] || []}
+                activeTool={tool}
+                activeColor={activeColor}
+                activeSize={activeSize}
+                onCommitStroke={handleCommitStroke}
+                onEraseAtPoint={handleEraseAtPoint}
+                registerCanvases={registerCanvases}
+              />
+            ))}
+        </div>
+
+        {/* Dedicated 44px-wide Touch/Mouse Scroll Rail — never draws on the PDF */}
+        <div
+          data-testid="pdf-scroll-rail"
+          aria-label="PDF page scroll bar"
+          className="w-11 shrink-0 bg-slate-100 border-l border-slate-200 flex flex-col items-center select-none"
+        >
+          <button
+            type="button"
+            onClick={() => stepScroll(-1)}
+            disabled={!thumbMetrics.canScroll}
+            aria-label="Scroll PDF up"
+            className="w-full h-11 flex items-center justify-center text-slate-700 hover:bg-slate-200 active:bg-slate-300 border-b border-slate-200 disabled:opacity-40 cursor-pointer disabled:cursor-default"
+          >
+            <ChevronUp className="w-5 h-5" />
+          </button>
+
+          <div
+            ref={trackRef}
+            onPointerDown={handleTrackPointerDown}
+            onPointerMove={handleTrackPointerMove}
+            onPointerUp={handleTrackPointerUp}
+            onPointerCancel={handleTrackPointerUp}
+            style={{ touchAction: 'none' }}
+            className="relative flex-1 w-full bg-slate-200/70 cursor-pointer"
+          >
+            {thumbMetrics.canScroll ? (
+              <div
+                data-testid="pdf-scroll-thumb"
+                style={{
+                  height: `${thumbMetrics.thumbHeight}px`,
+                  transform: `translateY(${thumbMetrics.thumbTop}px)`,
+                }}
+                className="absolute inset-x-1.5 top-0 rounded-lg bg-slate-600 hover:bg-slate-700 active:bg-blue-700 shadow-sm flex flex-col items-center justify-center gap-1 pointer-events-none transition-colors"
+              >
+                <span className="w-4 h-0.5 rounded-full bg-white/80" />
+                <span className="text-[9px] font-mono font-semibold text-white leading-none tabular-nums">
+                  P{visiblePage}
+                </span>
+                <span className="w-4 h-0.5 rounded-full bg-white/80" />
+              </div>
+            ) : (
+              <div className="absolute inset-x-2 inset-y-2 rounded-lg bg-slate-300/60" />
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => stepScroll(1)}
+            disabled={!thumbMetrics.canScroll}
+            aria-label="Scroll PDF down"
+            className="w-full h-11 flex items-center justify-center text-slate-700 hover:bg-slate-200 active:bg-slate-300 border-t border-slate-200 disabled:opacity-40 cursor-pointer disabled:cursor-default"
+          >
+            <ChevronDown className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       {/* Quiet Footer Hint */}
       <div className="px-3 py-1.5 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
         <span>
           {numPages > 0
-            ? `${numPages} PDF ${numPages === 1 ? 'page' : 'pages'} · Drawings auto-save locally per paper`
+            ? `Page ${visiblePage} of ${numPages} · Drag the right scroll bar or switch to Scroll tool · Auto-saves locally`
             : 'Preparing PDF canvas'}
         </span>
         <span className="font-mono tabular-nums">

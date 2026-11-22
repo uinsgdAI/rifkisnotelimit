@@ -301,3 +301,90 @@ export function hasPdfHeader(bytes: Uint8Array): boolean {
   return false;
 }
 
+export interface ScrollThumbMetrics {
+  canScroll: boolean;
+  thumbHeight: number;
+  thumbTop: number;
+  progress: number;
+}
+
+export function computeScrollThumbMetrics(params: {
+  scrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
+  trackHeight: number;
+  minThumbHeight?: number;
+}): ScrollThumbMetrics {
+  const {
+    scrollTop,
+    scrollHeight,
+    clientHeight,
+    trackHeight,
+    minThumbHeight = 56,
+  } = params;
+
+  const maxScroll = Math.max(0, scrollHeight - clientHeight);
+  if (maxScroll <= 1 || trackHeight <= 0 || scrollHeight <= 0) {
+    return {
+      canScroll: false,
+      thumbHeight: Math.max(0, trackHeight),
+      thumbTop: 0,
+      progress: 0,
+    };
+  }
+
+  const ratio = Math.min(1, Math.max(0, clientHeight / scrollHeight));
+  const rawThumb = Math.round(trackHeight * ratio);
+  const thumbHeight = Math.min(trackHeight, Math.max(minThumbHeight, rawThumb));
+  const maxThumbTop = Math.max(0, trackHeight - thumbHeight);
+  const progress = Math.min(1, Math.max(0, scrollTop / maxScroll));
+  const thumbTop = Math.round(progress * maxThumbTop);
+
+  return {
+    canScroll: true,
+    thumbHeight,
+    thumbTop,
+    progress,
+  };
+}
+
+export function computeScrollTopFromTrackY(params: {
+  pointerY: number;
+  trackTop: number;
+  trackHeight: number;
+  thumbHeight: number;
+  scrollHeight: number;
+  clientHeight: number;
+  grabOffsetRatio?: number;
+}): number {
+  const {
+    pointerY,
+    trackTop,
+    trackHeight,
+    thumbHeight,
+    scrollHeight,
+    clientHeight,
+    grabOffsetRatio = 0.5,
+  } = params;
+
+  const maxScroll = Math.max(0, scrollHeight - clientHeight);
+  const availableTrack = Math.max(1, trackHeight - thumbHeight);
+  if (maxScroll <= 0) return 0;
+
+  const desiredThumbTop = pointerY - trackTop - thumbHeight * grabOffsetRatio;
+  const clampedThumbTop = Math.min(availableTrack, Math.max(0, desiredThumbTop));
+  return Math.round((clampedThumbTop / availableTrack) * maxScroll);
+}
+
+export function estimateVisiblePage(params: {
+  scrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
+  numPages: number;
+}): number {
+  const { scrollTop, scrollHeight, clientHeight, numPages } = params;
+  if (numPages <= 1 || scrollHeight <= 0) return 1;
+  const centerY = scrollTop + clientHeight * 0.35;
+  const ratio = Math.min(0.9999, Math.max(0, centerY / scrollHeight));
+  return Math.min(numPages, Math.max(1, Math.floor(ratio * numPages) + 1));
+}
