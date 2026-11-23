@@ -200,6 +200,7 @@ export const CHAPTER_6_NOTES: SubtopicNote[] = [
       hint: '$180^\\circ - 30^\\circ$.',
       solution: '$180^\\circ - 30^\\circ = 150^\\circ$.',
     },
+    sandbox: 'geogebra-graph',
   },
   {
     id: '6.5',

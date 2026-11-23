@@ -45,6 +45,7 @@ export const CHAPTER_3_NOTES: SubtopicNote[] = [
       hint: 'Add $5$ to $-3$.',
       solution: '$(-3 + 5, 4 - 6) = (2, -2)$, so the $x$-coordinate is $2$.',
     },
+    sandbox: 'geogebra-graph',
   },
   {
     id: '3.2',

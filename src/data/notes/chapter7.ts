@@ -56,6 +56,7 @@ export const CHAPTER_7_NOTES: SubtopicNote[] = [
       hint: 'Reflection in $y = x$ swaps $(x, y) \\mapsto (y, x)$.',
       solution: 'Image is $(-1, 4)$, so its $x$-coordinate is $-1$.',
     },
+    sandbox: 'geogebra-graph',
   },
   {
     id: '7.2',
@@ -106,6 +107,7 @@ export const CHAPTER_7_NOTES: SubtopicNote[] = [
       hint: '$\\vec{AB} = \\vec{OB} - \\vec{OA}$.',
       solution: '$\\vec{AB} = \\begin{pmatrix} 6 - 2 \\\\ 1 - 7 \\end{pmatrix} = \\begin{pmatrix} 4 \\\\ -6 \\end{pmatrix}$, so top component is $4$.',
     },
+    sandbox: 'geogebra-graph',
   },
   {
     id: '7.3',
@@ -154,6 +156,7 @@ export const CHAPTER_7_NOTES: SubtopicNote[] = [
       hint: '$\\sqrt{8^2 + (-15)^2}$.',
       solution: '$\\sqrt{64 + 225} = \\sqrt{289} = 17$.',
     },
+    sandbox: 'geogebra-graph',
   },
   {
     id: '7.4',

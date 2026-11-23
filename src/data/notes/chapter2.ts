@@ -266,7 +266,7 @@ export const CHAPTER_2_NOTES: SubtopicNote[] = [
       hint: 'Factorise into $(x - 7)(x + 2) = 0$.',
       solution: '$x = 7$ or $x = -2$, so the positive root is $7$.',
     },
-    sandbox: 'quadratic-solver',
+    sandbox: 'geogebra-graph',
   },
   {
     id: '2.6',
@@ -317,6 +317,7 @@ export const CHAPTER_2_NOTES: SubtopicNote[] = [
       hint: '$-2x \\le -8 \\implies x \\ge 4$.',
       solution: '$11 - 3 \\le 2x \\implies 8 \\le 2x \\implies x \\ge 4$, so minimum integer is $4$.',
     },
+    sandbox: 'geogebra-graph',
   },
   {
     id: '2.7',
@@ -419,6 +420,7 @@ export const CHAPTER_2_NOTES: SubtopicNote[] = [
       hint: '$P = kt^2 \\implies 20 = 4k \\implies k = 5$.',
       solution: '$P = 5t^2 \\implies P = 5(5^2) = 125$.',
     },
+    sandbox: 'geogebra-graph',
   },
   {
     id: '2.9',
@@ -470,6 +472,7 @@ export const CHAPTER_2_NOTES: SubtopicNote[] = [
       hint: 'Acceleration $= \\frac{10 - 30}{5} = -4\\text{ m/s}^2$. Deceleration is positive.',
       solution: 'Deceleration $= \\frac{30 - 10}{5} = 4\\text{ m/s}^2$.',
     },
+    sandbox: 'geogebra-graph',
   },
   {
     id: '2.10',
@@ -521,7 +524,7 @@ export const CHAPTER_2_NOTES: SubtopicNote[] = [
       hint: '$(-2)^2 - 4(-2) + 1 = 4 + 8 + 1$.',
       solution: '$4 + 8 + 1 = 13$.',
     },
-    sandbox: 'quadratic-solver',
+    sandbox: 'geogebra-graph',
   },
   {
     id: '2.11',
@@ -570,6 +573,7 @@ export const CHAPTER_2_NOTES: SubtopicNote[] = [
       hint: 'Set $x + 4 = 0$.',
       solution: '$x + 4 = 0 \\implies x = -4$ (vertex is at $(-4, -9)$).',
     },
+    sandbox: 'geogebra-graph',
   },
   {
     id: '2.12',
@@ -625,6 +629,7 @@ export const CHAPTER_2_NOTES: SubtopicNote[] = [
       hint: '$\\frac{\\mathrm{d}y}{\\mathrm{d}x} = 6x^2 - 6$. Substitute $x = 2$.',
       solution: '$\\frac{\\mathrm{d}y}{\\mathrm{d}x} = 6(2)^2 - 6 = 24 - 6 = 18$.',
     },
+    sandbox: 'geogebra-graph',
   },
   {
     id: '2.13',
@@ -677,5 +682,6 @@ export const CHAPTER_2_NOTES: SubtopicNote[] = [
       hint: 'Find $\\mathrm{g}(7)$ first, then plug into $\\mathrm{f}$.',
       solution: '$\\mathrm{g}(7) = 7 - 5 = 2$, so $\\mathrm{f}(2) = 3(2) + 2 = 8$.',
     },
+    sandbox: 'geogebra-graph',
   },
 ];

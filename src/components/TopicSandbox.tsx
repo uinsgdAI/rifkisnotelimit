@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { RefreshCw } from 'lucide-react';
+import { getGraphPresetForTopic } from '../data/graphPresets';
 import type { SandboxType } from '../types/syllabus';
+import { GeoGebraGraphTool } from './GeoGebraGraphTool';
 
 interface TopicSandboxProps {
   type: SandboxType;
+  topicId?: string;
 }
 
 const MoneyConverterSandbox: React.FC = () => {
@@ -136,113 +139,6 @@ const MoneyConverterSandbox: React.FC = () => {
           </span>
         </div>
       </div>
-    </div>
-  );
-};
-
-const LinearGraphSandbox: React.FC = () => {
-  const [m, setM] = useState(1.5);
-  const [c, setC] = useState(1);
-  const [showPerp, setShowPerp] = useState(true);
-
-  const perpM = m !== 0 ? -1 / m : null;
-  const toSvgX = (x: number) => 140 + x * 24;
-  const toSvgY = (y: number) => 120 - y * 20;
-
-  const x1 = -5;
-  const x2 = 5;
-  const y1 = m * x1 + c;
-  const y2 = m * x2 + c;
-
-  return (
-    <div className="grid md:grid-cols-2 gap-6 items-center">
-      <div className="space-y-4">
-        <div>
-          <div className="flex justify-between text-xs mb-1">
-            <label htmlFor="line-m" className="font-medium text-slate-700">Gradient (m)</label>
-            <span className="font-mono tabular-nums font-semibold text-slate-900">{m.toFixed(1)}</span>
-          </div>
-          <input
-            id="line-m"
-            type="range"
-            min={-3}
-            max={3}
-            step={0.5}
-            value={m}
-            onChange={(e) => setM(Number(e.target.value))}
-            className="w-full accent-blue-700"
-          />
-        </div>
-        <div>
-          <div className="flex justify-between text-xs mb-1">
-            <label htmlFor="line-c" className="font-medium text-slate-700">y-Intercept (c)</label>
-            <span className="font-mono tabular-nums font-semibold text-slate-900">{c.toFixed(1)}</span>
-          </div>
-          <input
-            id="line-c"
-            type="range"
-            min={-4}
-            max={4}
-            step={0.5}
-            value={c}
-            onChange={(e) => setC(Number(e.target.value))}
-            className="w-full accent-blue-700"
-          />
-        </div>
-        <div className="flex items-center justify-between pt-1">
-          <div className="text-xs text-slate-700 font-mono">
-            Line: y = {m.toFixed(1)}x {c >= 0 ? `+ ${c.toFixed(1)}` : `- ${Math.abs(c).toFixed(1)}`}
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowPerp((p) => !p)}
-            className="px-3 py-1.5 text-xs font-medium border border-slate-200 rounded-lg bg-slate-50 hover:bg-slate-100 cursor-pointer"
-          >
-            {showPerp ? 'Hide Perpendicular' : 'Show Perpendicular'}
-          </button>
-        </div>
-        {showPerp && (
-          <div className="text-xs text-emerald-700 font-mono">
-            Perpendicular gradient: {perpM !== null ? perpM.toFixed(2) : 'Vertical (undefined)'}
-          </div>
-        )}
-      </div>
-
-      <svg
-        viewBox="0 0 280 240"
-        className="w-full max-w-[300px] mx-auto bg-slate-50 border border-slate-200 rounded-lg"
-        role="img"
-        aria-label="Interactive straight line coordinate grid"
-      >
-        {[-4, -2, 0, 2, 4].map((v) => (
-          <React.Fragment key={v}>
-            <line x1={toSvgX(v)} y1={10} x2={toSvgX(v)} y2={230} stroke="#e2e8f0" strokeWidth="1" />
-            <line x1={10} y1={toSvgY(v)} x2={270} y2={toSvgY(v)} stroke="#e2e8f0" strokeWidth="1" />
-          </React.Fragment>
-        ))}
-        <line x1={10} y1={120} x2={270} y2={120} stroke="#64748b" strokeWidth="1.5" />
-        <line x1={140} y1={10} x2={140} y2={230} stroke="#64748b" strokeWidth="1.5" />
-        <line
-          x1={toSvgX(x1)}
-          y1={toSvgY(y1)}
-          x2={toSvgX(x2)}
-          y2={toSvgY(y2)}
-          stroke="#1d4ed8"
-          strokeWidth="2.5"
-        />
-        {showPerp && perpM !== null && (
-          <line
-            x1={toSvgX(x1)}
-            y1={toSvgY(perpM * x1 + c)}
-            x2={toSvgX(x2)}
-            y2={toSvgY(perpM * x2 + c)}
-            stroke="#059669"
-            strokeWidth="2"
-            strokeDasharray="4 4"
-          />
-        )}
-        <circle cx={toSvgX(0)} cy={toSvgY(c)} r="4" fill="#1d4ed8" />
-      </svg>
     </div>
   );
 };
@@ -525,58 +421,6 @@ const ProbabilityTreeSandbox: React.FC = () => {
   );
 };
 
-const QuadraticSandbox: React.FC = () => {
-  const [a, setA] = useState(1);
-  const [b, setB] = useState(-4);
-  const [c, setC] = useState(3);
-
-  const disc = b * b - 4 * a * c;
-  const vx = -b / (2 * a);
-  const vy = a * vx * vx + b * vx + c;
-
-  return (
-    <div className="grid md:grid-cols-2 gap-6 items-start">
-      <div className="space-y-3">
-        <div>
-          <div className="flex justify-between text-xs mb-1">
-            <label htmlFor="quad-a" className="font-medium text-slate-700">a (x² coefficient)</label>
-            <span className="font-mono font-semibold">{a}</span>
-          </div>
-          <input id="quad-a" type="range" min={1} max={3} step={1} value={a} onChange={(e) => setA(Number(e.target.value))} className="w-full accent-blue-700" />
-        </div>
-        <div>
-          <div className="flex justify-between text-xs mb-1">
-            <label htmlFor="quad-b" className="font-medium text-slate-700">b (x coefficient)</label>
-            <span className="font-mono font-semibold">{b}</span>
-          </div>
-          <input id="quad-b" type="range" min={-8} max={8} step={1} value={b} onChange={(e) => setB(Number(e.target.value))} className="w-full accent-blue-700" />
-        </div>
-        <div>
-          <div className="flex justify-between text-xs mb-1">
-            <label htmlFor="quad-c" className="font-medium text-slate-700">c (constant)</label>
-            <span className="font-mono font-semibold">{c}</span>
-          </div>
-          <input id="quad-c" type="range" min={-6} max={6} step={1} value={c} onChange={(e) => setC(Number(e.target.value))} className="w-full accent-blue-700" />
-        </div>
-      </div>
-      <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 space-y-2 text-xs font-mono">
-        <div className="font-semibold text-slate-900">
-          y = {a}x² {b >= 0 ? `+ ${b}x` : `- ${Math.abs(b)}x`} {c >= 0 ? `+ ${c}` : `- ${Math.abs(c)}`}
-        </div>
-        <div>Discriminant (b² − 4ac) = <strong>{disc}</strong></div>
-        <div>Vertex = <strong>({vx.toFixed(2)}, {vy.toFixed(2)})</strong></div>
-        <div className="text-blue-700 font-semibold">
-          {disc > 0
-            ? `Roots: x₁ = ${((-b - Math.sqrt(disc)) / (2 * a)).toFixed(2)}, x₂ = ${((-b + Math.sqrt(disc)) / (2 * a)).toFixed(2)}`
-            : disc === 0
-              ? `Repeated root: x = ${vx.toFixed(2)}`
-              : 'No real roots (discriminant < 0)'}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const MensurationSandbox: React.FC = () => {
   const [radius, setRadius] = useState(5);
   const [height, setHeight] = useState(12);
@@ -662,14 +506,19 @@ const StandardFormSandbox: React.FC = () => {
   );
 };
 
-export const TopicSandbox: React.FC<TopicSandboxProps> = ({ type }) => {
+export const TopicSandbox: React.FC<TopicSandboxProps> = ({ type, topicId }) => {
   if (type === 'none') return null;
+
+  const isGeoGebra =
+    type === 'geogebra-graph' || type === 'linear-graph' || type === 'quadratic-solver';
+  const graphPreset = isGeoGebra ? getGraphPresetForTopic(topicId) : null;
 
   const titles: Record<Exclude<SandboxType, 'none'>, string> = {
     'money-converter': 'Interactive Currency & Commission Calculator',
     'percentage-interest': 'Interactive Compound Growth & Depreciation Explorer',
-    'linear-graph': 'Interactive Straight-Line & Perpendicular Explorer',
-    'quadratic-solver': 'Interactive Quadratic Discriminant & Vertex Explorer',
+    'linear-graph': graphPreset?.title ?? 'GeoGebra Explorer · Linear Graphs & Gradients',
+    'quadratic-solver': graphPreset?.title ?? 'GeoGebra Explorer · Curves, Roots & Intersections',
+    'geogebra-graph': graphPreset?.title ?? 'GeoGebra Explorer · Interactive Graph & Geometry',
     'trigonometry-triangle': 'Interactive Right-Angled Triangle Solver',
     'circle-theorems': 'Interactive Circle Theorem Angle Explorer',
     'probability-tree': 'Interactive Two-Stage Probability Simulator',
@@ -678,15 +527,19 @@ export const TopicSandbox: React.FC<TopicSandboxProps> = ({ type }) => {
   };
 
   return (
-    <section className="p-5 bg-white border border-slate-200 rounded-xl space-y-4">
-      <div className="flex items-center justify-between gap-2">
+    <section
+      className="p-5 bg-white border border-slate-200 rounded-xl space-y-4"
+      aria-label={titles[type]}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-display text-sm font-bold text-slate-900">{titles[type]}</h3>
-        <span className="text-xs text-slate-500">Interactive Model</span>
+        <span className="text-xs text-slate-500">
+          {isGeoGebra ? 'GeoGebra Interactive Graph' : 'Interactive Model'}
+        </span>
       </div>
       {type === 'money-converter' && <MoneyConverterSandbox />}
       {type === 'percentage-interest' && <CompoundInterestSandbox />}
-      {type === 'linear-graph' && <LinearGraphSandbox />}
-      {type === 'quadratic-solver' && <QuadraticSandbox />}
+      {isGeoGebra && <GeoGebraGraphTool topicId={topicId} allowPresetSwitch={true} />}
       {type === 'trigonometry-triangle' && <TrigTriangleSandbox />}
       {type === 'circle-theorems' && <CircleTheoremSandbox />}
       {type === 'probability-tree' && <ProbabilityTreeSandbox />}

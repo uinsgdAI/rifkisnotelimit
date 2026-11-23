@@ -448,7 +448,9 @@ export const NotesView: React.FC<NotesViewProps> = ({
         )}
 
         {/* Interactive Sandbox if present */}
-        {note.sandbox && note.sandbox !== 'none' && <TopicSandbox type={note.sandbox} />}
+        {note.sandbox && note.sandbox !== 'none' && (
+          <TopicSandbox type={note.sandbox} topicId={note.id} />
+        )}
 
         {/* Detailed Revision Notes */}
         {studyMode === 'detailed' && (

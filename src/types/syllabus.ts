@@ -30,6 +30,7 @@ export type SandboxType =
   | 'percentage-interest'
   | 'linear-graph'
   | 'quadratic-solver'
+  | 'geogebra-graph'
   | 'trigonometry-triangle'
   | 'circle-theorems'
   | 'probability-tree'

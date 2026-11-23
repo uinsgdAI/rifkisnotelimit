@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { FormulaSheetModal } from './components/FormulaSheetModal';
+import { GraphCalculatorModal } from './components/GraphCalculatorModal';
 import { Header } from './components/Header';
 import { NotesView } from './components/NotesView';
 import { PastPapersView } from './components/PastPapersView';
@@ -17,6 +18,7 @@ export default function App() {
     parseAppRoute(window.location.pathname, window.location.search)
   );
   const [formulaModalOpen, setFormulaModalOpen] = useState(false);
+  const [graphModalOpen, setGraphModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [studiedTopicIds, setStudiedTopicIds] = useState<string[]>(() => {
     try {
@@ -111,6 +113,7 @@ export default function App() {
         onNavigate={navigate}
         onGoHome={() => navigate({ view: 'notes', chapterId: 1, topicId: '1.1' }, '/')}
         onOpenFormulaSheet={() => setFormulaModalOpen(true)}
+        onOpenGraphTool={() => setGraphModalOpen(true)}
         onStartQuickMock={() =>
           navigate({ view: 'practice', mode: 'mock-extended' })
         }
@@ -188,6 +191,11 @@ export default function App() {
       <FormulaSheetModal
         open={formulaModalOpen}
         onClose={() => setFormulaModalOpen(false)}
+      />
+      <GraphCalculatorModal
+        open={graphModalOpen}
+        initialTopicId={route.view === 'notes' ? activeNote.id : 'general'}
+        onClose={() => setGraphModalOpen(false)}
       />
       <UniversalPageScroller />
     </div>

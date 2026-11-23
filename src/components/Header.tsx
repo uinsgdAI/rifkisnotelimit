@@ -7,6 +7,7 @@ interface HeaderProps {
   onNavigate: (route: AppRoute) => void;
   onGoHome: () => void;
   onOpenFormulaSheet: () => void;
+  onOpenGraphTool: () => void;
   onStartQuickMock: () => void;
   mobileMenuOpen: boolean;
   onToggleMobileMenu: () => void;
@@ -17,13 +18,14 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigate,
   onGoHome,
   onOpenFormulaSheet,
+  onOpenGraphTool,
   onStartQuickMock,
   mobileMenuOpen,
   onToggleMobileMenu,
 }) => {
   return (
     <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200">
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-8">
+      <div className="max-w-[1440px] mx-auto pl-4 pr-14 sm:pl-6 sm:pr-14 h-16 flex items-center justify-between gap-3 lg:gap-8">
         {/* Zone 1: Single text element wordmark */}
         <a
           href="/"
@@ -36,10 +38,10 @@ export const Header: React.FC<HeaderProps> = ({
           Rifki&apos;s Notes
         </a>
 
-        {/* Zone 2: 4 concise single-line nav links */}
+        {/* Zone 2: Concise single-line nav links */}
         <nav
           aria-label="Primary Navigation"
-          className="hidden md:flex items-center gap-6 text-sm font-medium"
+          className="hidden md:flex items-center gap-3.5 lg:gap-6 text-xs lg:text-sm font-medium"
         >
           <button
             type="button"
@@ -73,6 +75,13 @@ export const Header: React.FC<HeaderProps> = ({
             }`}
           >
             Practice Test
+          </button>
+          <button
+            type="button"
+            onClick={onOpenGraphTool}
+            className="py-1 whitespace-nowrap shrink-0 border-b-2 border-transparent text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+          >
+            Graph Tool
           </button>
           <button
             type="button"
@@ -135,6 +144,16 @@ export const Header: React.FC<HeaderProps> = ({
             className="block w-full text-left px-3 py-2.5 text-sm font-medium rounded-lg text-slate-800 hover:bg-slate-100"
           >
             Practice Test
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onOpenGraphTool();
+              onToggleMobileMenu();
+            }}
+            className="block w-full text-left px-3 py-2.5 text-sm font-medium rounded-lg text-slate-800 hover:bg-slate-100"
+          >
+            Graph Tool
           </button>
           <button
             type="button"
