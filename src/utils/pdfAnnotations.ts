@@ -1,3 +1,5 @@
+import { isDirectCorsPdfUrl } from './papacambridge';
+
 export interface NormalizedPoint {
   x: number; // 0..1 relative to page width
   y: number; // 0..1 relative to page height
@@ -717,4 +719,91 @@ export function evaluateTwoFingerPinchEngagement(params: {
 
   return { exceededDeadband: true, engage: true, pinchStartDist };
 }
+
+export function buildPdfByteCandidateUrls(sourceUrl: string, externalUrl?: string): string[] {
+  const trimmedSource = sourceUrl.trim();
+  const trimmedExternal = (externalUrl || '').trim();
+
+  if (trimmedSource.startsWith('blob:') || trimmedSource.startsWith('data:')) {
+    return [trimmedSource];
+  }
+
+  const candidates: string[] = [];
+  if (trimmedExternal && isDirectCorsPdfUrl(trimmedExternal)) {
+    candidates.push(trimmedExternal);
+    if (trimmedSource && trimmedSource !== trimmedExternal) {
+      candidates.push(trimmedSource);
+    }
+  } else {
+    if (trimmedSource) {
+      candidates.push(trimmedSource);
+    }
+    if (trimmedExternal && trimmedExternal !== trimmedSource) {
+      candidates.push(trimmedExternal);
+    }
+  }
+
+  return candidates;
+}
+
+export async function fetchPdfBytesWithFallback(
+  candidateUrls: string[],
+  options: { signal?: AbortSignal; fetchImpl?: typeof fetch } = {}
+): Promise<{ bytes: Uint8Array; loadedFrom: string }> {
+  const fetchFn = options.fetchImpl ?? fetch;
+  let lastError = 'Unable to fetch or parse PDF bytes.';
+
+  for (const url of candidateUrls) {
+    if (options.signal?.aborted) {
+      throw new DOMException('Aborted', 'AbortError');
+    }
+
+    const isExternalHttps = /^https?:\/\//i.test(url) && !url.startsWith('/api/');
+    try {
+      const resp = await fetchFn(url, {
+        mode: isExternalHttps ? 'cors' : 'same-origin',
+        credentials: isExternalHttps ? 'omit' : 'same-origin',
+        signal: options.signal,
+      });
+
+      const contentType = (resp.headers.get('content-type') || '').toLowerCase();
+      if (!resp.ok) {
+        let detail = `HTTP ${resp.status}`;
+        if (contentType.includes('application/json')) {
+          try {
+            const payload = (await resp.json()) as { error?: string };
+            if (payload.error) detail = payload.error;
+          } catch {
+            // ignore JSON parse failure
+          }
+        }
+        lastError = detail;
+        continue;
+      }
+
+      const buffer = await resp.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+
+      if (!hasPdfHeader(bytes)) {
+        if (contentType.includes('text/html') && url.startsWith('/api/')) {
+          lastError =
+            'The PDF proxy endpoint returned an HTML page instead of PDF bytes (the backend proxy may not be running on this host, or the file does not exist in the archive).';
+        } else {
+          lastError = `Expected a PDF document (%PDF-), but received ${contentType || 'unknown content'}.`;
+        }
+        continue;
+      }
+
+      return { bytes, loadedFrom: url };
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        throw err;
+      }
+      lastError = err instanceof Error && err.message ? err.message : lastError;
+    }
+  }
+
+  throw new Error(lastError);
+}
+
 

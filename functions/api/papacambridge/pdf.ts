@@ -1,4 +1,4 @@
-import { getPdfUpstreamHeaders, isAllowedPdfProxyUrl } from '../../../src/utils/papacambridge';
+import { fetchUpstreamPdfWithFallback, isAllowedPdfProxyUrl } from '../../../src/utils/papacambridge';
 
 export async function onRequestGet(context: { request: Request }): Promise<Response> {
   const reqUrl = new URL(context.request.url);
@@ -16,10 +16,7 @@ export async function onRequestGet(context: { request: Request }): Promise<Respo
   }
 
   try {
-    const upstream = await fetch(parsed.toString(), {
-      headers: getPdfUpstreamHeaders(parsed),
-      signal: AbortSignal.timeout(20000),
-    });
+    const upstream = await fetchUpstreamPdfWithFallback(parsed);
 
     if (!upstream.ok) {
       return new Response(

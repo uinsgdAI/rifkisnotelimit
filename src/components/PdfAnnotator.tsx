@@ -20,6 +20,7 @@ import {
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import {
+  buildPdfByteCandidateUrls,
   capturePdfZoomAnchor,
   cloneAnnotationsMap,
   computeAnchoredScrollPosition,
@@ -31,7 +32,7 @@ import {
   eraseStrokesNearPoint,
   estimateVisiblePage,
   evaluateTwoFingerPinchEngagement,
-  hasPdfHeader,
+  fetchPdfBytesWithFallback,
   loadPaperAnnotations,
   normalizePointerToPage,
   pushAnnotationHistory,
@@ -414,6 +415,8 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
   >({});
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [localOverrideUrl, setLocalOverrideUrl] = useState<string | null>(null);
+  const localUploadRef = useRef<HTMLInputElement | null>(null);
 
   const [zoom, setZoom] = useState(1.0);
   const [zoomCommitSeq, setZoomCommitSeq] = useState(0);
@@ -564,7 +567,15 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     savePaperAnnotations(paperKey, history.present);
   }, [paperKey, history.present]);
 
-  // Fetch PDF bytes first (with same-origin cookies & %PDF- validation) then load into pdfjs-dist
+  // Reset any temporary offline file override when switching source PDFs
+  useEffect(() => {
+    setLocalOverrideUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+  }, [sourceUrl, externalUrl]);
+
+  // Fetch PDF bytes (direct CORS when supported + proxy fallback) then load into pdfjs-dist
   useEffect(() => {
     let cancelled = false;
     const abortController = new AbortController();
@@ -575,40 +586,15 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     setPdfDoc(null);
     setBasePageDims({});
 
+    const candidates = localOverrideUrl
+      ? [localOverrideUrl]
+      : buildPdfByteCandidateUrls(sourceUrl, externalUrl);
+
     (async () => {
       try {
-        const resp = await fetch(sourceUrl, {
-          credentials: 'same-origin',
+        const { bytes } = await fetchPdfBytesWithFallback(candidates, {
           signal: abortController.signal,
         });
-
-        const contentType = (resp.headers.get('content-type') || '').toLowerCase();
-        if (!resp.ok) {
-          let detail = `HTTP ${resp.status}`;
-          if (contentType.includes('application/json')) {
-            try {
-              const payload = (await resp.json()) as { error?: string };
-              if (payload.error) detail = payload.error;
-            } catch {
-              // ignore JSON parse failure
-            }
-          }
-          throw new Error(detail);
-        }
-
-        const buffer = await resp.arrayBuffer();
-        const bytes = new Uint8Array(buffer);
-
-        if (!hasPdfHeader(bytes)) {
-          if (contentType.includes('text/html') && sourceUrl.startsWith('/api/')) {
-            throw new Error(
-              'The PDF proxy endpoint returned an HTML page instead of PDF bytes (the backend proxy may not be running on this host, or the file does not exist on PapaCambridge).'
-            );
-          }
-          throw new Error(
-            `Expected a PDF document (%PDF-), but received ${contentType || 'unknown content'}.`
-          );
-        }
 
         if (cancelled) return;
 
@@ -658,7 +644,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
         void activeLoadTask.destroy().catch(() => undefined);
       }
     };
-  }, [sourceUrl]);
+  }, [sourceUrl, externalUrl, localOverrideUrl]);
 
   const registerCanvases = useCallback(
     (
@@ -1438,6 +1424,22 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
             {!loading && errorMsg && (
               <div className="max-w-lg mx-auto my-12 p-5 bg-white border border-slate-200 rounded-xl text-center space-y-3">
                 <p className="text-sm text-slate-700 leading-relaxed">{errorMsg}</p>
+                <input
+                  ref={localUploadRef}
+                  type="file"
+                  accept="application/pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const blob = URL.createObjectURL(file);
+                    setLocalOverrideUrl((prev) => {
+                      if (prev) URL.revokeObjectURL(prev);
+                      return blob;
+                    });
+                    e.target.value = '';
+                  }}
+                />
                 <div className="flex flex-wrap items-center justify-center gap-2">
                   {onFallbackViewer && (
                     <button
@@ -1458,6 +1460,13 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
                       Open PDF Directly
                     </a>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => localUploadRef.current?.click()}
+                    className="px-3.5 py-2 text-xs font-semibold border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 rounded-lg cursor-pointer"
+                  >
+                    Upload Local PDF
+                  </button>
                 </div>
               </div>
             )}

@@ -5,7 +5,7 @@ import { createServer as createViteServer } from 'vite';
 import {
   fetchPapaCambridgePapers,
   fetchPapaCambridgeSessions,
-  getPdfUpstreamHeaders,
+  fetchUpstreamPdfWithFallback,
   isAllowedPdfProxyUrl,
 } from './src/utils/papacambridge';
 
@@ -45,10 +45,7 @@ async function startServer() {
     }
 
     try {
-      const upstream = await fetch(parsed.toString(), {
-        headers: getPdfUpstreamHeaders(parsed),
-        signal: AbortSignal.timeout(20000),
-      });
+      const upstream = await fetchUpstreamPdfWithFallback(parsed);
 
       if (!upstream.ok) {
         res.status(upstream.status).json({ error: `Upstream returned ${upstream.status}` });

@@ -3,7 +3,16 @@ import assert from 'node:assert/strict';
 import { ALL_SUBTOPICS_0580, SYLLABUS_0580 } from '../data/syllabus0580';
 import { TOPICAL_PAPERS_0580 } from '../data/topicalPapers0580';
 import { parseAppRoute, buildAppRoutePath } from './examLogic';
-import { getPdfUpstreamHeaders, isAllowedPdfProxyUrl } from './papacambridge';
+import {
+  fetchUpstreamPdfWithFallback,
+  getPdfUpstreamHeaders,
+  isAllowedPdfProxyUrl,
+  isDirectCorsPdfUrl,
+} from './papacambridge';
+import {
+  buildPdfByteCandidateUrls,
+  fetchPdfBytesWithFallback,
+} from './pdfAnnotations';
 import {
   countTopicalPapersByChapter,
   filterTopicalPapers,
@@ -117,3 +126,65 @@ test('Syllabus notes explicitly cover all strengthened topical sub-skills and ?p
     '/practice/0580?pack=surds-non-calc'
   );
 });
+
+test('Direct-CORS ordering and multi-source PDF byte fallback bypass proxy 403 errors', async () => {
+  const penguinQ =
+    'https://pastpaperpenguin.com/wp-content/uploads/2026/09/Q-Calculations-with-Negatives-Decimals-etc-Non-Calc.pdf';
+  const proxyQ = getTopicalPdfBytesUrl(penguinQ);
+  const papaQp =
+    'https://pastpapers.papacambridge.com/directories/CAIE/CAIE-pastpapers/upload/0580_s24_qp_42.pdf';
+  const proxyPapa = getTopicalPdfBytesUrl(papaQp);
+
+  assert.equal(isDirectCorsPdfUrl(penguinQ), true);
+  assert.equal(isDirectCorsPdfUrl(papaQp), false);
+
+  // Past Paper Penguin prefers direct browser CORS fetch first, proxy second
+  assert.deepEqual(buildPdfByteCandidateUrls(proxyQ, penguinQ), [penguinQ, proxyQ]);
+  // PapaCambridge keeps same-origin proxy first
+  assert.deepEqual(buildPdfByteCandidateUrls(proxyPapa, papaQp), [proxyPapa, papaQp]);
+  // Local blob PDFs stay single-source
+  assert.deepEqual(buildPdfByteCandidateUrls('blob:http://localhost:3000/abc'), [
+    'blob:http://localhost:3000/abc',
+  ]);
+
+  // If primary candidate returns 403, fallback candidate succeeds seamlessly
+  const calls: string[] = [];
+  const res = await fetchPdfBytesWithFallback([proxyQ, penguinQ], {
+    fetchImpl: (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      calls.push(url);
+      if (url === proxyQ) {
+        return new Response(JSON.stringify({ error: 'Upstream returned 403' }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(new TextEncoder().encode('%PDF-1.4\n%%EOF'), {
+        status: 200,
+        headers: { 'Content-Type': 'application/pdf' },
+      });
+    }) as typeof fetch,
+  });
+
+  assert.deepEqual(calls, [proxyQ, penguinQ]);
+  assert.equal(res.loadedFrom, penguinQ);
+  assert.equal(new TextDecoder('latin1').decode(res.bytes.slice(0, 5)), '%PDF-');
+
+  // Server/Worker proxy also retries with alternate header profile on upstream 403
+  let attempt = 0;
+  const parsedPenguin = isAllowedPdfProxyUrl(penguinQ)!;
+  const upstreamRes = await fetchUpstreamPdfWithFallback(parsedPenguin, (async () => {
+    attempt += 1;
+    if (attempt === 1) {
+      return new Response('Forbidden', { status: 403 });
+    }
+    return new Response(new TextEncoder().encode('%PDF-1.4\n'), {
+      status: 200,
+      headers: { 'Content-Type': 'application/pdf' },
+    });
+  }) as typeof fetch);
+
+  assert.equal(attempt, 2);
+  assert.equal(upstreamRes.status, 200);
+});
+

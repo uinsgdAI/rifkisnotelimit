@@ -1,7 +1,7 @@
 import {
   fetchPapaCambridgePapers,
   fetchPapaCambridgeSessions,
-  getPdfUpstreamHeaders,
+  fetchUpstreamPdfWithFallback,
   isAllowedPdfProxyUrl,
 } from './papacambridge';
 
@@ -55,10 +55,7 @@ export async function handleApiRequest(
     }
 
     try {
-      const upstream = await fetchImpl(parsed.toString(), {
-        headers: getPdfUpstreamHeaders(parsed),
-        signal: AbortSignal.timeout(20000),
-      });
+      const upstream = await fetchUpstreamPdfWithFallback(parsed, fetchImpl);
 
       if (!upstream.ok) {
         return jsonResponse({ error: `Upstream returned ${upstream.status}` }, upstream.status);

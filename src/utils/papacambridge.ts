@@ -257,17 +257,70 @@ export function isAllowedPdfProxyUrl(rawUrl: string): URL | null {
   }
 }
 
-export function getPdfUpstreamHeaders(parsed: URL): Record<string, string> {
+const DIRECT_CORS_PDF_HOSTS = new Set([
+  'pastpaperpenguin.com',
+  'www.pastpaperpenguin.com',
+]);
+
+export function isDirectCorsPdfUrl(rawUrl: string): boolean {
+  try {
+    const parsed = new URL(rawUrl);
+    return (
+      parsed.protocol === 'https:' &&
+      DIRECT_CORS_PDF_HOSTS.has(parsed.hostname.toLowerCase()) &&
+      parsed.pathname.toLowerCase().endsWith('.pdf')
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function getPdfUpstreamHeaders(
+  parsed: URL,
+  variant: 'browser' | 'minimal' = 'browser'
+): Record<string, string> {
+  if (variant === 'minimal') {
+    return {
+      Accept: 'application/pdf,application/octet-stream,*/*;q=0.8',
+    };
+  }
   const host = parsed.hostname.toLowerCase();
   const referer = host.includes('pastpaperpenguin.com')
     ? 'https://pastpaperpenguin.com/'
     : 'https://pastpapers.papacambridge.com/';
   return {
     'User-Agent':
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
     Accept: 'application/pdf,application/octet-stream,*/*;q=0.9',
+    'Accept-Language': 'en-US,en;q=0.9',
     Referer: referer,
   };
+}
+
+export async function fetchUpstreamPdfWithFallback(
+  parsed: URL,
+  fetchImpl: typeof fetch = fetch
+): Promise<Response> {
+  const urlStr = parsed.toString();
+  const isPenguin = parsed.hostname.toLowerCase().includes('pastpaperpenguin.com');
+  const firstVariant: 'browser' | 'minimal' = isPenguin ? 'minimal' : 'browser';
+  const secondVariant: 'browser' | 'minimal' = isPenguin ? 'browser' : 'minimal';
+
+  let upstream = await fetchImpl(urlStr, {
+    headers: getPdfUpstreamHeaders(parsed, firstVariant),
+    redirect: 'follow',
+    signal: AbortSignal.timeout(20000),
+  });
+
+  if (upstream.status === 403 || upstream.status === 406) {
+    upstream = await fetchImpl(urlStr, {
+      headers: getPdfUpstreamHeaders(parsed, secondVariant),
+      redirect: 'follow',
+      signal: AbortSignal.timeout(20000),
+    });
+  }
+
+  return upstream;
 }
 
 export function buildGoogleDocsViewerUrl(pdfUrl: string): string {

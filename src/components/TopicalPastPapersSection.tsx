@@ -5,13 +5,18 @@ import {
   Columns2,
   Download,
   ExternalLink,
+  Loader2,
   Pen,
   Search,
 } from 'lucide-react';
 import { SYLLABUS_0580 } from '../data/syllabus0580';
 import { TOPICAL_PAPERS_0580, type TopicalPaperPack } from '../data/topicalPapers0580';
 import type { AppRoute } from '../types/syllabus';
-import { resolvePdfIframeUrl } from '../utils/papacambridge';
+import { buildGoogleDocsViewerUrl } from '../utils/papacambridge';
+import {
+  buildPdfByteCandidateUrls,
+  fetchPdfBytesWithFallback,
+} from '../utils/pdfAnnotations';
 import {
   countTopicalPapersByChapter,
   filterTopicalPapers,
@@ -25,18 +30,142 @@ interface TopicalPastPapersSectionProps {
   onNavigate: (route: AppRoute) => void;
 }
 
-async function checkProxyHealth(): Promise<boolean> {
-  try {
-    const res = await fetch('/api/health');
-    if (!res.ok) return false;
-    const ct = res.headers.get('content-type') || '';
-    if (!ct.toLowerCase().includes('application/json')) return false;
-    const json = (await res.json()) as { ok?: boolean };
-    return Boolean(json?.ok);
-  } catch {
-    return false;
-  }
+interface NativePdfFrameProps {
+  externalUrl: string;
+  title: string;
+  onSwitchToAnnotate: () => void;
+  onSwitchToWeb: () => void;
 }
+
+const NativePdfFrame: React.FC<NativePdfFrameProps> = ({
+  externalUrl,
+  title,
+  onSwitchToAnnotate,
+  onSwitchToWeb,
+}) => {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    const abortController = new AbortController();
+
+    setLoading(true);
+    setError(null);
+    setBlobUrl(null);
+
+    const candidates = buildPdfByteCandidateUrls(
+      getTopicalPdfBytesUrl(externalUrl),
+      externalUrl
+    );
+
+    fetchPdfBytesWithFallback(candidates, { signal: abortController.signal })
+      .then(({ bytes }) => {
+        if (cancelled) return;
+        const copy = new Uint8Array(bytes.byteLength);
+        copy.set(bytes);
+        objectUrl = URL.createObjectURL(new Blob([copy], { type: 'application/pdf' }));
+        setBlobUrl(objectUrl);
+      })
+      .catch((err) => {
+        if (cancelled || (err instanceof DOMException && err.name === 'AbortError')) return;
+        setError(err instanceof Error && err.message ? err.message : 'Unable to load native PDF.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      abortController.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [externalUrl]);
+
+  if (loading) {
+    return (
+      <div className="w-full h-[640px] flex flex-col items-center justify-center gap-3 text-sm text-slate-600 bg-slate-50">
+        <Loader2 className="w-5 h-5 animate-spin text-blue-700" />
+        <span>Loading native PDF viewer...</span>
+      </div>
+    );
+  }
+
+  if (error || !blobUrl) {
+    return (
+      <div className="w-full h-[640px] flex flex-col items-center justify-center gap-3 p-6 text-center bg-slate-50">
+        <p className="text-sm text-slate-700 max-w-md">
+          Native browser PDF could not be embedded ({error || 'blocked by network'}).
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={onSwitchToAnnotate}
+            className="px-3.5 py-2 text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded-lg cursor-pointer"
+          >
+            Open in Annotate (Draw)
+          </button>
+          <button
+            type="button"
+            onClick={onSwitchToWeb}
+            className="px-3.5 py-2 text-xs font-semibold border border-slate-200 bg-white hover:bg-slate-100 text-slate-800 rounded-lg cursor-pointer"
+          >
+            Switch to Web Viewer
+          </button>
+          <a
+            href={externalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3.5 py-2 text-xs font-semibold border border-slate-200 bg-white hover:bg-slate-100 text-slate-800 rounded-lg"
+          >
+            Open PDF Directly
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <object
+      aria-label={title}
+      data={blobUrl}
+      type="application/pdf"
+      className="w-full h-[640px] block bg-slate-50"
+    >
+      <div className="w-full h-[640px] flex flex-col items-center justify-center gap-3 p-6 text-center bg-slate-50">
+        <p className="text-sm text-slate-700 max-w-md">
+          This browser does not embed Native PDF plugins inline. Use Annotate (Draw) to view &amp; scribble directly on every page, or open the PDF in a new tab.
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={onSwitchToAnnotate}
+            className="px-3.5 py-2 text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded-lg cursor-pointer"
+          >
+            Switch to Annotate (Draw)
+          </button>
+          <button
+            type="button"
+            onClick={onSwitchToWeb}
+            className="px-3.5 py-2 text-xs font-semibold border border-slate-200 bg-white hover:bg-slate-100 text-slate-800 rounded-lg cursor-pointer"
+          >
+            Switch to Web Viewer
+          </button>
+          <a
+            href={externalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3.5 py-2 text-xs font-semibold border border-slate-200 bg-white hover:bg-slate-100 text-slate-800 rounded-lg"
+          >
+            Open PDF Directly
+          </a>
+        </div>
+      </div>
+    </object>
+  );
+};
 
 export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> = ({
   selectedChapterFilter,
@@ -46,8 +175,8 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
   const [chapterFilter, setChapterFilter] = useState<number | 'all'>(selectedChapterFilter);
   const [paperModeFilter, setPaperModeFilter] = useState<'all' | TopicalPaperPack['paperMode']>('all');
   const [query, setQuery] = useState('');
-  const [apiProxyAvailable, setApiProxyAvailable] = useState(true);
   const [viewerMode, setViewerMode] = useState<'annotate' | 'proxy' | 'web'>('annotate');
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [activePack, setActivePack] = useState<TopicalPaperPack | null>(() =>
     initialPackId ? TOPICAL_PAPERS_0580.find((p) => p.id === initialPackId) || null : null
   );
@@ -64,25 +193,12 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
     if (match) {
       setActivePack(match);
       setSplitAnswers(true);
+      setViewerMode('annotate');
       window.setTimeout(() => {
         viewerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }, 60);
     }
   }, [initialPackId]);
-
-  useEffect(() => {
-    let cancelled = false;
-    checkProxyHealth().then((ok) => {
-      if (cancelled) return;
-      setApiProxyAvailable(ok);
-      if (!ok) {
-        setViewerMode((prev) => (prev === 'annotate' ? 'web' : prev));
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const chapterCounts = useMemo(() => countTopicalPapersByChapter(TOPICAL_PAPERS_0580), []);
 
@@ -99,22 +215,39 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
   const openPack = (pack: TopicalPaperPack, withSplitAnswers: boolean) => {
     setActivePack(pack);
     setSplitAnswers(withSplitAnswers);
-    if (apiProxyAvailable) {
-      setViewerMode('annotate');
-    }
+    setViewerMode('annotate');
     window.setTimeout(() => {
       viewerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, 50);
   };
 
-  const pdfIframeUrl = (rawUrl: string) =>
-    resolvePdfIframeUrl(rawUrl, {
-      apiProxyAvailable,
-      viewerMode: viewerMode === 'web' ? 'web' : 'proxy',
-    });
-
-  const downloadHref = (rawUrl: string) =>
-    apiProxyAvailable ? getTopicalPdfBytesUrl(rawUrl) : rawUrl;
+  const handleDownloadPackPdf = async (packId: string, url: string, filename: string) => {
+    setDownloadingId(packId);
+    try {
+      const candidates = buildPdfByteCandidateUrls(getTopicalPdfBytesUrl(url), url);
+      const { bytes } = await fetchPdfBytesWithFallback(candidates);
+      const copy = new Uint8Array(bytes.byteLength);
+      copy.set(bytes);
+      const blobUrl = URL.createObjectURL(new Blob([copy], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1500);
+    } catch {
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   return (
     <section
@@ -279,33 +412,29 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                 aria-label="Topical PDF viewer engine"
                 className="inline-flex p-0.5 bg-slate-200/80 rounded-lg"
               >
-                {apiProxyAvailable && (
-                  <button
-                    type="button"
-                    onClick={() => setViewerMode('annotate')}
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md cursor-pointer ${
-                      viewerMode === 'annotate'
-                        ? 'bg-white text-slate-900 shadow-xs'
-                        : 'text-slate-600'
-                    }`}
-                  >
-                    <Pen className="w-3 h-3" />
-                    Annotate (Draw)
-                  </button>
-                )}
-                {apiProxyAvailable && (
-                  <button
-                    type="button"
-                    onClick={() => setViewerMode('proxy')}
-                    className={`px-2.5 py-1 text-xs font-medium rounded-md cursor-pointer ${
-                      viewerMode === 'proxy'
-                        ? 'bg-white text-slate-900 shadow-xs'
-                        : 'text-slate-600'
-                    }`}
-                  >
-                    Native PDF
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setViewerMode('annotate')}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md cursor-pointer ${
+                    viewerMode === 'annotate'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600'
+                  }`}
+                >
+                  <Pen className="w-3 h-3" />
+                  Annotate (Draw)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewerMode('proxy')}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-md cursor-pointer ${
+                    viewerMode === 'proxy'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600'
+                  }`}
+                >
+                  Native PDF
+                </button>
                 <button
                   type="button"
                   onClick={() => setViewerMode('web')}
@@ -376,10 +505,17 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                   paperTitle={`${activePack.title} — Questions`}
                   onFallbackViewer={() => setViewerMode('web')}
                 />
+              ) : viewerMode === 'proxy' ? (
+                <NativePdfFrame
+                  externalUrl={activePack.questionsUrl}
+                  title={activePack.questionsFilename}
+                  onSwitchToAnnotate={() => setViewerMode('annotate')}
+                  onSwitchToWeb={() => setViewerMode('web')}
+                />
               ) : (
                 <iframe
                   title={activePack.questionsFilename}
-                  src={pdfIframeUrl(activePack.questionsUrl)}
+                  src={buildGoogleDocsViewerUrl(activePack.questionsUrl)}
                   className="w-full h-[640px] border-0 bg-slate-50"
                 />
               )}
@@ -407,10 +543,17 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                     initialPenColorHex="#dc2626"
                     onFallbackViewer={() => setViewerMode('web')}
                   />
+                ) : viewerMode === 'proxy' ? (
+                  <NativePdfFrame
+                    externalUrl={activePack.answersUrl}
+                    title={activePack.answersFilename}
+                    onSwitchToAnnotate={() => setViewerMode('annotate')}
+                    onSwitchToWeb={() => setViewerMode('web')}
+                  />
                 ) : (
                   <iframe
                     title={activePack.answersFilename}
-                    src={pdfIframeUrl(activePack.answersUrl)}
+                    src={buildGoogleDocsViewerUrl(activePack.answersUrl)}
                     className="w-full h-[640px] border-0 bg-slate-50"
                   />
                 )}
@@ -538,17 +681,26 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                             <Columns2 className="w-3.5 h-3.5" />
                             Split Q + Ans
                           </button>
-                          <a
-                            href={downloadHref(pack.questionsUrl)}
-                            target={apiProxyAvailable ? undefined : '_blank'}
-                            rel={apiProxyAvailable ? undefined : 'noopener noreferrer'}
-                            download={pack.questionsFilename}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleDownloadPackPdf(
+                                pack.id,
+                                pack.questionsUrl,
+                                pack.questionsFilename
+                              )
+                            }
+                            disabled={downloadingId === pack.id}
                             aria-label={`Download ${pack.questionsFilename}`}
                             title="Download Questions PDF"
-                            className="p-1.5 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100"
+                            className="p-1.5 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 cursor-pointer disabled:opacity-50"
                           >
-                            <Download className="w-4 h-4" />
-                          </a>
+                            {downloadingId === pack.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Download className="w-4 h-4" />
+                            )}
+                          </button>
                         </div>
                       </td>
                     </tr>
