@@ -9,8 +9,11 @@ import {
   Loader2,
   Pen,
   Redo2,
+  RotateCw,
+  Ruler,
   Trash2,
   Undo2,
+  X,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
@@ -18,6 +21,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import {
   cloneAnnotationsMap,
+  computePinchZoomScale,
   computeScrollThumbMetrics,
   computeScrollTopFromTrackY,
   countTotalStrokes,
@@ -31,11 +35,13 @@ import {
   redoAnnotationHistory,
   renderStrokesToCanvas,
   savePaperAnnotations,
+  snapClientPointToRulerEdge,
   undoAnnotationHistory,
   type AnnotationHistoryState,
   type AnnotationStroke,
   type AnnotationTool,
   type PaperAnnotationsMap,
+  type RulerClientGeometry,
 } from '../utils/pdfAnnotations';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
@@ -84,6 +90,8 @@ interface PdfPageCanvasProps {
   activeTool: AnnotationTool;
   activeColor: string;
   activeSize: number;
+  isMultiTouchActiveRef: React.MutableRefObject<boolean>;
+  getRulerGeometry: () => RulerClientGeometry | null;
   onCommitStroke: (pageNumber: number, stroke: AnnotationStroke) => void;
   onEraseAtPoint: (pageNumber: number, point: { x: number; y: number }) => void;
   registerCanvases: (
@@ -100,6 +108,8 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
   activeTool,
   activeColor,
   activeSize,
+  isMultiTouchActiveRef,
+  getRulerGeometry,
   onCommitStroke,
   onEraseAtPoint,
   registerCanvases,
@@ -107,8 +117,8 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
   const pdfCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const liveStrokeRef = useRef<AnnotationStroke | null>(null);
+  const snappedEdgeRef = useRef<'top' | 'bottom' | null>(null);
   const isDrawingRef = useRef(false);
-  const activePointersRef = useRef<Set<number>>(new Set());
   const [dims, setDims] = useState<{ width: number; height: number } | null>(null);
 
   useEffect(() => {
@@ -197,27 +207,42 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
     if (activeTool === 'pan') return;
     if (e.button !== 0 && e.pointerType === 'mouse') return;
 
-    activePointersRef.current.add(e.pointerId);
-    // Multi-touch guard: if user puts a second finger down to scroll/zoom, cancel accidental nascent stroke
-    if (activePointersRef.current.size > 1) {
+    if (isMultiTouchActiveRef.current) {
       isDrawingRef.current = false;
       liveStrokeRef.current = null;
+      snappedEdgeRef.current = null;
       redrawOverlay();
       return;
     }
 
     const canvas = drawCanvasRef.current;
     if (!canvas) return;
-    canvas.setPointerCapture(e.pointerId);
+    try {
+      canvas.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore if synthetic pointer
+    }
 
     const rect = canvas.getBoundingClientRect();
-    const point = normalizePointerToPage(e.clientX, e.clientY, rect);
 
     if (activeTool === 'eraser') {
+      const point = normalizePointerToPage(e.clientX, e.clientY, rect);
       isDrawingRef.current = true;
       onEraseAtPoint(pageNumber, point);
       return;
     }
+
+    const ruler = getRulerGeometry();
+    const snap = ruler
+      ? snapClientPointToRulerEdge(e.clientX, e.clientY, ruler, { snapThresholdPx: 32 })
+      : null;
+
+    snappedEdgeRef.current = snap?.snapped ? snap.edge : null;
+    const point = normalizePointerToPage(
+      snap?.snapped ? snap.clientX : e.clientX,
+      snap?.snapped ? snap.clientY : e.clientY,
+      rect
+    );
 
     isDrawingRef.current = true;
     liveStrokeRef.current = {
@@ -231,20 +256,45 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (activePointersRef.current.size > 1) return;
+    if (isMultiTouchActiveRef.current) {
+      if (isDrawingRef.current) {
+        isDrawingRef.current = false;
+        liveStrokeRef.current = null;
+        snappedEdgeRef.current = null;
+        redrawOverlay();
+      }
+      return;
+    }
+
     if (!isDrawingRef.current || activeTool === 'pan') return;
     const canvas = drawCanvasRef.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    const point = normalizePointerToPage(e.clientX, e.clientY, rect);
 
     if (activeTool === 'eraser') {
+      const point = normalizePointerToPage(e.clientX, e.clientY, rect);
       onEraseAtPoint(pageNumber, point);
       return;
     }
 
     if (!liveStrokeRef.current) return;
+
+    if (snappedEdgeRef.current) {
+      const ruler = getRulerGeometry();
+      if (ruler) {
+        const snap = snapClientPointToRulerEdge(e.clientX, e.clientY, ruler, {
+          forcedEdge: snappedEdgeRef.current,
+        });
+        const endPt = normalizePointerToPage(snap.clientX, snap.clientY, rect);
+        const startPt = liveStrokeRef.current.points[0];
+        liveStrokeRef.current.points = [startPt, endPt];
+        redrawOverlay();
+        return;
+      }
+    }
+
+    const point = normalizePointerToPage(e.clientX, e.clientY, rect);
     const prev = liveStrokeRef.current.points[liveStrokeRef.current.points.length - 1];
     if (Math.hypot(point.x - prev.x, point.y - prev.y) < 0.0012) {
       return;
@@ -254,7 +304,6 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
   };
 
   const finishStroke = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    activePointersRef.current.delete(e.pointerId);
     if (!isDrawingRef.current) return;
     isDrawingRef.current = false;
 
@@ -267,6 +316,14 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
       }
     }
 
+    if (isMultiTouchActiveRef.current) {
+      liveStrokeRef.current = null;
+      snappedEdgeRef.current = null;
+      redrawOverlay();
+      return;
+    }
+
+    snappedEdgeRef.current = null;
     if (activeTool !== 'eraser' && liveStrokeRef.current) {
       const committed = liveStrokeRef.current;
       liveStrokeRef.current = null;
@@ -287,7 +344,13 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
         onPointerMove={handlePointerMove}
         onPointerUp={finishStroke}
         onPointerCancel={finishStroke}
-        style={{ touchAction: activeTool === 'pan' ? 'auto' : 'none' }}
+        onContextMenu={(e) => e.preventDefault()}
+        style={{
+          touchAction: activeTool === 'pan' ? 'auto' : 'none',
+          WebkitTouchCallout: 'none',
+          WebkitUserSelect: 'none',
+          userSelect: 'none',
+        }}
         className={`absolute inset-0 block ${
           activeTool === 'pan'
             ? 'pointer-events-none cursor-grab'
@@ -319,16 +382,27 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [zoom, setZoom] = useState(1.0);
+  const [pinchPreviewScale, setPinchPreviewScale] = useState(1.0);
   const [tool, setTool] = useState<AnnotationTool>(initialTool);
   const [penColor, setPenColor] = useState(initialPenColorHex);
   const [hlColor, setHlColor] = useState(HIGHLIGHT_COLORS[0].hex);
   const [widthPreset, setWidthPreset] = useState<(typeof STROKE_WIDTHS)[number]['id']>('med');
   const [activeExportPage, setActiveExportPage] = useState(1);
 
+  const [rulerEnabled, setRulerEnabled] = useState(false);
+  const [rulerState, setRulerState] = useState({
+    xPct: 50,
+    yPct: 45,
+    angleDeg: 0,
+    lengthPx: 360,
+    thicknessPx: 42,
+  });
+
   const [history, setHistory] = useState<AnnotationHistoryState>(() =>
     createInitialAnnotationHistory(loadPaperAnnotations(paperKey))
   );
 
+  const viewportBoxRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
   const draggingRailRef = useRef<{ active: boolean; grabOffsetRatio: number }>({
@@ -341,6 +415,29 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     clientHeight: 0,
     trackHeight: 400,
   });
+
+  // Multi-touch pinch-to-zoom state
+  const activeTouchPointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const isMultiTouchActiveRef = useRef(false);
+  const pinchSessionRef = useRef<{
+    active: boolean;
+    startDistance: number;
+    startZoom: number;
+    targetZoom: number;
+  }>({
+    active: false,
+    startDistance: 0,
+    startZoom: 1,
+    targetZoom: 1,
+  });
+
+  // Ruler drag/rotate state
+  const rulerDragRef = useRef<
+    | { mode: 'none' }
+    | { mode: 'move'; startX: number; startY: number; startXPct: number; startYPct: number }
+    | { mode: 'rotate'; centerX: number; centerY: number }
+  >({ mode: 'none' });
+
   const pageCanvasesRef = useRef<
     Record<number, { pdfCanvas: HTMLCanvasElement | null; drawCanvas: HTMLCanvasElement | null }>
   >({});
@@ -575,6 +672,21 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     [scrollState, numPages]
   );
 
+  const getRulerGeometry = useCallback((): RulerClientGeometry | null => {
+    if (!rulerEnabled) return null;
+    const box = viewportBoxRef.current;
+    if (!box) return null;
+    const rect = box.getBoundingClientRect();
+    const effectiveLength = Math.min(rulerState.lengthPx, Math.max(200, rect.width - 40));
+    return {
+      centerX: rect.left + (rect.width * rulerState.xPct) / 100,
+      centerY: rect.top + (rect.height * rulerState.yPct) / 100,
+      angleDeg: rulerState.angleDeg,
+      lengthPx: effectiveLength,
+      thicknessPx: rulerState.thicknessPx,
+    };
+  }, [rulerEnabled, rulerState]);
+
   const applyRailPointerY = useCallback(
     (clientY: number, grabOffsetRatio: number) => {
       const container = containerRef.current;
@@ -601,7 +713,11 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     e.preventDefault();
     const track = trackRef.current;
     if (!track) return;
-    track.setPointerCapture(e.pointerId);
+    try {
+      track.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
 
     const rect = track.getBoundingClientRect();
     const localY = e.clientY - rect.top;
@@ -640,6 +756,150 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     if (!container) return;
     const delta = Math.max(180, Math.round(container.clientHeight * 0.72));
     container.scrollBy({ top: direction * delta, behavior: 'smooth' });
+  };
+
+  // Multi-finger pinch-to-zoom capture handlers on the PDF viewport
+  const getTwoPointerDistance = () => {
+    const pts = Array.from(activeTouchPointersRef.current.values());
+    if (pts.length < 2) return 0;
+    return Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+  };
+
+  const handleViewportPointerDownCapture = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== 'touch') return;
+    activeTouchPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (activeTouchPointersRef.current.size >= 2) {
+      isMultiTouchActiveRef.current = true;
+      const dist = getTwoPointerDistance();
+      if (!pinchSessionRef.current.active && dist > 8) {
+        pinchSessionRef.current = {
+          active: true,
+          startDistance: dist,
+          startZoom: zoom,
+          targetZoom: zoom,
+        };
+      }
+    }
+  };
+
+  const handleViewportPointerMoveCapture = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== 'touch') return;
+    if (!activeTouchPointersRef.current.has(e.pointerId)) return;
+    activeTouchPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (activeTouchPointersRef.current.size >= 2 && pinchSessionRef.current.active) {
+      const dist = getTwoPointerDistance();
+      const nextZoom = computePinchZoomScale({
+        initialZoom: pinchSessionRef.current.startZoom,
+        startDistance: pinchSessionRef.current.startDistance,
+        currentDistance: dist,
+        minZoom: 0.65,
+        maxZoom: 2.5,
+      });
+      pinchSessionRef.current.targetZoom = nextZoom;
+      setPinchPreviewScale(nextZoom / pinchSessionRef.current.startZoom);
+    }
+  };
+
+  const handleViewportPointerEndCapture = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== 'touch') return;
+    activeTouchPointersRef.current.delete(e.pointerId);
+
+    if (activeTouchPointersRef.current.size < 2) {
+      if (pinchSessionRef.current.active) {
+        const committedZoom = Number(pinchSessionRef.current.targetZoom.toFixed(2));
+        pinchSessionRef.current.active = false;
+        setPinchPreviewScale(1.0);
+        setZoom(committedZoom);
+      }
+      if (activeTouchPointersRef.current.size === 0) {
+        isMultiTouchActiveRef.current = false;
+      }
+    }
+  };
+
+  // Ruler drag & rotate handlers
+  const handleRulerBodyPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    e.preventDefault();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+    rulerDragRef.current = {
+      mode: 'move',
+      startX: e.clientX,
+      startY: e.clientY,
+      startXPct: rulerState.xPct,
+      startYPct: rulerState.yPct,
+    };
+  };
+
+  const handleRulerRotatePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    e.preventDefault();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+    const geom = getRulerGeometry();
+    if (!geom) return;
+    rulerDragRef.current = {
+      mode: 'rotate',
+      centerX: geom.centerX,
+      centerY: geom.centerY,
+    };
+  };
+
+  const handleRulerPointerMove = (e: React.PointerEvent<HTMLElement>) => {
+    const drag = rulerDragRef.current;
+    if (drag.mode === 'none') return;
+    e.stopPropagation();
+    e.preventDefault();
+
+    if (drag.mode === 'move') {
+      const box = viewportBoxRef.current;
+      if (!box) return;
+      const rect = box.getBoundingClientRect();
+      const dxPct = ((e.clientX - drag.startX) / Math.max(1, rect.width)) * 100;
+      const dyPct = ((e.clientY - drag.startY) / Math.max(1, rect.height)) * 100;
+      setRulerState((prev) => ({
+        ...prev,
+        xPct: Math.min(92, Math.max(8, drag.startXPct + dxPct)),
+        yPct: Math.min(92, Math.max(8, drag.startYPct + dyPct)),
+      }));
+      return;
+    }
+
+    if (drag.mode === 'rotate') {
+      const angleRad = Math.atan2(e.clientY - drag.centerY, e.clientX - drag.centerX);
+      let deg = Math.round((angleRad * 180) / Math.PI);
+      for (const target of [-90, -45, 0, 45, 90, 135, -135, 180, -180]) {
+        if (Math.abs(deg - target) <= 3) {
+          deg = target;
+          break;
+        }
+      }
+      setRulerState((prev) => ({ ...prev, angleDeg: deg }));
+    }
+  };
+
+  const handleRulerPointerUp = (e: React.PointerEvent<HTMLElement>) => {
+    if (rulerDragRef.current.mode === 'none') return;
+    rulerDragRef.current = { mode: 'none' };
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  const preventContextMenu = (e: React.MouseEvent | React.PointerEvent) => {
+    e.preventDefault();
   };
 
   return (
@@ -753,6 +1013,21 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
               ))}
             </div>
           )}
+
+          {/* Ruler Toggle for Straight Function & Graph Lines */}
+          <button
+            type="button"
+            onClick={() => setRulerEnabled((r) => !r)}
+            aria-pressed={rulerEnabled}
+            className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg border cursor-pointer whitespace-nowrap ${
+              rulerEnabled
+                ? 'bg-amber-50 border-amber-300 text-amber-900 shadow-xs'
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <Ruler className="w-3.5 h-3.5" />
+            Ruler
+          </button>
         </div>
 
         {/* History, Zoom, and Export Controls */}
@@ -767,11 +1042,11 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
               <ZoomOut className="w-3.5 h-3.5" />
             </button>
             <span className="px-2 text-[11px] font-mono tabular-nums text-slate-700 border-x border-slate-200">
-              {Math.round(zoom * 100)}%
+              {Math.round(zoom * pinchPreviewScale * 100)}%
             </span>
             <button
               type="button"
-              onClick={() => setZoom((z) => Math.min(2.2, Number((z + 0.15).toFixed(2))))}
+              onClick={() => setZoom((z) => Math.min(2.5, Number((z + 0.15).toFixed(2))))}
               aria-label="Zoom in"
               className="p-1.5 text-slate-600 hover:bg-slate-100 cursor-pointer"
             >
@@ -820,77 +1095,211 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
         </div>
       </div>
 
-      {/* Scrollable Multi-Page PDF + Dedicated Wide Touch Scroll Rail */}
+      {/* Scrollable Multi-Page PDF + Pinch-Zoom + Interactive Ruler + Wide Touch Scroll Rail */}
       <div className="flex items-stretch w-full">
         <div
-          ref={containerRef}
-          onScroll={syncScrollMetrics}
-          style={{ touchAction: 'pan-x pan-y' }}
-          className={`flex-1 min-w-0 ${heightClass} overflow-auto px-5 sm:px-8 py-5 space-y-5 bg-slate-200/70 pdf-annotator-scroll`}
+          ref={viewportBoxRef}
+          onPointerDownCapture={handleViewportPointerDownCapture}
+          onPointerMoveCapture={handleViewportPointerMoveCapture}
+          onPointerUpCapture={handleViewportPointerEndCapture}
+          onPointerCancelCapture={handleViewportPointerEndCapture}
+          className="relative flex-1 min-w-0 overflow-hidden"
         >
-          {loading && (
-            <div className="h-full min-h-[320px] flex flex-col items-center justify-center gap-3 text-sm text-slate-600">
-              <Loader2 className="w-5 h-5 animate-spin text-blue-700" />
-              <span>Rendering PDF pages for annotation...</span>
-            </div>
-          )}
+          <div
+            ref={containerRef}
+            onScroll={syncScrollMetrics}
+            style={{ touchAction: 'pan-x pan-y' }}
+            className={`w-full ${heightClass} overflow-auto px-5 sm:px-8 py-5 space-y-5 bg-slate-200/70 pdf-annotator-scroll`}
+          >
+            {loading && (
+              <div className="h-full min-h-[320px] flex flex-col items-center justify-center gap-3 text-sm text-slate-600">
+                <Loader2 className="w-5 h-5 animate-spin text-blue-700" />
+                <span>Rendering PDF pages for annotation...</span>
+              </div>
+            )}
 
-          {!loading && errorMsg && (
-            <div className="max-w-lg mx-auto my-12 p-5 bg-white border border-slate-200 rounded-xl text-center space-y-3">
-              <p className="text-sm text-slate-700 leading-relaxed">{errorMsg}</p>
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                {onFallbackViewer && (
-                  <button
-                    type="button"
-                    onClick={onFallbackViewer}
-                    className="px-3.5 py-2 text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded-lg cursor-pointer"
-                  >
-                    Switch to Web Viewer
-                  </button>
-                )}
-                {externalUrl && (
-                  <a
-                    href={externalUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3.5 py-2 text-xs font-semibold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 rounded-lg"
-                  >
-                    Open PDF Directly
-                  </a>
-                )}
+            {!loading && errorMsg && (
+              <div className="max-w-lg mx-auto my-12 p-5 bg-white border border-slate-200 rounded-xl text-center space-y-3">
+                <p className="text-sm text-slate-700 leading-relaxed">{errorMsg}</p>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  {onFallbackViewer && (
+                    <button
+                      type="button"
+                      onClick={onFallbackViewer}
+                      className="px-3.5 py-2 text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded-lg cursor-pointer"
+                    >
+                      Switch to Web Viewer
+                    </button>
+                  )}
+                  {externalUrl && (
+                    <a
+                      href={externalUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3.5 py-2 text-xs font-semibold border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 rounded-lg"
+                    >
+                      Open PDF Directly
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {!loading && !errorMsg && pdfDoc && (
+              <div
+                style={
+                  pinchPreviewScale !== 1
+                    ? {
+                        transform: `scale(${pinchPreviewScale})`,
+                        transformOrigin: 'top center',
+                      }
+                    : undefined
+                }
+                className="space-y-5"
+              >
+                {pageNumbers.map((pageNumber) => (
+                  <PdfPageCanvas
+                    key={`${paperKey}-p${pageNumber}`}
+                    pdfDoc={pdfDoc}
+                    pageNumber={pageNumber}
+                    scale={zoom}
+                    strokes={history.present[pageNumber] || []}
+                    activeTool={tool}
+                    activeColor={activeColor}
+                    activeSize={activeSize}
+                    isMultiTouchActiveRef={isMultiTouchActiveRef}
+                    getRulerGeometry={getRulerGeometry}
+                    onCommitStroke={handleCommitStroke}
+                    onEraseAtPoint={handleEraseAtPoint}
+                    registerCanvases={registerCanvases}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Interactive Straight-Edge Ruler Overlay */}
+          {rulerEnabled && (
+            <div
+              data-testid="pdf-ruler-overlay"
+              onPointerDown={handleRulerBodyPointerDown}
+              onPointerMove={handleRulerPointerMove}
+              onPointerUp={handleRulerPointerUp}
+              onPointerCancel={handleRulerPointerUp}
+              onContextMenu={preventContextMenu}
+              style={{
+                left: `${rulerState.xPct}%`,
+                top: `${rulerState.yPct}%`,
+                width: `${rulerState.lengthPx}px`,
+                maxWidth: 'calc(100% - 40px)',
+                height: `${rulerState.thicknessPx}px`,
+                transform: `translate(-50%, -50%) rotate(${rulerState.angleDeg}deg)`,
+                touchAction: 'none',
+                WebkitTouchCallout: 'none',
+                WebkitUserSelect: 'none',
+                userSelect: 'none',
+              }}
+              className="absolute z-20 bg-amber-100/85 border-2 border-amber-500/80 rounded-md shadow-md cursor-move flex items-center justify-between px-2 select-none"
+            >
+              {/* Ruler cm tick marks along top edge */}
+              <div
+                aria-hidden="true"
+                className="absolute inset-x-2 top-0 h-2.5 flex justify-between pointer-events-none"
+              >
+                {Array.from({ length: 19 }).map((_, idx) => (
+                  <span
+                    key={idx}
+                    className={`w-px bg-amber-800/60 ${idx % 2 === 0 ? 'h-2.5' : 'h-1.5'}`}
+                  />
+                ))}
+              </div>
+
+              <div className="flex items-center gap-1 z-10">
+                <span className="px-1.5 py-0.5 text-[10px] font-mono font-semibold bg-white/90 text-amber-950 border border-amber-400/70 rounded">
+                  {rulerState.angleDeg}°
+                </span>
+                <button
+                  type="button"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => setRulerState((r) => ({ ...r, angleDeg: 0 }))}
+                  className="px-1.5 py-0.5 text-[10px] font-mono bg-white/90 hover:bg-white text-slate-700 border border-amber-400/70 rounded cursor-pointer"
+                  title="Reset ruler to 0° horizontal"
+                >
+                  0°
+                </button>
+                <button
+                  type="button"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => setRulerState((r) => ({ ...r, angleDeg: -45 }))}
+                  className="px-1.5 py-0.5 text-[10px] font-mono bg-white/90 hover:bg-white text-slate-700 border border-amber-400/70 rounded cursor-pointer"
+                  title="Set ruler to -45°"
+                >
+                  -45°
+                </button>
+                <button
+                  type="button"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => setRulerState((r) => ({ ...r, angleDeg: 90 }))}
+                  className="px-1.5 py-0.5 text-[10px] font-mono bg-white/90 hover:bg-white text-slate-700 border border-amber-400/70 rounded cursor-pointer"
+                  title="Set ruler to 90° vertical"
+                >
+                  90°
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1 z-10">
+                <button
+                  type="button"
+                  data-testid="pdf-ruler-rotate-handle"
+                  onPointerDown={handleRulerRotatePointerDown}
+                  onPointerMove={handleRulerPointerMove}
+                  onPointerUp={handleRulerPointerUp}
+                  onPointerCancel={handleRulerPointerUp}
+                  onContextMenu={preventContextMenu}
+                  aria-label="Rotate ruler"
+                  title="Drag to rotate ruler"
+                  style={{
+                    touchAction: 'none',
+                    WebkitTouchCallout: 'none',
+                    WebkitUserSelect: 'none',
+                    userSelect: 'none',
+                  }}
+                  className="p-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-md cursor-grab active:cursor-grabbing shadow-xs"
+                >
+                  <RotateCw className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => setRulerEnabled(false)}
+                  aria-label="Hide ruler"
+                  title="Hide ruler"
+                  className="p-1 bg-white/90 hover:bg-white text-slate-700 border border-amber-400/70 rounded cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
           )}
-
-          {!loading &&
-            !errorMsg &&
-            pdfDoc &&
-            pageNumbers.map((pageNumber) => (
-              <PdfPageCanvas
-                key={`${paperKey}-p${pageNumber}`}
-                pdfDoc={pdfDoc}
-                pageNumber={pageNumber}
-                scale={zoom}
-                strokes={history.present[pageNumber] || []}
-                activeTool={tool}
-                activeColor={activeColor}
-                activeSize={activeSize}
-                onCommitStroke={handleCommitStroke}
-                onEraseAtPoint={handleEraseAtPoint}
-                registerCanvases={registerCanvases}
-              />
-            ))}
         </div>
 
-        {/* Dedicated 44px-wide Touch/Mouse Scroll Rail — never draws on the PDF */}
+        {/* Dedicated 44px-wide Touch/Mouse PDF Scroll Rail — prevents long-press context menu */}
         <div
           data-testid="pdf-scroll-rail"
           aria-label="PDF page scroll bar"
+          onContextMenu={preventContextMenu}
+          style={{
+            touchAction: 'none',
+            WebkitTouchCallout: 'none',
+            WebkitUserSelect: 'none',
+            userSelect: 'none',
+          }}
           className="w-11 shrink-0 bg-slate-100 border-l border-slate-200 flex flex-col items-center select-none"
         >
           <button
             type="button"
             onClick={() => stepScroll(-1)}
+            onContextMenu={preventContextMenu}
             disabled={!thumbMetrics.canScroll}
             aria-label="Scroll PDF up"
             className="w-full h-11 flex items-center justify-center text-slate-700 hover:bg-slate-200 active:bg-slate-300 border-b border-slate-200 disabled:opacity-40 cursor-pointer disabled:cursor-default"
@@ -904,7 +1313,13 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
             onPointerMove={handleTrackPointerMove}
             onPointerUp={handleTrackPointerUp}
             onPointerCancel={handleTrackPointerUp}
-            style={{ touchAction: 'none' }}
+            onContextMenu={preventContextMenu}
+            style={{
+              touchAction: 'none',
+              WebkitTouchCallout: 'none',
+              WebkitUserSelect: 'none',
+              userSelect: 'none',
+            }}
             className="relative flex-1 w-full bg-slate-200/70 cursor-pointer"
           >
             {thumbMetrics.canScroll ? (
@@ -930,6 +1345,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
           <button
             type="button"
             onClick={() => stepScroll(1)}
+            onContextMenu={preventContextMenu}
             disabled={!thumbMetrics.canScroll}
             aria-label="Scroll PDF down"
             className="w-full h-11 flex items-center justify-center text-slate-700 hover:bg-slate-200 active:bg-slate-300 border-t border-slate-200 disabled:opacity-40 cursor-pointer disabled:cursor-default"
@@ -943,7 +1359,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
       <div className="px-3 py-1.5 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
         <span>
           {numPages > 0
-            ? `Page ${visiblePage} of ${numPages} · Drag the right scroll bar or switch to Scroll tool · Auto-saves locally`
+            ? `Page ${visiblePage} of ${numPages} · Pinch with 2 fingers to zoom · Use right PDF rail or Ruler`
             : 'Preparing PDF canvas'}
         </span>
         <span className="font-mono tabular-nums">

@@ -388,3 +388,99 @@ export function estimateVisiblePage(params: {
   const ratio = Math.min(0.9999, Math.max(0, centerY / scrollHeight));
   return Math.min(numPages, Math.max(1, Math.floor(ratio * numPages) + 1));
 }
+
+export function computePinchZoomScale(params: {
+  initialZoom: number;
+  startDistance: number;
+  currentDistance: number;
+  minZoom?: number;
+  maxZoom?: number;
+}): number {
+  const {
+    initialZoom,
+    startDistance,
+    currentDistance,
+    minZoom = 0.65,
+    maxZoom = 2.5,
+  } = params;
+  if (
+    !Number.isFinite(initialZoom) ||
+    !Number.isFinite(startDistance) ||
+    !Number.isFinite(currentDistance) ||
+    startDistance <= 4 ||
+    currentDistance <= 0
+  ) {
+    return Math.min(maxZoom, Math.max(minZoom, initialZoom || 1));
+  }
+  const raw = initialZoom * (currentDistance / startDistance);
+  const clamped = Math.min(maxZoom, Math.max(minZoom, raw));
+  return Number(clamped.toFixed(3));
+}
+
+export interface RulerClientGeometry {
+  centerX: number;
+  centerY: number;
+  angleDeg: number;
+  lengthPx: number;
+  thicknessPx: number;
+}
+
+export interface RulerSnapResult {
+  snapped: boolean;
+  edge: 'top' | 'bottom' | null;
+  clientX: number;
+  clientY: number;
+}
+
+export function snapClientPointToRulerEdge(
+  clientX: number,
+  clientY: number,
+  ruler: RulerClientGeometry,
+  options: { snapThresholdPx?: number; forcedEdge?: 'top' | 'bottom' | null } = {}
+): RulerSnapResult {
+  const { snapThresholdPx = 30, forcedEdge = null } = options;
+  const rad = (ruler.angleDeg * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+
+  const dx = clientX - ruler.centerX;
+  const dy = clientY - ruler.centerY;
+
+  // Local coordinates in ruler frame: u along length, v perpendicular
+  const u = dx * cos + dy * sin;
+  const v = -dx * sin + dy * cos;
+
+  const halfLen = ruler.lengthPx / 2;
+  const halfThick = ruler.thicknessPx / 2;
+
+  if (!forcedEdge) {
+    if (Math.abs(u) > halfLen + 18) {
+      return { snapped: false, edge: null, clientX, clientY };
+    }
+    const distTop = Math.abs(v + halfThick);
+    const distBottom = Math.abs(v - halfThick);
+    const minDist = Math.min(distTop, distBottom);
+    if (minDist > snapThresholdPx) {
+      return { snapped: false, edge: null, clientX, clientY };
+    }
+    const edge: 'top' | 'bottom' = distTop <= distBottom ? 'top' : 'bottom';
+    const targetV = edge === 'top' ? -halfThick - 2 : halfThick + 2;
+    const clampedU = Math.max(-halfLen, Math.min(halfLen, u));
+    return {
+      snapped: true,
+      edge,
+      clientX: ruler.centerX + clampedU * cos - targetV * sin,
+      clientY: ruler.centerY + clampedU * sin + targetV * cos,
+    };
+  }
+
+  const targetV = forcedEdge === 'top' ? -halfThick - 2 : halfThick + 2;
+  const clampedU = Math.max(-halfLen, Math.min(halfLen, u));
+  return {
+    snapped: true,
+    edge: forcedEdge,
+    clientX: ruler.centerX + clampedU * cos - targetV * sin,
+    clientY: ruler.centerY + clampedU * sin + targetV * cos,
+  };
+}
+

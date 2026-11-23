@@ -23,14 +23,19 @@ import { SYLLABUS_0580, ALL_SUBTOPICS_0580 } from '../data/syllabus0580';
 import { PRACTICE_QUESTION_BANK } from '../data/practiceBank';
 import { generateMockExamQuestions } from './questionGenerator';
 import {
+  computePinchZoomScale,
+  computeScrollThumbMetrics,
+  computeScrollTopFromTrackY,
   countTotalStrokes,
   createInitialAnnotationHistory,
   eraseStrokesNearPoint,
+  estimateVisiblePage,
   hasPdfHeader,
   normalizePointerToPage,
   parseAnnotationsJson,
   pushAnnotationHistory,
   redoAnnotationHistory,
+  snapClientPointToRulerEdge,
   undoAnnotationHistory,
   type AnnotationStroke,
 } from './pdfAnnotations';
@@ -559,6 +564,73 @@ test('Cloudflare Worker handleApiRequest routes /api/* cleanly and passes SPA ro
   );
   assert.ok(unknownApiRes);
   assert.equal(unknownApiRes.status, 404);
+});
+
+test('Scroll rail, pinch-to-zoom, and straight-edge ruler snap calculations work accurately', () => {
+  const thumb = computeScrollThumbMetrics({
+    scrollTop: 500,
+    scrollHeight: 2500,
+    clientHeight: 500,
+    trackHeight: 400,
+    minThumbHeight: 60,
+  });
+  assert.equal(thumb.canScroll, true);
+  assert.equal(thumb.thumbHeight, 80);
+  assert.equal(thumb.progress, 0.25);
+  assert.equal(thumb.thumbTop, 80);
+
+  const mappedTop = computeScrollTopFromTrackY({
+    pointerY: 200,
+    trackTop: 0,
+    trackHeight: 400,
+    thumbHeight: 80,
+    scrollHeight: 2500,
+    clientHeight: 500,
+    grabOffsetRatio: 0.5,
+  });
+  assert.equal(mappedTop, 1000);
+
+  assert.equal(
+    estimateVisiblePage({
+      scrollTop: 1200,
+      scrollHeight: 4000,
+      clientHeight: 500,
+      numPages: 8,
+    }),
+    3
+  );
+
+  // Pinch-to-zoom scales proportionally and clamps within [0.65, 2.5]
+  assert.equal(
+    computePinchZoomScale({ initialZoom: 1, startDistance: 100, currentDistance: 150 }),
+    1.5
+  );
+  assert.equal(
+    computePinchZoomScale({ initialZoom: 1, startDistance: 100, currentDistance: 40 }),
+    0.65
+  );
+  assert.equal(
+    computePinchZoomScale({ initialZoom: 1.5, startDistance: 100, currentDistance: 300 }),
+    2.5
+  );
+
+  // Straight-edge ruler snaps near top/bottom edge and leaves far points unsnapped
+  const ruler = {
+    centerX: 400,
+    centerY: 300,
+    angleDeg: 0,
+    lengthPx: 300,
+    thicknessPx: 40,
+  };
+  const topSnap = snapClientPointToRulerEdge(450, 272, ruler, { snapThresholdPx: 30 });
+  assert.equal(topSnap.snapped, true);
+  assert.equal(topSnap.edge, 'top');
+  assert.equal(Math.round(topSnap.clientX), 450);
+  assert.equal(Math.round(topSnap.clientY), 278); // centerY(300) - halfThick(20) - 2
+
+  const farFreehand = snapClientPointToRulerEdge(450, 450, ruler, { snapThresholdPx: 30 });
+  assert.equal(farFreehand.snapped, false);
+  assert.equal(farFreehand.edge, null);
 });
 
 

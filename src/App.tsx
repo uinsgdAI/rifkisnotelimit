@@ -4,6 +4,7 @@ import { Header } from './components/Header';
 import { NotesView } from './components/NotesView';
 import { PastPapersView } from './components/PastPapersView';
 import { PracticeExamView } from './components/PracticeExamView';
+import { UniversalPageScroller } from './components/UniversalPageScroller';
 import { ALL_SUBTOPICS_0580, findSubtopic } from './data/syllabus0580';
 import type { AppRoute } from './types/syllabus';
 import { buildAppRoutePath, parseAppRoute } from './utils/examLogic';
@@ -117,7 +118,7 @@ export default function App() {
         onToggleMobileMenu={() => setMobileMenuOpen((o) => !o)}
       />
 
-      <div className="flex-1">
+      <div className="flex-1 pr-11 sm:pr-12">
         {route.view === 'notes' && (
           <NotesView
             chapterId={activeNote.chapterId}
@@ -153,7 +154,7 @@ export default function App() {
         )}
       </div>
 
-      <footer className="border-t border-slate-200 bg-white mt-12">
+      <footer className="border-t border-slate-200 bg-white mt-12 pr-11 sm:pr-12">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-5 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-500">
           <div>
             Cambridge IGCSE Mathematics (0580) · 2025–2027 Syllabus · Free Study Notes & Practice
@@ -188,6 +189,7 @@ export default function App() {
         open={formulaModalOpen}
         onClose={() => setFormulaModalOpen(false)}
       />
+      <UniversalPageScroller />
     </div>
   );
 }
