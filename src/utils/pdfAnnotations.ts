@@ -484,3 +484,237 @@ export function snapClientPointToRulerEdge(
   };
 }
 
+export interface PageRectSnapshot {
+  pageNumber: number;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+export interface PdfZoomAnchor {
+  pageNumber: number;
+  relX: number;
+  relY: number;
+  anchorViewportX: number;
+  anchorViewportY: number;
+}
+
+export function capturePdfZoomAnchor(params: {
+  pages: PageRectSnapshot[];
+  containerRect: { left: number; top: number; width: number; height: number };
+  anchorClientX?: number;
+  anchorClientY?: number;
+}): PdfZoomAnchor | null {
+  const { pages, containerRect } = params;
+  if (pages.length === 0) return null;
+
+  const anchorClientX =
+    params.anchorClientX ?? containerRect.left + containerRect.width * 0.5;
+  const anchorClientY =
+    params.anchorClientY ?? containerRect.top + containerRect.height * 0.45;
+
+  let chosen = pages[0];
+  let bestDist = Infinity;
+
+  for (const page of pages) {
+    const bottom = page.top + page.height;
+    const dist =
+      anchorClientY < page.top
+        ? page.top - anchorClientY
+        : anchorClientY > bottom
+          ? anchorClientY - bottom
+          : 0;
+    if (dist < bestDist) {
+      bestDist = dist;
+      chosen = page;
+      if (dist === 0) break;
+    }
+  }
+
+  const rawRelX = (anchorClientX - chosen.left) / Math.max(1, chosen.width);
+  const rawRelY = (anchorClientY - chosen.top) / Math.max(1, chosen.height);
+
+  return {
+    pageNumber: chosen.pageNumber,
+    relX: Math.min(1.5, Math.max(-0.5, rawRelX)),
+    relY: Math.min(1.5, Math.max(-0.5, rawRelY)),
+    anchorViewportX: anchorClientX - containerRect.left,
+    anchorViewportY: anchorClientY - containerRect.top,
+  };
+}
+
+export function computeAnchoredScrollPosition(params: {
+  anchor: PdfZoomAnchor;
+  newPageRect: { left: number; top: number; width: number; height: number };
+  newContainerRect: { left: number; top: number; width: number; height: number };
+  currentScrollLeft: number;
+  currentScrollTop: number;
+  scrollWidth: number;
+  scrollHeight: number;
+  clientWidth: number;
+  clientHeight: number;
+}): { scrollLeft: number; scrollTop: number } {
+  const {
+    anchor,
+    newPageRect,
+    newContainerRect,
+    currentScrollLeft,
+    currentScrollTop,
+    scrollWidth,
+    scrollHeight,
+    clientWidth,
+    clientHeight,
+  } = params;
+
+  const currentPointX = newPageRect.left + anchor.relX * newPageRect.width;
+  const desiredPointX = newContainerRect.left + anchor.anchorViewportX;
+  const currentPointY = newPageRect.top + anchor.relY * newPageRect.height;
+  const desiredPointY = newContainerRect.top + anchor.anchorViewportY;
+
+  const maxScrollLeft = Math.max(0, scrollWidth - clientWidth);
+  const maxScrollTop = Math.max(0, scrollHeight - clientHeight);
+
+  const rawLeft = currentScrollLeft + (currentPointX - desiredPointX);
+  const rawTop = currentScrollTop + (currentPointY - desiredPointY);
+
+  return {
+    scrollLeft: Math.min(maxScrollLeft, Math.max(0, Math.round(rawLeft))),
+    scrollTop: Math.min(maxScrollTop, Math.max(0, Math.round(rawTop))),
+  };
+}
+
+export interface TwoFingerGestureResult {
+  mode: 'pan' | 'pinch';
+  scrollLeft: number;
+  scrollTop: number;
+  previewScale: number;
+  previewTx: number;
+  previewTy: number;
+  targetZoom: number;
+}
+
+export function computeTwoFingerPanAndZoom(params: {
+  startMidX: number;
+  startMidY: number;
+  curMidX: number;
+  curMidY: number;
+  startScrollLeft: number;
+  startScrollTop: number;
+  maxScrollLeft: number;
+  maxScrollTop: number;
+  pinchEngaged: boolean;
+  pinchStartDist: number;
+  curDist: number;
+  pinchStartZoom: number;
+  pinchStartMidX: number;
+  pinchStartMidY: number;
+  pinchAnchorInnerX: number;
+  pinchAnchorInnerY: number;
+  minZoom?: number;
+  maxZoom?: number;
+}): TwoFingerGestureResult {
+  const {
+    startMidX,
+    startMidY,
+    curMidX,
+    curMidY,
+    startScrollLeft,
+    startScrollTop,
+    maxScrollLeft,
+    maxScrollTop,
+    pinchEngaged,
+    pinchStartDist,
+    curDist,
+    pinchStartZoom,
+    pinchStartMidX,
+    pinchStartMidY,
+    pinchAnchorInnerX,
+    pinchAnchorInnerY,
+    minZoom = 0.65,
+    maxZoom = 2.5,
+  } = params;
+
+  if (!pinchEngaged) {
+    const rawLeft = startScrollLeft - (curMidX - startMidX);
+    const rawTop = startScrollTop - (curMidY - startMidY);
+    return {
+      mode: 'pan',
+      scrollLeft: Math.min(Math.max(0, maxScrollLeft), Math.max(0, rawLeft)),
+      scrollTop: Math.min(Math.max(0, maxScrollTop), Math.max(0, rawTop)),
+      previewScale: 1,
+      previewTx: 0,
+      previewTy: 0,
+      targetZoom: pinchStartZoom,
+    };
+  }
+
+  const targetZoom = computePinchZoomScale({
+    initialZoom: pinchStartZoom,
+    startDistance: pinchStartDist,
+    currentDistance: curDist,
+    minZoom,
+    maxZoom,
+  });
+  const previewScale = targetZoom / Math.max(0.1, pinchStartZoom);
+  const previewTx =
+    curMidX - pinchStartMidX + (1 - previewScale) * pinchAnchorInnerX;
+  const previewTy =
+    curMidY - pinchStartMidY + (1 - previewScale) * pinchAnchorInnerY;
+
+  return {
+    mode: 'pinch',
+    scrollLeft: startScrollLeft,
+    scrollTop: startScrollTop,
+    previewScale,
+    previewTx,
+    previewTy,
+    targetZoom,
+  };
+}
+
+export function evaluateTwoFingerPinchEngagement(params: {
+  startDist: number;
+  curDist: number;
+  movedPointerCount: number;
+  pendingDurationMs: number;
+  staggerHoldMs?: number;
+  minDistPx?: number;
+  minRatioDiff?: number;
+}): { exceededDeadband: boolean; engage: boolean; pinchStartDist: number } {
+  const {
+    startDist,
+    curDist,
+    movedPointerCount,
+    pendingDurationMs,
+    staggerHoldMs = 60,
+    minDistPx = 22,
+    minRatioDiff = 0.14,
+  } = params;
+
+  if (startDist < 16 || !Number.isFinite(curDist)) {
+    return { exceededDeadband: false, engage: false, pinchStartDist: startDist };
+  }
+
+  const distDiff = Math.abs(curDist - startDist);
+  const ratioDiff = Math.abs(curDist / startDist - 1);
+  const exceededDeadband = distDiff > minDistPx && ratioDiff > minRatioDiff;
+
+  if (!exceededDeadband) {
+    return { exceededDeadband: false, engage: false, pinchStartDist: startDist };
+  }
+
+  const ready = movedPointerCount >= 2 || pendingDurationMs >= staggerHoldMs;
+  if (!ready) {
+    return { exceededDeadband: true, engage: false, pinchStartDist: startDist };
+  }
+
+  const deadband = Math.max(minDistPx, startDist * minRatioDiff);
+  const pinchStartDist =
+    curDist >= startDist
+      ? startDist + deadband
+      : Math.max(12, startDist - deadband);
+
+  return { exceededDeadband: true, engage: true, pinchStartDist };
+}
+

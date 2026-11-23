@@ -448,6 +448,10 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         heading: 'Combining Two Linked Ratios ($A:B$ and $B:C$)',
         body: 'To merge $A:B = 2:3$ and $B:C = 4:5$, scale both ratios so the linking term $B$ matches the LCM of $3$ and $4$ ($12$): multiply the first by $4$ ($8:12$) and the second by $3$ ($12:15$), giving $A:B:C = 8:12:15$.',
       },
+      {
+        heading: 'Increasing & Decreasing an Amount in a Given Ratio (Ch. 21.7)',
+        body: 'To increase or decrease a quantity in the ratio $a : b$, multiply by the fraction $\\frac{a}{b}$ (new : old): if $a > b$ it scales UP (increase), and if $a < b$ it scales DOWN (decrease). For example, increasing $\\$80$ in the ratio $5 : 4$ gives $80 \\times \\frac{5}{4} = \\$100$.',
+      },
     ],
     extraWorkedExamples: [
       {
@@ -460,6 +464,16 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         ],
         answer: '$9 : 12 : 14$',
         markSchemeNotes: 'M1 for matching blue to $12$ (or $24$), A1 for $9:12:14$.',
+      },
+      {
+        title: 'Decreasing an amount by a given ratio (Ch. 21.7)',
+        question: 'A factory reduces its weekly plastic waste of $125\\text{ kg}$ in the ratio $3 : 5$. Calculate the new weekly waste.',
+        marks: 2,
+        steps: [
+          'Multiply by the new-to-old ratio fraction: $125 \\times \\frac{3}{5} = 25 \\times 3 = 75\\text{ kg}$.',
+        ],
+        answer: '$75\\text{ kg}$',
+        markSchemeNotes: 'M1 for $125 \\times \\frac{3}{5}$, A1 for $75$.',
       },
     ],
     rapidSummary: [
@@ -665,6 +679,10 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
       {
         heading: 'Comparing Two Exchange Rates (Bank A vs Bank B)',
         body: 'If Bank A offers $\\$1 = 1.38\\text{ CAD}$ with zero fee, and Bank B offers $\\$1 = 1.42\\text{ CAD}$ with a flat $\\$15$ fee, convert the SAME dollar amount (remembering to subtract Bank B\'s $\\$15$ fee BEFORE multiplying by $1.42$) and compare the final CAD received.',
+      },
+      {
+        heading: 'Hire Purchase, Sales Discounts & VAT (Ch. 17.2–17.3)',
+        body: 'For Hire Purchase (HP) instalments, calculate $\\text{HP Total} = \\text{Deposit} + (n \\times \\text{Monthly Payment})$, then subtract the Cash Price to find the extra credit interest paid. For discounts and sales tax (VAT), multiply by $(1 - d/100)$ for a $d\\%$ discount and $(1 + t/100)$ for $t\\%$ tax.',
       },
     ],
     extraWorkedExamples: [
@@ -992,6 +1010,10 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         heading: 'Cambridge Shading Convention for Unwanted Regions',
         body: 'In Paper 2/4 graphing questions, check carefully whether the question asks you to shade the **wanted** region OR leave the **wanted region $R$ UNSHADED** (Cambridge standard!). Always label the clean wanted region clearly with `$R$` as instructed.',
       },
+      {
+        heading: 'Linear Programming Optimisation (Coursebook Ch. 14.4)',
+        body: 'When maximising or minimising a linear objective like $P = 3x + 5y$ inside a feasible region $R$ (classic Ch. 14.4 problems), test integer coordinate points $(x, y)$ inside $R$ near the upper/outer corners (excluding points sitting on any dashed $<$ or $>$ boundary line). *(Note: formal linear programming optimisation was trimmed in the 2025+ 0580 update, while inequality regions remain core/extended).*',
+      },
     ],
     extraWorkedExamples: [
       {
@@ -1004,6 +1026,18 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         ],
         answer: '$x < -3$ or $x > 5$',
         markSchemeNotes: 'M1 factorising, A1 critical values $-3, 5$, A1 $x < -3$ or $x > 5$.',
+      },
+      {
+        title: 'Maximising an integer linear programming objective (Ch. 14.4)',
+        question: 'Integer points $(x, y)$ satisfy $x \\ge 1$, $y \\ge 1$, and $x + y \\le 5$. Find the maximum value of $P = 2x + 3y$.',
+        marks: 3,
+        steps: [
+          'Corners of the feasible region are $(1, 1)$, $(4, 1)$, and $(1, 4)$.',
+          'Test the highest-$y$ corner $(1, 4)$ since $y$ has the larger coefficient $3$: $P = 2(1) + 3(4) = 14$.',
+          'Check nearby point $(2, 3)$: $P = 2(2) + 3(3) = 13 < 14$. Maximum is $14$ at $(1, 4)$.',
+        ],
+        answer: '$P_{\\max} = 14$ at $(1, 4)$',
+        markSchemeNotes: 'M1 identifying integer boundary point $(1, 4)$, A1 for $14$.',
       },
     ],
     rapidSummary: [

@@ -144,6 +144,16 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
         heading: 'Conservation of Volume When Melting / Pouring Liquids',
         body: 'When a solid metal sphere or cuboid is melted and recast into smaller cones, or water pours from one container into another, **Total Volume stays strictly constant**. Set $V_{\\text{before}} = N \\times V_{\\text{after}}$ and cancel $\\pi$ on both sides before reaching for your calculator!',
       },
+      {
+        heading: 'Nets of 3D Objects (Coursebook Ch. 7.2)',
+        body: 'Unfolding a 3D solid along its edges produces a flat **net** whose total area equals the solid\'s Total Surface Area. Match edge lengths where flaps fold shut:',
+        bullets: [
+          'Cuboid: $6$ rectangular faces in $3$ matching pairs ($l\\times w$, $l\\times h$, $w\\times h$).',
+          'Triangular Prism: $3$ rectangles side by side with $2$ congruent triangles on opposite sides.',
+          'Cylinder: $1$ central rectangle of width $2\\pi r$ (the circle circumference!) and height $h$, plus $2$ circular discs of radius $r$.',
+          'Square-based Pyramid / Cone: $1$ square base with $4$ congruent triangles (or $1$ circle + $1$ sector of arc length $2\\pi r$ for a cone).',
+        ],
+      },
     ],
     extraWorkedExamples: [
       {

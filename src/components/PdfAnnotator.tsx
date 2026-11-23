@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Camera,
   ChevronDown,
@@ -20,14 +20,17 @@ import {
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import {
+  capturePdfZoomAnchor,
   cloneAnnotationsMap,
-  computePinchZoomScale,
+  computeAnchoredScrollPosition,
   computeScrollThumbMetrics,
   computeScrollTopFromTrackY,
+  computeTwoFingerPanAndZoom,
   countTotalStrokes,
   createInitialAnnotationHistory,
   eraseStrokesNearPoint,
   estimateVisiblePage,
+  evaluateTwoFingerPinchEngagement,
   hasPdfHeader,
   loadPaperAnnotations,
   normalizePointerToPage,
@@ -40,7 +43,7 @@ import {
   type AnnotationHistoryState,
   type AnnotationStroke,
   type AnnotationTool,
-  type PaperAnnotationsMap,
+  type PdfZoomAnchor,
   type RulerClientGeometry,
 } from '../utils/pdfAnnotations';
 
@@ -85,12 +88,14 @@ interface PageDimension {
 interface PdfPageCanvasProps {
   pdfDoc: pdfjsLib.PDFDocumentProxy;
   pageNumber: number;
+  baseDim?: { width: number; height: number };
   scale: number;
   strokes: AnnotationStroke[];
   activeTool: AnnotationTool;
   activeColor: string;
   activeSize: number;
   isMultiTouchActiveRef: React.MutableRefObject<boolean>;
+  multiTouchSignal: number;
   getRulerGeometry: () => RulerClientGeometry | null;
   onCommitStroke: (pageNumber: number, stroke: AnnotationStroke) => void;
   onEraseAtPoint: (pageNumber: number, point: { x: number; y: number }) => void;
@@ -103,12 +108,14 @@ interface PdfPageCanvasProps {
 const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
   pdfDoc,
   pageNumber,
+  baseDim,
   scale,
   strokes,
   activeTool,
   activeColor,
   activeSize,
   isMultiTouchActiveRef,
+  multiTouchSignal,
   getRulerGeometry,
   onCommitStroke,
   onEraseAtPoint,
@@ -119,7 +126,17 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
   const liveStrokeRef = useRef<AnnotationStroke | null>(null);
   const snappedEdgeRef = useRef<'top' | 'bottom' | null>(null);
   const isDrawingRef = useRef(false);
-  const [dims, setDims] = useState<{ width: number; height: number } | null>(null);
+  const [renderedDims, setRenderedDims] = useState<{ width: number; height: number } | null>(null);
+
+  const displayDims = useMemo(() => {
+    if (baseDim) {
+      return {
+        width: Math.max(1, Math.floor(baseDim.width * scale)),
+        height: Math.max(1, Math.floor(baseDim.height * scale)),
+      };
+    }
+    return renderedDims;
+  }, [baseDim, scale, renderedDims]);
 
   useEffect(() => {
     registerCanvases(pageNumber, {
@@ -144,17 +161,16 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
       const drawCanvas = drawCanvasRef.current;
       if (!canvas || !drawCanvas) return;
 
+      const cssW = Math.floor(viewport.width);
+      const cssH = Math.floor(viewport.height);
+
       canvas.width = Math.floor(viewport.width * dpr);
       canvas.height = Math.floor(viewport.height * dpr);
-      canvas.style.width = `${Math.floor(viewport.width)}px`;
-      canvas.style.height = `${Math.floor(viewport.height)}px`;
 
       drawCanvas.width = Math.floor(viewport.width * dpr);
       drawCanvas.height = Math.floor(viewport.height * dpr);
-      drawCanvas.style.width = `${Math.floor(viewport.width)}px`;
-      drawCanvas.style.height = `${Math.floor(viewport.height)}px`;
 
-      setDims({ width: Math.floor(viewport.width), height: Math.floor(viewport.height) });
+      setRenderedDims({ width: cssW, height: cssH });
 
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
@@ -201,7 +217,17 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
 
   useEffect(() => {
     redrawOverlay();
-  }, [redrawOverlay, dims]);
+  }, [redrawOverlay, displayDims, renderedDims]);
+
+  useEffect(() => {
+    if (multiTouchSignal === 0) return;
+    if (isDrawingRef.current || liveStrokeRef.current) {
+      isDrawingRef.current = false;
+      liveStrokeRef.current = null;
+      snappedEdgeRef.current = null;
+      redrawOverlay();
+    }
+  }, [multiTouchSignal, redrawOverlay]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (activeTool === 'pan') return;
@@ -333,10 +359,15 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
 
   return (
     <div
+      data-pdf-page={pageNumber}
       className="relative mx-auto bg-white shadow-sm border border-slate-200 select-none"
-      style={dims ? { width: `${dims.width}px`, height: `${dims.height}px` } : undefined}
+      style={
+        displayDims
+          ? { width: `${displayDims.width}px`, height: `${displayDims.height}px` }
+          : undefined
+      }
     >
-      <canvas ref={pdfCanvasRef} className="block" />
+      <canvas ref={pdfCanvasRef} className="block w-full h-full" />
       <canvas
         ref={drawCanvasRef}
         data-testid={`pdf-annot-canvas-${pageNumber}`}
@@ -346,12 +377,12 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
         onPointerCancel={finishStroke}
         onContextMenu={(e) => e.preventDefault()}
         style={{
-          touchAction: activeTool === 'pan' ? 'auto' : 'none',
+          touchAction: 'none',
           WebkitTouchCallout: 'none',
           WebkitUserSelect: 'none',
           userSelect: 'none',
         }}
-        className={`absolute inset-0 block ${
+        className={`absolute inset-0 block w-full h-full ${
           activeTool === 'pan'
             ? 'pointer-events-none cursor-grab'
             : activeTool === 'eraser'
@@ -378,11 +409,15 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
 }) => {
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [numPages, setNumPages] = useState(0);
+  const [basePageDims, setBasePageDims] = useState<
+    Record<number, { width: number; height: number }>
+  >({});
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [zoom, setZoom] = useState(1.0);
-  const [pinchPreviewScale, setPinchPreviewScale] = useState(1.0);
+  const [zoomCommitSeq, setZoomCommitSeq] = useState(0);
+  const [pinchPreview, setPinchPreview] = useState({ scale: 1, tx: 0, ty: 0 });
   const [tool, setTool] = useState<AnnotationTool>(initialTool);
   const [penColor, setPenColor] = useState(initialPenColorHex);
   const [hlColor, setHlColor] = useState(HIGHLIGHT_COLORS[0].hex);
@@ -404,7 +439,24 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
 
   const viewportBoxRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const pagesStackRef = useRef<HTMLDivElement | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
+  const pendingScrollAnchorRef = useRef<PdfZoomAnchor | null>(null);
+  const singlePanRef = useRef<{
+    active: boolean;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startScrollLeft: number;
+    startScrollTop: number;
+  }>({
+    active: false,
+    pointerId: -1,
+    startX: 0,
+    startY: 0,
+    startScrollLeft: 0,
+    startScrollTop: 0,
+  });
   const draggingRailRef = useRef<{ active: boolean; grabOffsetRatio: number }>({
     active: false,
     grabOffsetRatio: 0.5,
@@ -416,18 +468,47 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     trackHeight: 400,
   });
 
-  // Multi-touch pinch-to-zoom state
+  // Multi-touch 2-finger pan/scroll + pinch-to-zoom state
   const activeTouchPointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const isMultiTouchActiveRef = useRef(false);
-  const pinchSessionRef = useRef<{
+  const [multiTouchSignal, setMultiTouchSignal] = useState(0);
+  const twoFingerSessionRef = useRef<{
     active: boolean;
-    startDistance: number;
-    startZoom: number;
+    startDist: number;
+    startMidX: number;
+    startMidY: number;
+    lastMidX: number;
+    lastMidY: number;
+    startScrollLeft: number;
+    startScrollTop: number;
+    movedPointerIds: Set<number>;
+    pendingPinchSinceMs: number | null;
+    pinchEngaged: boolean;
+    pinchStartDist: number;
+    pinchStartZoom: number;
+    pinchStartMidX: number;
+    pinchStartMidY: number;
+    pinchAnchorInnerX: number;
+    pinchAnchorInnerY: number;
     targetZoom: number;
   }>({
     active: false,
-    startDistance: 0,
-    startZoom: 1,
+    startDist: 0,
+    startMidX: 0,
+    startMidY: 0,
+    lastMidX: 0,
+    lastMidY: 0,
+    startScrollLeft: 0,
+    startScrollTop: 0,
+    movedPointerIds: new Set<number>(),
+    pendingPinchSinceMs: null,
+    pinchEngaged: false,
+    pinchStartDist: 0,
+    pinchStartZoom: 1,
+    pinchStartMidX: 0,
+    pinchStartMidY: 0,
+    pinchAnchorInnerX: 0,
+    pinchAnchorInnerY: 0,
     targetZoom: 1,
   });
 
@@ -492,6 +573,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     setLoading(true);
     setErrorMsg(null);
     setPdfDoc(null);
+    setBasePageDims({});
 
     (async () => {
       try {
@@ -540,6 +622,20 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
           void activeLoadTask.destroy().catch(() => undefined);
           return;
         }
+
+        const dimEntries = await Promise.all(
+          Array.from({ length: doc.numPages }, (_, idx) => idx + 1).map(async (pNum) => {
+            const pg = await doc.getPage(pNum);
+            const vp = pg.getViewport({ scale: 1 });
+            return [pNum, { width: vp.width, height: vp.height }] as const;
+          })
+        );
+        if (cancelled) {
+          void activeLoadTask.destroy().catch(() => undefined);
+          return;
+        }
+
+        setBasePageDims(Object.fromEntries(dimEntries));
         setPdfDoc(doc);
         setNumPages(doc.numPages);
       } catch (err) {
@@ -758,11 +854,80 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     container.scrollBy({ top: direction * delta, behavior: 'smooth' });
   };
 
-  // Multi-finger pinch-to-zoom capture handlers on the PDF viewport
-  const getTwoPointerDistance = () => {
+  const captureAnchorAt = useCallback((clientX?: number, clientY?: number): PdfZoomAnchor | null => {
+    const container = containerRef.current;
+    if (!container) return null;
+    const pageEls = container.querySelectorAll<HTMLElement>('[data-pdf-page]');
+    const snapshots = Array.from(pageEls)
+      .map((el) => {
+        const pageNumber = Number(el.dataset.pdfPage);
+        const r = el.getBoundingClientRect();
+        return {
+          pageNumber,
+          left: r.left,
+          top: r.top,
+          width: r.width,
+          height: r.height,
+        };
+      })
+      .filter((p) => Number.isFinite(p.pageNumber) && p.height > 0);
+    return capturePdfZoomAnchor({
+      pages: snapshots,
+      containerRect: container.getBoundingClientRect(),
+      anchorClientX: clientX,
+      anchorClientY: clientY,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    const anchor = pendingScrollAnchorRef.current;
+    const container = containerRef.current;
+    if (!anchor || !container) return;
+    pendingScrollAnchorRef.current = null;
+
+    const pageEl = container.querySelector<HTMLElement>(
+      `[data-pdf-page="${anchor.pageNumber}"]`
+    );
+    if (!pageEl) return;
+
+    const nextPos = computeAnchoredScrollPosition({
+      anchor,
+      newPageRect: pageEl.getBoundingClientRect(),
+      newContainerRect: container.getBoundingClientRect(),
+      currentScrollLeft: container.scrollLeft,
+      currentScrollTop: container.scrollTop,
+      scrollWidth: container.scrollWidth,
+      scrollHeight: container.scrollHeight,
+      clientWidth: container.clientWidth,
+      clientHeight: container.clientHeight,
+    });
+    container.scrollLeft = nextPos.scrollLeft;
+    container.scrollTop = nextPos.scrollTop;
+    syncScrollMetrics();
+  }, [zoom, zoomCommitSeq, syncScrollMetrics]);
+
+  const applyButtonZoom = useCallback(
+    (delta: number) => {
+      const anchor = captureAnchorAt();
+      if (anchor) {
+        pendingScrollAnchorRef.current = anchor;
+      }
+      setZoom((z) => Math.max(0.65, Math.min(2.5, Number((z + delta).toFixed(2)))));
+      setZoomCommitSeq((s) => s + 1);
+    },
+    [captureAnchorAt]
+  );
+
+  // Unified two-finger gesture handlers: pan/scroll (X+Y) + pinch-to-zoom around midpoint
+  const getTwoTouchMetrics = () => {
     const pts = Array.from(activeTouchPointersRef.current.values());
-    if (pts.length < 2) return 0;
-    return Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+    if (pts.length < 2) return null;
+    const [p0, p1] = pts;
+    return {
+      midX: (p0.x + p1.x) / 2,
+      midY: (p0.y + p1.y) / 2,
+      dist: Math.hypot(p1.x - p0.x, p1.y - p0.y),
+    };
   };
 
   const handleViewportPointerDownCapture = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -770,12 +935,30 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     activeTouchPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (activeTouchPointersRef.current.size >= 2) {
       isMultiTouchActiveRef.current = true;
-      const dist = getTwoPointerDistance();
-      if (!pinchSessionRef.current.active && dist > 8) {
-        pinchSessionRef.current = {
+      singlePanRef.current.active = false;
+      setMultiTouchSignal((s) => s + 1);
+
+      const metrics = getTwoTouchMetrics();
+      const container = containerRef.current;
+      if (metrics && container && !twoFingerSessionRef.current.active) {
+        twoFingerSessionRef.current = {
           active: true,
-          startDistance: dist,
-          startZoom: zoom,
+          startDist: metrics.dist,
+          startMidX: metrics.midX,
+          startMidY: metrics.midY,
+          lastMidX: metrics.midX,
+          lastMidY: metrics.midY,
+          startScrollLeft: container.scrollLeft,
+          startScrollTop: container.scrollTop,
+          movedPointerIds: new Set<number>(),
+          pendingPinchSinceMs: null,
+          pinchEngaged: false,
+          pinchStartDist: metrics.dist,
+          pinchStartZoom: zoom,
+          pinchStartMidX: metrics.midX,
+          pinchStartMidY: metrics.midY,
+          pinchAnchorInnerX: 0,
+          pinchAnchorInnerY: 0,
           targetZoom: zoom,
         };
       }
@@ -787,17 +970,85 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     if (!activeTouchPointersRef.current.has(e.pointerId)) return;
     activeTouchPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-    if (activeTouchPointersRef.current.size >= 2 && pinchSessionRef.current.active) {
-      const dist = getTwoPointerDistance();
-      const nextZoom = computePinchZoomScale({
-        initialZoom: pinchSessionRef.current.startZoom,
-        startDistance: pinchSessionRef.current.startDistance,
-        currentDistance: dist,
+    const session = twoFingerSessionRef.current;
+    const container = containerRef.current;
+    if (activeTouchPointersRef.current.size >= 2 && session.active && container) {
+      const metrics = getTwoTouchMetrics();
+      if (!metrics) return;
+      session.lastMidX = metrics.midX;
+      session.lastMidY = metrics.midY;
+
+      if (!session.pinchEngaged) {
+        session.movedPointerIds.add(e.pointerId);
+        const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        const pendingDurationMs =
+          session.pendingPinchSinceMs !== null ? nowMs - session.pendingPinchSinceMs : 0;
+
+        const evaluation = evaluateTwoFingerPinchEngagement({
+          startDist: session.startDist,
+          curDist: metrics.dist,
+          movedPointerCount: session.movedPointerIds.size,
+          pendingDurationMs,
+        });
+
+        if (evaluation.engage) {
+          const innerRect = pagesStackRef.current?.getBoundingClientRect();
+          session.pinchEngaged = true;
+          session.pinchStartDist = evaluation.pinchStartDist;
+          session.pinchStartZoom = zoom;
+          session.targetZoom = zoom;
+          session.pinchStartMidX = metrics.midX;
+          session.pinchStartMidY = metrics.midY;
+          session.pinchAnchorInnerX = innerRect ? metrics.midX - innerRect.left : 0;
+          session.pinchAnchorInnerY = innerRect ? metrics.midY - innerRect.top : 0;
+          session.pendingPinchSinceMs = null;
+        } else {
+          if (evaluation.exceededDeadband) {
+            if (session.pendingPinchSinceMs === null) {
+              session.pendingPinchSinceMs = nowMs;
+            }
+          } else {
+            session.pendingPinchSinceMs = null;
+            if (session.movedPointerIds.size >= 2) {
+              session.movedPointerIds.clear();
+            }
+          }
+        }
+      }
+
+      const result = computeTwoFingerPanAndZoom({
+        startMidX: session.startMidX,
+        startMidY: session.startMidY,
+        curMidX: metrics.midX,
+        curMidY: metrics.midY,
+        startScrollLeft: session.startScrollLeft,
+        startScrollTop: session.startScrollTop,
+        maxScrollLeft: Math.max(0, container.scrollWidth - container.clientWidth),
+        maxScrollTop: Math.max(0, container.scrollHeight - container.clientHeight),
+        pinchEngaged: session.pinchEngaged,
+        pinchStartDist: session.pinchStartDist,
+        curDist: metrics.dist,
+        pinchStartZoom: session.pinchStartZoom,
+        pinchStartMidX: session.pinchStartMidX,
+        pinchStartMidY: session.pinchStartMidY,
+        pinchAnchorInnerX: session.pinchAnchorInnerX,
+        pinchAnchorInnerY: session.pinchAnchorInnerY,
         minZoom: 0.65,
         maxZoom: 2.5,
       });
-      pinchSessionRef.current.targetZoom = nextZoom;
-      setPinchPreviewScale(nextZoom / pinchSessionRef.current.startZoom);
+
+      if (result.mode === 'pan') {
+        container.scrollLeft = result.scrollLeft;
+        container.scrollTop = result.scrollTop;
+        syncScrollMetrics();
+      } else {
+        session.targetZoom = result.targetZoom;
+        setPinchPreview({
+          scale: result.previewScale,
+          tx: result.previewTx,
+          ty: result.previewTy,
+        });
+      }
     }
   };
 
@@ -806,15 +1057,70 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     activeTouchPointersRef.current.delete(e.pointerId);
 
     if (activeTouchPointersRef.current.size < 2) {
-      if (pinchSessionRef.current.active) {
-        const committedZoom = Number(pinchSessionRef.current.targetZoom.toFixed(2));
-        pinchSessionRef.current.active = false;
-        setPinchPreviewScale(1.0);
-        setZoom(committedZoom);
+      const session = twoFingerSessionRef.current;
+      if (session.active) {
+        if (session.pinchEngaged) {
+          const anchor = captureAnchorAt(session.lastMidX, session.lastMidY);
+          if (anchor) {
+            pendingScrollAnchorRef.current = anchor;
+          }
+          const committedZoom = Number(session.targetZoom.toFixed(2));
+          setPinchPreview({ scale: 1, tx: 0, ty: 0 });
+          setZoom(committedZoom);
+          setZoomCommitSeq((s) => s + 1);
+        }
+        session.active = false;
+        session.pinchEngaged = false;
+        session.movedPointerIds.clear();
+        session.pendingPinchSinceMs = null;
       }
       if (activeTouchPointersRef.current.size === 0) {
-        isMultiTouchActiveRef.current = false;
+        window.setTimeout(() => {
+          if (activeTouchPointersRef.current.size === 0) {
+            isMultiTouchActiveRef.current = false;
+          }
+        }, 0);
       }
+    }
+  };
+
+  // Single-finger / mouse drag 2D pan inside container when Scroll ('pan') tool is active
+  const handleContainerPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (tool !== 'pan' || !pdfDoc || errorMsg) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (activeTouchPointersRef.current.size >= 2 || isMultiTouchActiveRef.current) return;
+    const target = e.target as HTMLElement | null;
+    if (target?.closest('button, a, input, select')) return;
+
+    const container = containerRef.current;
+    if (!container) return;
+    singlePanRef.current = {
+      active: true,
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      startScrollLeft: container.scrollLeft,
+      startScrollTop: container.scrollTop,
+    };
+  };
+
+  const handleContainerPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const pan = singlePanRef.current;
+    if (!pan.active || pan.pointerId !== e.pointerId) return;
+    if (isMultiTouchActiveRef.current || activeTouchPointersRef.current.size >= 2) {
+      pan.active = false;
+      return;
+    }
+    const container = containerRef.current;
+    if (!container) return;
+    container.scrollLeft = pan.startScrollLeft - (e.clientX - pan.startX);
+    container.scrollTop = pan.startScrollTop - (e.clientY - pan.startY);
+    syncScrollMetrics();
+  };
+
+  const handleContainerPointerEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (singlePanRef.current.pointerId === e.pointerId) {
+      singlePanRef.current.active = false;
     }
   };
 
@@ -1035,18 +1341,18 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
           <div className="inline-flex items-center border border-slate-200 rounded-lg bg-white overflow-hidden">
             <button
               type="button"
-              onClick={() => setZoom((z) => Math.max(0.65, Number((z - 0.15).toFixed(2))))}
+              onClick={() => applyButtonZoom(-0.15)}
               aria-label="Zoom out"
               className="p-1.5 text-slate-600 hover:bg-slate-100 cursor-pointer"
             >
               <ZoomOut className="w-3.5 h-3.5" />
             </button>
             <span className="px-2 text-[11px] font-mono tabular-nums text-slate-700 border-x border-slate-200">
-              {Math.round(zoom * pinchPreviewScale * 100)}%
+              {Math.round(zoom * pinchPreview.scale * 100)}%
             </span>
             <button
               type="button"
-              onClick={() => setZoom((z) => Math.min(2.5, Number((z + 0.15).toFixed(2))))}
+              onClick={() => applyButtonZoom(0.15)}
               aria-label="Zoom in"
               className="p-1.5 text-slate-600 hover:bg-slate-100 cursor-pointer"
             >
@@ -1107,9 +1413,20 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
         >
           <div
             ref={containerRef}
+            data-testid="pdf-scroll-container"
             onScroll={syncScrollMetrics}
-            style={{ touchAction: 'pan-x pan-y' }}
-            className={`w-full ${heightClass} overflow-auto px-5 sm:px-8 py-5 space-y-5 bg-slate-200/70 pdf-annotator-scroll`}
+            onPointerDown={handleContainerPointerDown}
+            onPointerMove={handleContainerPointerMove}
+            onPointerUp={handleContainerPointerEnd}
+            onPointerCancel={handleContainerPointerEnd}
+            onContextMenu={preventContextMenu}
+            style={{
+              touchAction: pdfDoc && !errorMsg ? 'none' : 'pan-y',
+              WebkitTouchCallout: 'none',
+            }}
+            className={`w-full ${heightClass} overflow-auto px-5 sm:px-8 py-5 bg-slate-200/70 pdf-annotator-scroll ${
+              tool === 'pan' && pdfDoc && !errorMsg ? 'cursor-grab active:cursor-grabbing' : ''
+            }`}
           >
             {loading && (
               <div className="h-full min-h-[320px] flex flex-col items-center justify-center gap-3 text-sm text-slate-600">
@@ -1147,27 +1464,30 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
 
             {!loading && !errorMsg && pdfDoc && (
               <div
+                ref={pagesStackRef}
                 style={
-                  pinchPreviewScale !== 1
+                  pinchPreview.scale !== 1 || pinchPreview.tx !== 0 || pinchPreview.ty !== 0
                     ? {
-                        transform: `scale(${pinchPreviewScale})`,
-                        transformOrigin: 'top center',
+                        transform: `translate3d(${pinchPreview.tx}px, ${pinchPreview.ty}px, 0) scale(${pinchPreview.scale})`,
+                        transformOrigin: '0 0',
                       }
                     : undefined
                 }
-                className="space-y-5"
+                className="min-w-full w-max mx-auto space-y-5"
               >
                 {pageNumbers.map((pageNumber) => (
                   <PdfPageCanvas
                     key={`${paperKey}-p${pageNumber}`}
                     pdfDoc={pdfDoc}
                     pageNumber={pageNumber}
+                    baseDim={basePageDims[pageNumber]}
                     scale={zoom}
                     strokes={history.present[pageNumber] || []}
                     activeTool={tool}
                     activeColor={activeColor}
                     activeSize={activeSize}
                     isMultiTouchActiveRef={isMultiTouchActiveRef}
+                    multiTouchSignal={multiTouchSignal}
                     getRulerGeometry={getRulerGeometry}
                     onCommitStroke={handleCommitStroke}
                     onEraseAtPoint={handleEraseAtPoint}
@@ -1359,7 +1679,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
       <div className="px-3 py-1.5 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
         <span>
           {numPages > 0
-            ? `Page ${visiblePage} of ${numPages} · Pinch with 2 fingers to zoom · Use right PDF rail or Ruler`
+            ? `Page ${visiblePage} of ${numPages} · 2 fingers to pan/scroll or pinch-zoom · Use right PDF rail or Ruler`
             : 'Preparing PDF canvas'}
         </span>
         <span className="font-mono tabular-nums">
