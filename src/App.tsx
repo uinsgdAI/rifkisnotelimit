@@ -47,7 +47,8 @@ export default function App() {
 
   const navigate = useCallback((nextRoute: AppRoute, explicitPath?: string) => {
     const nextPath = explicitPath ?? buildAppRoutePath(nextRoute);
-    if (window.location.pathname !== nextPath) {
+    const currentFull = `${window.location.pathname}${window.location.search}`;
+    if (currentFull !== nextPath) {
       window.history.pushState(null, '', nextPath);
     }
     setRoute(nextRoute);
@@ -150,6 +151,7 @@ export default function App() {
           <PracticeExamView
             initialMode={route.mode}
             initialTopicId={route.topicId}
+            initialTopicalPackId={route.topicalPackId}
             onOpenFormulaSheet={() => setFormulaModalOpen(true)}
             onFlagWeakTopics={flagWeakTopics}
             onNavigate={navigate}

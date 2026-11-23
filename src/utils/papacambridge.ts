@@ -233,6 +233,43 @@ export function isAllowedPapaCambridgePdfUrl(rawUrl: string): URL | null {
   }
 }
 
+const ALLOWED_PDF_PROXY_HOSTS = new Set([
+  'pastpapers.papacambridge.com',
+  'www.pastpapers.papacambridge.com',
+  'pastpaperpenguin.com',
+  'www.pastpaperpenguin.com',
+]);
+
+export function isAllowedPdfProxyUrl(rawUrl: string): URL | null {
+  try {
+    const parsed = new URL(rawUrl);
+    const host = parsed.hostname.toLowerCase();
+    if (
+      parsed.protocol !== 'https:' ||
+      !ALLOWED_PDF_PROXY_HOSTS.has(host) ||
+      !parsed.pathname.toLowerCase().endsWith('.pdf')
+    ) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function getPdfUpstreamHeaders(parsed: URL): Record<string, string> {
+  const host = parsed.hostname.toLowerCase();
+  const referer = host.includes('pastpaperpenguin.com')
+    ? 'https://pastpaperpenguin.com/'
+    : 'https://pastpapers.papacambridge.com/';
+  return {
+    'User-Agent':
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    Accept: 'application/pdf,application/octet-stream,*/*;q=0.9',
+    Referer: referer,
+  };
+}
+
 export function buildGoogleDocsViewerUrl(pdfUrl: string): string {
   return `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(pdfUrl)}`;
 }

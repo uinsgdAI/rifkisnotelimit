@@ -45,10 +45,13 @@ export function parseAppRoute(pathname: string, search = ''): AppRoute {
 
   if (clean.startsWith('/practice/0580')) {
     const parts = clean.split('/').filter(Boolean);
+    const params = new URLSearchParams(search);
+    const packParam = params.get('pack') || undefined;
     return {
       view: 'practice',
       mode: parts[2] || undefined,
       topicId: parts[3] || undefined,
+      ...(packParam ? { topicalPackId: packParam } : {}),
     };
   }
 
@@ -68,13 +71,15 @@ export function buildAppRoutePath(route: AppRoute): string {
       : base;
   }
   if (route.view === 'practice') {
+    let base = '/practice/0580';
     if (route.mode && route.topicId) {
-      return `/practice/0580/${route.mode}/${route.topicId}`;
+      base = `/practice/0580/${route.mode}/${route.topicId}`;
+    } else if (route.mode) {
+      base = `/practice/0580/${route.mode}`;
     }
-    if (route.mode) {
-      return `/practice/0580/${route.mode}`;
-    }
-    return '/practice/0580';
+    return route.topicalPackId
+      ? `${base}?pack=${encodeURIComponent(route.topicalPackId)}`
+      : base;
   }
   return '/notes/0580/1/1.16';
 }

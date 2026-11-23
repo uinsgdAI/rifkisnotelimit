@@ -24,10 +24,12 @@ import {
   type MockPaperMode,
 } from '../utils/questionGenerator';
 import { MathText } from './MathText';
+import { TopicalPastPapersSection } from './TopicalPastPapersSection';
 
 interface PracticeExamViewProps {
   initialMode?: string;
   initialTopicId?: string;
+  initialTopicalPackId?: string;
   onOpenFormulaSheet: () => void;
   onFlagWeakTopics?: (topicIds: string[]) => void;
   onNavigate: (route: AppRoute) => void;
@@ -66,6 +68,7 @@ function getQuestionFormatLabel(questionType: PracticeQuestion['questionType']):
 export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
   initialMode,
   initialTopicId,
+  initialTopicalPackId,
   onOpenFormulaSheet,
   onFlagWeakTopics,
   onNavigate,
@@ -248,6 +251,10 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
   );
 
   useEffect(() => {
+    if (initialTopicalPackId) {
+      setActiveExam(null);
+      return;
+    }
     const routeKey = `${initialMode || ''}:${initialTopicId || ''}`;
     if (!initialMode) {
       handledRouteKeyRef.current = '';
@@ -273,7 +280,7 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
       const ext = presets.find((p) => p.id === 'mock-ext-p2');
       if (ext) startPreset(ext);
     }
-  }, [initialMode, initialTopicId, presets, launchGeneratedSession, startPreset]);
+  }, [initialMode, initialTopicId, initialTopicalPackId, presets, launchGeneratedSession, startPreset]);
 
   useEffect(() => {
     if (!activeExam || submitted) return;
@@ -431,6 +438,13 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
             ))}
           </div>
         </section>
+
+        {/* Topical Past Papers & Worked Solutions (Annotatable Q + Answers) */}
+        <TopicalPastPapersSection
+          selectedChapterFilter={selectedChapterFilter}
+          initialPackId={initialTopicalPackId}
+          onNavigate={onNavigate}
+        />
       </main>
     );
   }

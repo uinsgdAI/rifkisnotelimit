@@ -4,6 +4,7 @@ import {
   ArrowRight,
   BookOpen,
   CheckCircle2,
+  Columns2,
   Compass,
   ExternalLink,
   Eye,
@@ -18,6 +19,7 @@ import {
 import type { AppRoute, SubtopicNote } from '../types/syllabus';
 import { getAdjacentSubtopics, SYLLABUS_0580 } from '../data/syllabus0580';
 import { evaluateStudentAnswer, parsePaperReference } from '../utils/examLogic';
+import { findTopicalPapersForTopic } from '../utils/topicalPapers';
 import { KaTeXFormula, MathText } from './MathText';
 import { SyllabusSidebar } from './SyllabusSidebar';
 import { TopicSandbox } from './TopicSandbox';
@@ -70,6 +72,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
     otherWeakIds.length > 0
       ? SYLLABUS_0580.flatMap((c) => c.subtopics).find((t) => t.id === otherWeakIds[0])
       : undefined;
+  const matchingTopicalPacks = findTopicalPapersForTopic(note.id);
 
   const handleQuickSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -760,6 +763,45 @@ export const NotesView: React.FC<NotesViewProps> = ({
             )}
           </section>
         </div>
+
+        {/* Linked Topical Past Paper PDFs for Annotation */}
+        {matchingTopicalPacks.length > 0 && (
+          <section
+            aria-label="Topical Past Paper PDFs for this topic"
+            className="p-5 bg-white border border-slate-200 rounded-xl space-y-3"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="font-display text-sm font-bold text-slate-900">
+                  Annotatable Topical Past Paper Sheets for {note.code} {note.title}
+                </h2>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Solve full exam-style topical PDFs side-by-side with worked solutions using Pen, Highlighter, and Ruler.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {matchingTopicalPacks.map((pack) => (
+                <button
+                  key={pack.id}
+                  type="button"
+                  onClick={() =>
+                    onNavigate({
+                      view: 'practice',
+                      topicalPackId: pack.id,
+                    })
+                  }
+                  className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg border border-blue-200 bg-blue-50/70 hover:bg-blue-100 text-blue-900 cursor-pointer"
+                >
+                  <Columns2 className="w-3.5 h-3.5 text-blue-700" />
+                  <span>{pack.title}</span>
+                  <span className="font-mono text-[11px] text-blue-700">({pack.paperMode})</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-blue-700" />
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Bottom Prev / Next & Past Paper Quick Links */}
         <footer className="pt-2 flex flex-wrap items-center justify-between gap-4">

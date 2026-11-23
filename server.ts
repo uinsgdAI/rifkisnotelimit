@@ -5,7 +5,8 @@ import { createServer as createViteServer } from 'vite';
 import {
   fetchPapaCambridgePapers,
   fetchPapaCambridgeSessions,
-  isAllowedPapaCambridgePdfUrl,
+  getPdfUpstreamHeaders,
+  isAllowedPdfProxyUrl,
 } from './src/utils/papacambridge';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -37,20 +38,15 @@ async function startServer() {
 
   app.get('/api/papacambridge/pdf', async (req, res) => {
     const rawUrl = typeof req.query.url === 'string' ? req.query.url : '';
-    const parsed = isAllowedPapaCambridgePdfUrl(rawUrl);
+    const parsed = isAllowedPdfProxyUrl(rawUrl);
     if (!parsed) {
-      res.status(403).json({ error: 'Invalid or disallowed PapaCambridge PDF URL' });
+      res.status(403).json({ error: 'Invalid or disallowed PDF archive URL' });
       return;
     }
 
     try {
       const upstream = await fetch(parsed.toString(), {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          Accept: 'application/pdf,application/octet-stream,*/*;q=0.9',
-          Referer: 'https://pastpapers.papacambridge.com/',
-        },
+        headers: getPdfUpstreamHeaders(parsed),
         signal: AbortSignal.timeout(20000),
       });
 
@@ -66,7 +62,7 @@ async function startServer() {
 
       if (!head.includes('%PDF-')) {
         res.status(404).json({
-          error: `PapaCambridge returned ${contentType} instead of a PDF (this file may not exist in the archive).`,
+          error: `Upstream returned ${contentType} instead of a PDF (this file may not exist in the archive).`,
         });
         return;
       }
@@ -77,7 +73,7 @@ async function startServer() {
       res.setHeader('Cache-Control', 'public, max-age=86400');
       res.send(bytes);
     } catch {
-      res.status(502).json({ error: 'Failed to retrieve PDF from PapaCambridge' });
+      res.status(502).json({ error: 'Failed to retrieve PDF from upstream archive' });
     }
   });
 

@@ -244,6 +244,10 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         heading: 'Grouping Symbols & Showing Method (Coursebook Ch. 1.6)',
         body: 'In Papers 1 and 2, Cambridge mark schemes explicitly award method marks (`M1`) ONLY if you respect grouping symbols (brackets, fraction bars, and roots) and show conversion of mixed numbers to improper fractions with common denominators (for $+ / -$) or the inverted divisor (for $\\div$).',
       },
+      {
+        heading: 'Non-Calculator Multiplication & Division with Decimals',
+        body: 'To multiply decimals (e.g. $0.4 \\times 0.03$), strip decimal points and multiply integers ($4 \\times 3 = 12$), then count TOTAL decimal places across both factors ($1 + 2 = 3$ d.p.) to place the decimal point ($0.012$). To divide by a decimal (e.g. $3.6 \\div 0.04$), rewrite as a fraction and multiply BOTH numerator and denominator by $10, 100, \\dots$ until the denominator is a whole number: $\\frac{3.6}{0.04} = \\frac{360}{4} = 90$.',
+      },
     ],
     extraWorkedExamples: [
       {
@@ -256,6 +260,17 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         ],
         answer: '$3\\frac{1}{9}$ (or $\\frac{28}{9}$)',
         markSchemeNotes: 'B1 for $\\frac{3}{4}$ inside bracket, M1 for $\\frac{7}{3} \\times \\frac{4}{3}$, A1 for $3\\frac{1}{9}$.',
+      },
+      {
+        title: 'Non-calculator decimal division & directed order',
+        question: 'Evaluate $\\frac{0.48 \\times (-0.5)}{-0.06}$ without a calculator.',
+        marks: 2,
+        steps: [
+          'Compute numerator: $0.48 \\times (-0.5) = -0.24$.',
+          'Clear decimal in denominator by multiplying top and bottom by $100$: $\\frac{-0.24}{-0.06} = \\frac{-24}{-6} = 4$.',
+        ],
+        answer: '$4$',
+        markSchemeNotes: 'M1 for $-0.24$ or $\\times 100$, A1 for $+4$.',
       },
     ],
     rapidSummary: [
@@ -889,6 +904,10 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         heading: 'Factorising Before Combining Fractions',
         body: 'In Paper 2/4, a quadratic denominator almost always shares a linear factor with the other denominator: e.g. in $\\frac{3}{x-2} + \\frac{5}{x^2-4}$, factorise $x^2 - 4 = (x-2)(x+2)$ so the LCD is just $(x-2)(x+2)$, NOT $(x-2)(x^2-4)$.',
       },
+      {
+        heading: 'Solving Equations with Algebraic Fractions',
+        body: 'To solve equations such as $\\frac{3}{x - 1} + \\frac{2}{x + 2} = 1$, clear all denominators in one clean step by multiplying EVERY term (including the right-hand side!) by the common denominator $(x - 1)(x + 2)$. Collect terms into a quadratic $ax^2 + bx + c = 0$, solve, and verify none of your solutions make any original denominator equal to zero.',
+      },
     ],
     extraWorkedExamples: [
       {
@@ -902,6 +921,18 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         ],
         answer: '$\\frac{2(x + 2)}{x + 3}$ (or $\\frac{2x + 4}{x + 3}$)',
         markSchemeNotes: 'B1 top factorised, B1 bottom factorised, A1 simplified.',
+      },
+      {
+        title: 'Solving an equation containing two algebraic fractions (Extended)',
+        question: 'Solve $\\frac{4}{x - 1} - \\frac{3}{x + 2} = 1$.',
+        marks: 4,
+        steps: [
+          'Multiply every term by $(x - 1)(x + 2)$: $4(x + 2) - 3(x - 1) = (x - 1)(x + 2)$.',
+          'Expand both sides: $4x + 8 - 3x + 3 = x^2 + x - 2 \\implies x + 11 = x^2 + x - 2$.',
+          'Rearrange: $x^2 = 13 \\implies x = \\pm\\sqrt{13} \\approx \\pm 3.61$ ($3$ s.f.).',
+        ],
+        answer: '$x = 3.61$ or $x = -3.61$ (exact $\\pm\\sqrt{13}$)',
+        markSchemeNotes: 'M1 clearing denominators, M1 expanding correctly, A1 simplified quadratic, A1 both roots.',
       },
     ],
     rapidSummary: [
@@ -968,8 +999,8 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
     },
     extraStudyNotes: [
       {
-        heading: 'Completing the Square & Finding Vertex (Extended)',
-        body: 'Writing $x^2 + bx + c$ as $\\left(x + \\frac{b}{2}\\right)^2 - \\left(\\frac{b}{2}\\right)^2 + c$ simultaneously solves equations AND reveals the turning point (minimum/maximum vertex) at $\\left(-\\frac{b}{2},\\ c - \\left(\\frac{b}{2}\\right)^2\\right)$.',
+        heading: 'Completing the Square (Including $a > 1$) & Turning Point (Extended)',
+        body: 'For monic quadratics, write $x^2 + bx + c = \\left(x + \\frac{b}{2}\\right)^2 - \\left(\\frac{b}{2}\\right)^2 + c$. When the $x^2$ coefficient $a \\neq 1$ (e.g. $2x^2 + 8x + 3$), factor $a$ out of the first two terms ONLY before completing the square inside brackets: $2[x^2 + 4x] + 3 = 2[(x + 2)^2 - 4] + 3 = 2(x + 2)^2 - 5$. This reveals the vertex at $(-2, -5)$ AND solves $2(x+2)^2 - 5 = 0$ immediately via square roots.',
       },
     ],
     extraWorkedExamples: [
@@ -983,6 +1014,18 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         ],
         answer: '$x = 5$',
         markSchemeNotes: 'M1 setting $(x+5)(x-1)=40$, M1 factorising, A1 $x=5$ (with negative rejected).',
+      },
+      {
+        title: 'Completing the square when $a > 1$ (Extended)',
+        question: 'Write $3x^2 - 12x + 5$ in the form $a(x + b)^2 + c$, and state the coordinates of its turning point.',
+        marks: 3,
+        steps: [
+          'Factor $3$ out of the $x$ terms: $3(x^2 - 4x) + 5$.',
+          'Complete square inside bracket: $3\\left[(x - 2)^2 - 4\\right] + 5 = 3(x - 2)^2 - 12 + 5 = 3(x - 2)^2 - 7$.',
+          'Minimum occurs when bracket is zero: $(2, -7)$.',
+        ],
+        answer: '$3(x - 2)^2 - 7$; vertex $(2, -7)$',
+        markSchemeNotes: 'B1 for $a = 3$, M1 for $(x - 2)^2 - 4$, A1 for $-7$ and vertex $(2, -7)$.',
       },
     ],
     rapidSummary: [
@@ -1066,10 +1109,14 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         heading: 'Testing If a Number Belongs to a Sequence',
         body: 'To test whether $185$ is in $u_n = 4n - 3$, set $4n - 3 = 185 \\implies 4n = 188 \\implies n = 47$. Since $n = 47$ is a positive integer, YES, $185$ is the $47$th term! If $n$ comes out fractional or negative, it is NOT in the sequence.',
       },
+      {
+        heading: 'Cubic ($n^3$) & Fraction Sequences ("Other Sequences")',
+        body: 'Compare sequences whose differences grow rapidly against the benchmark cube sequence $n^3 = 1, 8, 27, 64, 125, \\dots$ (or compute 3rd differences $D_3$, where the $n^3$ coefficient is $\\frac{D_3}{6}$). For fraction sequences like $\\frac{2}{5}, \\frac{5}{8}, \\frac{8}{11}, \\dots$, find separate $n$-th term rules for the numerator and denominator independently!',
+      },
     ],
     extraWorkedExamples: [
       {
-        title: 'Cubic / Special sequence recognition',
+        title: 'Geometric sequence recognition',
         question: 'Find the $n$-th term of the geometric sequence $3, 6, 12, 24, \\dots$.',
         marks: 2,
         steps: [
@@ -1078,6 +1125,17 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         ],
         answer: '$3 \\times 2^{n-1}$',
         markSchemeNotes: 'B1 for $2^{n-1}$, A1 for $3 \\times 2^{n-1}$.',
+      },
+      {
+        title: 'Cubic & fraction sequence $n$-th term (Extended)',
+        question: 'Find the $n$-th term of (a) $2, 9, 28, 65, 126, \\dots$ and (b) $\\frac{3}{4}, \\frac{5}{7}, \\frac{7}{10}, \\frac{9}{13}, \\dots$.',
+        marks: 4,
+        steps: [
+          '(a) Compare against $n^3 = 1, 8, 27, 64, 125$: every term is $1$ higher, so $u_n = n^3 + 1$.',
+          '(b) Numerators $3, 5, 7, 9 \\to 2n + 1$; denominators $4, 7, 10, 13 \\to 3n + 1$, giving $\\frac{2n + 1}{3n + 1}$.',
+        ],
+        answer: '(a) $n^3 + 1$; (b) $\\frac{2n + 1}{3n + 1}$',
+        markSchemeNotes: 'M1 for comparing with $n^3$, A1 $n^3 + 1$; B1 numerator $2n+1$, B1 denominator $3n+1$.',
       },
     ],
     rapidSummary: [
@@ -1189,6 +1247,10 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         heading: 'Solving a Modified Equation by Drawing a Straight Line (Extended)',
         body: 'Suppose you already plotted $y = x^2 - 3x + 1$, and Part (c) asks you to solve $x^2 - 5x - 2 = 0$ graphically. Subtract the new equation from your plotted curve: $y - 0 = (x^2 - 3x + 1) - (x^2 - 5x - 2) = 2x + 3$. Plot the line $y = 2x + 3$ and read the $x$-coordinates of intersection!',
       },
+      {
+        heading: 'Estimating the Gradient of a Curve by Drawing a Tangent',
+        body: 'When asked to estimate the gradient of a plotted curve at a given point $(x_0, y_0)$ WITHOUT differentiation, place a clear ruler so it just **touches** the curve smoothly at $(x_0, y_0)$ without crossing inside the curve (equal gap on both sides). Draw a long straight tangent line across the grid, pick two well-separated readable lattice points $(x_1, y_1)$ and $(x_2, y_2)$ on YOUR drawn tangent line, and compute $\\text{gradient} = \\frac{y_2 - y_1}{x_2 - x_1}$.',
+      },
     ],
     extraWorkedExamples: [
       {
@@ -1201,6 +1263,17 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         ],
         answer: '$y = 2x - 3$',
         markSchemeNotes: 'M1 for matching $x^2 - 4x$ on one side, A1 for $y = 2x - 3$.',
+      },
+      {
+        title: 'Estimating instantaneous gradient using a drawn tangent',
+        question: 'A tangent is drawn to the curve $y = x^2 - 2x$ at $(3, 3)$ and passes cleanly through $(1, -5)$ and $(4, 7)$. Estimate the gradient of the curve at $x = 3$.',
+        marks: 3,
+        steps: [
+          'Read two well-spaced coordinates on the straight tangent line: $(1, -5)$ and $(4, 7)$.',
+          'Calculate gradient: $m = \\frac{7 - (-5)}{4 - 1} = \\frac{12}{3} = 4$.',
+        ],
+        answer: 'Gradient $\\approx 4$',
+        markSchemeNotes: 'B1 tangent drawn touching at $(3, 3)$, M1 for $\\frac{\\Delta y}{\\Delta x}$ using points on tangent, A1 for $4$ (allow Cambridge tolerance band).',
       },
     ],
     rapidSummary: [

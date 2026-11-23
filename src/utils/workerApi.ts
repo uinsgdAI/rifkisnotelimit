@@ -1,7 +1,8 @@
 import {
   fetchPapaCambridgePapers,
   fetchPapaCambridgeSessions,
-  isAllowedPapaCambridgePdfUrl,
+  getPdfUpstreamHeaders,
+  isAllowedPdfProxyUrl,
 } from './papacambridge';
 
 function jsonResponse(data: unknown, status = 200, cacheControl = 'no-store'): Response {
@@ -47,20 +48,15 @@ export async function handleApiRequest(
 
   if (url.pathname === '/api/papacambridge/pdf') {
     const rawUrl = url.searchParams.get('url') || '';
-    const parsed = isAllowedPapaCambridgePdfUrl(rawUrl);
+    const parsed = isAllowedPdfProxyUrl(rawUrl);
 
     if (!parsed) {
-      return jsonResponse({ error: 'Invalid or disallowed PapaCambridge PDF URL' }, 403);
+      return jsonResponse({ error: 'Invalid or disallowed PDF archive URL' }, 403);
     }
 
     try {
       const upstream = await fetchImpl(parsed.toString(), {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          Accept: 'application/pdf,application/octet-stream,*/*;q=0.9',
-          Referer: 'https://pastpapers.papacambridge.com/',
-        },
+        headers: getPdfUpstreamHeaders(parsed),
         signal: AbortSignal.timeout(20000),
       });
 
@@ -77,7 +73,7 @@ export async function handleApiRequest(
       if (!head.includes('%PDF-')) {
         return jsonResponse(
           {
-            error: `PapaCambridge returned ${contentType} instead of a PDF (this file may not exist in the archive).`,
+            error: `Upstream returned ${contentType} instead of a PDF (this file may not exist in the archive).`,
           },
           404
         );
@@ -94,7 +90,7 @@ export async function handleApiRequest(
         },
       });
     } catch {
-      return jsonResponse({ error: 'Failed to retrieve PDF from PapaCambridge' }, 502);
+      return jsonResponse({ error: 'Failed to retrieve PDF from upstream archive' }, 502);
     }
   }
 

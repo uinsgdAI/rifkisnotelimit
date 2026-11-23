@@ -1,13 +1,13 @@
-import { isAllowedPapaCambridgePdfUrl } from '../../../src/utils/papacambridge';
+import { getPdfUpstreamHeaders, isAllowedPdfProxyUrl } from '../../../src/utils/papacambridge';
 
 export async function onRequestGet(context: { request: Request }): Promise<Response> {
   const reqUrl = new URL(context.request.url);
   const rawUrl = reqUrl.searchParams.get('url') || '';
-  const parsed = isAllowedPapaCambridgePdfUrl(rawUrl);
+  const parsed = isAllowedPdfProxyUrl(rawUrl);
 
   if (!parsed) {
     return new Response(
-      JSON.stringify({ error: 'Invalid or disallowed PapaCambridge PDF URL' }),
+      JSON.stringify({ error: 'Invalid or disallowed PDF archive URL' }),
       {
         status: 403,
         headers: { 'Content-Type': 'application/json; charset=utf-8' },
@@ -17,12 +17,7 @@ export async function onRequestGet(context: { request: Request }): Promise<Respo
 
   try {
     const upstream = await fetch(parsed.toString(), {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        Accept: 'application/pdf,application/octet-stream,*/*;q=0.9',
-        Referer: 'https://pastpapers.papacambridge.com/',
-      },
+      headers: getPdfUpstreamHeaders(parsed),
       signal: AbortSignal.timeout(20000),
     });
 
@@ -43,7 +38,7 @@ export async function onRequestGet(context: { request: Request }): Promise<Respo
     if (!head.includes('%PDF-')) {
       return new Response(
         JSON.stringify({
-          error: `PapaCambridge returned ${contentType} instead of a PDF (this file may not exist in the archive).`,
+          error: `Upstream returned ${contentType} instead of a PDF (this file may not exist in the archive).`,
         }),
         {
           status: 404,
@@ -64,7 +59,7 @@ export async function onRequestGet(context: { request: Request }): Promise<Respo
     });
   } catch {
     return new Response(
-      JSON.stringify({ error: 'Failed to retrieve PDF from PapaCambridge' }),
+      JSON.stringify({ error: 'Failed to retrieve PDF from upstream archive' }),
       {
         status: 502,
         headers: { 'Content-Type': 'application/json; charset=utf-8' },

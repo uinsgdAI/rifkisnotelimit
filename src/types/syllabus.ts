@@ -139,4 +139,4 @@ export interface PastPaperFile {
 export type AppRoute =
   | { view: 'notes'; chapterId: number; topicId: string }
   | { view: 'past-papers'; sessionSlug?: string; paperFilename?: string }
-  | { view: 'practice'; mode?: string; topicId?: string };
+  | { view: 'practice'; mode?: string; topicId?: string; topicalPackId?: string };
