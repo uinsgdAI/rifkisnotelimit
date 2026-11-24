@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   BookOpen,
@@ -16,6 +16,7 @@ import { buildGoogleDocsViewerUrl } from '../utils/papacambridge';
 import {
   buildPdfByteCandidateUrls,
   fetchPdfBytesWithFallback,
+  prefetchPdfBytes,
 } from '../utils/pdfAnnotations';
 import {
   countTopicalPapersByChapter,
@@ -23,6 +24,7 @@ import {
   getTopicalPdfBytesUrl,
 } from '../utils/topicalPapers';
 import { PdfAnnotator } from './PdfAnnotator';
+import { warmSharedPdfWorker } from '../utils/pdfJsCache';
 import { triggerSakugaBurst } from '../utils/sakugaVfx';
 
 interface TopicalPastPapersSectionProps {
@@ -195,13 +197,19 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
       setActivePack(match);
       setSplitAnswers(true);
       setViewerMode('annotate');
-      window.setTimeout(() => {
-        viewerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }, 60);
+      const raf = window.requestAnimationFrame(() => {
+        viewerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      return () => window.cancelAnimationFrame(raf);
     }
   }, [initialPackId]);
 
   const chapterCounts = useMemo(() => countTopicalPapersByChapter(TOPICAL_PAPERS_0580), []);
+  const chapterTitleMap = useMemo(() => {
+    const map: Record<number, string> = {};
+    for (const ch of SYLLABUS_0580) map[ch.id] = ch.title;
+    return map;
+  }, []);
 
   const filteredPacks = useMemo(
     () =>
@@ -213,16 +221,33 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
     [chapterFilter, query, paperModeFilter]
   );
 
-  const openPack = (pack: TopicalPaperPack, withSplitAnswers: boolean) => {
+  useEffect(() => {
+    const timer = window.setTimeout(() => warmSharedPdfWorker(), 250);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  const openPack = useCallback((pack: TopicalPaperPack, withSplitAnswers: boolean) => {
     setActivePack(pack);
     setSplitAnswers(withSplitAnswers);
     setViewerMode('annotate');
-    window.setTimeout(() => {
-      viewerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }, 50);
-  };
+    window.requestAnimationFrame(() => {
+      viewerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, []);
 
-  const handleDownloadPackPdf = async (packId: string, url: string, filename: string) => {
+  const prefetchPack = useCallback((pack: TopicalPaperPack, includeAnswers: boolean) => {
+    warmSharedPdfWorker();
+    prefetchPdfBytes(
+      buildPdfByteCandidateUrls(getTopicalPdfBytesUrl(pack.questionsUrl), pack.questionsUrl)
+    );
+    if (includeAnswers) {
+      prefetchPdfBytes(
+        buildPdfByteCandidateUrls(getTopicalPdfBytesUrl(pack.answersUrl), pack.answersUrl)
+      );
+    }
+  }, []);
+
+  const handleDownloadPackPdf = useCallback(async (packId: string, url: string, filename: string) => {
     setDownloadingId(packId);
     try {
       const candidates = buildPdfByteCandidateUrls(getTopicalPdfBytesUrl(url), url);
@@ -248,7 +273,7 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
     } finally {
       setDownloadingId(null);
     }
-  };
+  }, []);
 
   return (
     <section
@@ -348,7 +373,7 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
           ref={viewerRef}
           aria-label={`Topical PDF Viewer for ${activePack.title}`}
           data-testid="topical-pdf-viewer"
-          className="sk-card overflow-hidden border-2 border-[#1D1A4A] shadow-[4px_5px_0_#B8B3FF]"
+          className="sk-card overflow-hidden border-2 border-[#1D1A4A] shadow-[4px_5px_0_#B8B3FF] scroll-mt-20"
         >
           <div className="px-4 py-3 border-b-[1.5px] border-[#DCDAF0] bg-[#FAF9FF] flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
@@ -571,136 +596,19 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#ECEBF8]">
-                {filteredPacks.map((pack) => {
-                  const isActive = activePack?.id === pack.id;
-                  const chTitle =
-                    SYLLABUS_0580.find((c) => c.id === pack.chapterId)?.title || `Ch. ${pack.chapterId}`;
-                  const primaryTopic = pack.topicIds[0];
-                  const primaryChapter = primaryTopic
-                    ? Number(primaryTopic.split('.')[0]) || pack.chapterId
-                    : pack.chapterId;
-
-                  return (
-                    <tr
-                      key={pack.id}
-                      data-testid={`topical-row-${pack.id}`}
-                      className={`transition-colors ${
-                        isActive ? 'bg-[#F4F3FC]' : 'hover:bg-[#FAF9FF]'
-                      }`}
-                    >
-                      <td className="py-3 px-4 font-mono text-xs tabular-nums text-[#5E588C]">
-                        {pack.order}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="font-bold text-xs sm:text-sm text-[#1D1A4A]">
-                          {pack.title}
-                        </div>
-                        <div className="text-[11px] font-mono text-[#5E588C] mt-0.5">
-                          Ch. {pack.chapterId}: {chTitle}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex flex-wrap gap-1.5">
-                          {pack.topicIds.map((tid) => {
-                            const ch = Number(tid.split('.')[0]) || pack.chapterId;
-                            return (
-                              <button
-                                key={tid}
-                                type="button"
-                                onClick={() =>
-                                  onNavigate({
-                                    view: 'notes',
-                                    chapterId: ch,
-                                    topicId: tid,
-                                  })
-                                }
-                                title={`Open Study Notes for ${tid}`}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-mono font-semibold rounded-lg border border-[#DCDAF0] bg-[#FAF9FF] hover:bg-[#F4F3FC] hover:border-[#1D1A4A] text-[#5B57E8] cursor-pointer"
-                              >
-                                {tid}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-xs">
-                        <span
-                          className={
-                            pack.paperMode === 'Non-Calc'
-                              ? 'font-semibold text-[#C0266B]'
-                              : pack.paperMode === 'Calc'
-                                ? 'font-semibold text-[#1D1A4A]'
-                                : 'text-[#5E588C]'
-                          }
-                        >
-                          {pack.paperMode}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="inline-flex flex-wrap items-center justify-end gap-2">
-                          {primaryTopic && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                onNavigate({
-                                  view: 'notes',
-                                  chapterId: primaryChapter,
-                                  topicId: primaryTopic,
-                                })
-                              }
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold sk-btn-subtle cursor-pointer"
-                            >
-                              <BookOpen className="w-3.5 h-3.5 text-[#5B57E8]" />
-                              Notes
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              triggerSakugaBurst(e, 'sakura');
-                              openPack(pack, false);
-                            }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold sk-btn-secondary cursor-pointer"
-                          >
-                            <Pen className="w-3.5 h-3.5" />
-                            Annotate Q
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              triggerSakugaBurst(e, 'indigo', 'OPEN!');
-                              openPack(pack, true);
-                            }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold sk-btn-primary cursor-pointer"
-                          >
-                            <Columns2 className="w-3.5 h-3.5" />
-                            Split Q + Ans
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleDownloadPackPdf(
-                                pack.id,
-                                pack.questionsUrl,
-                                pack.questionsFilename
-                              )
-                            }
-                            disabled={downloadingId === pack.id}
-                            aria-label={`Download ${pack.questionsFilename}`}
-                            title="Download Questions PDF"
-                            className="p-1.5 text-[#5E588C] hover:text-[#1D1A4A] rounded-lg hover:bg-[#F4F3FC] cursor-pointer disabled:opacity-50"
-                          >
-                            {downloadingId === pack.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Download className="w-4 h-4" />
-                            )}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {filteredPacks.map((pack) => (
+                  <TopicalPackRow
+                    key={pack.id}
+                    pack={pack}
+                    chapterTitle={chapterTitleMap[pack.chapterId] || `Ch. ${pack.chapterId}`}
+                    isActive={activePack?.id === pack.id}
+                    isDownloading={downloadingId === pack.id}
+                    onOpenPack={openPack}
+                    onPrefetchPack={prefetchPack}
+                    onDownload={handleDownloadPackPdf}
+                    onNavigate={onNavigate}
+                  />
+                ))}
               </tbody>
             </table>
           </div>
@@ -709,3 +617,149 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
     </section>
   );
 };
+
+interface TopicalPackRowProps {
+  pack: TopicalPaperPack;
+  chapterTitle: string;
+  isActive: boolean;
+  isDownloading: boolean;
+  onOpenPack: (pack: TopicalPaperPack, withSplitAnswers: boolean) => void;
+  onPrefetchPack: (pack: TopicalPaperPack, includeAnswers: boolean) => void;
+  onDownload: (packId: string, url: string, filename: string) => void;
+  onNavigate: (route: AppRoute) => void;
+}
+
+const TopicalPackRow: React.FC<TopicalPackRowProps> = React.memo(({
+  pack,
+  chapterTitle,
+  isActive,
+  isDownloading,
+  onOpenPack,
+  onPrefetchPack,
+  onDownload,
+  onNavigate,
+}) => {
+  const primaryTopic = pack.topicIds[0];
+  const primaryChapter = primaryTopic
+    ? Number(primaryTopic.split('.')[0]) || pack.chapterId
+    : pack.chapterId;
+
+  return (
+    <tr
+      data-testid={`topical-row-${pack.id}`}
+      className={isActive ? 'bg-[#F4F3FC]' : 'hover:bg-[#FAF9FF]'}
+    >
+      <td className="py-3 px-4 font-mono text-xs tabular-nums text-[#5E588C]">
+        {pack.order}
+      </td>
+      <td className="py-3 px-4">
+        <div className="font-bold text-xs sm:text-sm text-[#1D1A4A]">
+          {pack.title}
+        </div>
+        <div className="text-[11px] font-mono text-[#5E588C] mt-0.5">
+          Ch. {pack.chapterId}: {chapterTitle}
+        </div>
+      </td>
+      <td className="py-3 px-4">
+        <div className="flex flex-wrap gap-1.5">
+          {pack.topicIds.map((tid) => {
+            const ch = Number(tid.split('.')[0]) || pack.chapterId;
+            return (
+              <button
+                key={tid}
+                type="button"
+                onClick={() =>
+                  onNavigate({
+                    view: 'notes',
+                    chapterId: ch,
+                    topicId: tid,
+                  })
+                }
+                title={`Open Study Notes for ${tid}`}
+                className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-mono font-semibold rounded-lg border border-[#DCDAF0] bg-[#FAF9FF] hover:bg-[#F4F3FC] hover:border-[#1D1A4A] text-[#5B57E8] cursor-pointer"
+              >
+                {tid}
+              </button>
+            );
+          })}
+        </div>
+      </td>
+      <td className="py-3 px-4 text-xs">
+        <span
+          className={
+            pack.paperMode === 'Non-Calc'
+              ? 'font-semibold text-[#C0266B]'
+              : pack.paperMode === 'Calc'
+                ? 'font-semibold text-[#1D1A4A]'
+                : 'text-[#5E588C]'
+          }
+        >
+          {pack.paperMode}
+        </span>
+      </td>
+      <td className="py-3 px-4 text-right">
+        <div className="inline-flex flex-wrap items-center justify-end gap-2">
+          {primaryTopic && (
+            <button
+              type="button"
+              onClick={() =>
+                onNavigate({
+                  view: 'notes',
+                  chapterId: primaryChapter,
+                  topicId: primaryTopic,
+                })
+              }
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold sk-btn-subtle cursor-pointer"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-[#5B57E8]" />
+              Notes
+            </button>
+          )}
+          <button
+            type="button"
+            onPointerEnter={() => onPrefetchPack(pack, false)}
+            onFocus={() => onPrefetchPack(pack, false)}
+            onClick={(e) => {
+              triggerSakugaBurst(e, 'sakura');
+              onOpenPack(pack, false);
+            }}
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold sk-btn-secondary cursor-pointer"
+          >
+            <Pen className="w-3.5 h-3.5" />
+            Annotate Q
+          </button>
+          <button
+            type="button"
+            onPointerEnter={() => onPrefetchPack(pack, true)}
+            onFocus={() => onPrefetchPack(pack, true)}
+            onClick={(e) => {
+              triggerSakugaBurst(e, 'indigo', 'OPEN!');
+              onOpenPack(pack, true);
+            }}
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold sk-btn-primary cursor-pointer"
+          >
+            <Columns2 className="w-3.5 h-3.5" />
+            Split Q + Ans
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              onDownload(pack.id, pack.questionsUrl, pack.questionsFilename)
+            }
+            disabled={isDownloading}
+            aria-label={`Download ${pack.questionsFilename}`}
+            title="Download Questions PDF"
+            className="p-1.5 text-[#5E588C] hover:text-[#1D1A4A] rounded-lg hover:bg-[#F4F3FC] cursor-pointer disabled:opacity-50"
+          >
+            {isDownloading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+});
+

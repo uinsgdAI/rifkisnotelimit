@@ -1,6 +1,7 @@
 import React from 'react';
 import { Menu, X } from 'lucide-react';
 import type { AppRoute } from '../types/syllabus';
+import { preloadRouteView } from '../utils/routePreloaders';
 import { triggerSakugaBurst } from '../utils/sakugaVfx';
 
 interface HeaderProps {
@@ -57,6 +58,8 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
           <button
             type="button"
+            onPointerEnter={() => preloadRouteView('past-papers')}
+            onFocus={() => preloadRouteView('past-papers')}
             onClick={() => onNavigate({ view: 'past-papers' })}
             className={`py-1.5 whitespace-nowrap shrink-0 border-b-[2.5px] transition-colors cursor-pointer ${
               activeView === 'past-papers'
@@ -68,6 +71,8 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
           <button
             type="button"
+            onPointerEnter={() => preloadRouteView('practice')}
+            onFocus={() => preloadRouteView('practice')}
             onClick={() => onNavigate({ view: 'practice' })}
             className={`py-1.5 whitespace-nowrap shrink-0 border-b-[2.5px] transition-colors cursor-pointer ${
               activeView === 'practice'
@@ -79,6 +84,8 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
           <button
             type="button"
+            onPointerEnter={() => preloadRouteView('graph')}
+            onFocus={() => preloadRouteView('graph')}
             onClick={onOpenGraphTool}
             className="py-1.5 whitespace-nowrap shrink-0 border-b-[2.5px] border-transparent text-[#5E588C] hover:text-[#1D1A4A] transition-colors cursor-pointer"
           >
@@ -86,6 +93,8 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
           <button
             type="button"
+            onPointerEnter={() => preloadRouteView('formula')}
+            onFocus={() => preloadRouteView('formula')}
             onClick={onOpenFormulaSheet}
             className="py-1.5 whitespace-nowrap shrink-0 border-b-[2.5px] border-transparent text-[#5E588C] hover:text-[#1D1A4A] transition-colors cursor-pointer"
           >
@@ -97,6 +106,8 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-3 shrink-0">
           <button
             type="button"
+            onPointerEnter={() => preloadRouteView('practice')}
+            onFocus={() => preloadRouteView('practice')}
             onClick={(e) => {
               triggerSakugaBurst(e, 'indigo', 'GO!');
               onStartQuickMock();

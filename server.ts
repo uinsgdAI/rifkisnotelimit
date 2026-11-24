@@ -36,12 +36,34 @@ async function startServer() {
     res.json(result);
   });
 
+  const pdfProxyCache = new Map<
+    string,
+    { bytes: Buffer; filename: string; expiresAt: number }
+  >();
+  let pdfProxyCacheBytes = 0;
+  const PDF_PROXY_CACHE_MAX_BYTES = 50 * 1024 * 1024;
+  const PDF_PROXY_CACHE_TTL_MS = 1000 * 60 * 30;
+
   app.get('/api/papacambridge/pdf', async (req, res) => {
     const rawUrl = typeof req.query.url === 'string' ? req.query.url : '';
     const parsed = isAllowedPdfProxyUrl(rawUrl);
     if (!parsed) {
       res.status(403).json({ error: 'Invalid or disallowed PDF archive URL' });
       return;
+    }
+
+    const cacheKey = parsed.toString();
+    const cached = pdfProxyCache.get(cacheKey);
+    if (cached && Date.now() < cached.expiresAt) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${cached.filename}"`);
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.send(cached.bytes);
+      return;
+    }
+    if (cached) {
+      pdfProxyCacheBytes -= cached.bytes.byteLength;
+      pdfProxyCache.delete(cacheKey);
     }
 
     try {
@@ -65,6 +87,25 @@ async function startServer() {
       }
 
       const filename = path.basename(parsed.pathname);
+      if (bytes.byteLength <= 15 * 1024 * 1024) {
+        while (
+          pdfProxyCacheBytes + bytes.byteLength > PDF_PROXY_CACHE_MAX_BYTES &&
+          pdfProxyCache.size > 0
+        ) {
+          const oldestKey = pdfProxyCache.keys().next().value;
+          if (!oldestKey) break;
+          const oldest = pdfProxyCache.get(oldestKey);
+          if (oldest) pdfProxyCacheBytes -= oldest.bytes.byteLength;
+          pdfProxyCache.delete(oldestKey);
+        }
+        pdfProxyCache.set(cacheKey, {
+          bytes,
+          filename,
+          expiresAt: Date.now() + PDF_PROXY_CACHE_TTL_MS,
+        });
+        pdfProxyCacheBytes += bytes.byteLength;
+      }
+
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
       res.setHeader('Cache-Control', 'public, max-age=86400');

@@ -20,6 +20,8 @@ import {
   generateSessionPaperFallback,
   resolvePdfIframeUrl,
 } from '../utils/papacambridge';
+import { buildPdfByteCandidateUrls, prefetchPdfBytes } from '../utils/pdfAnnotations';
+import { warmSharedPdfWorker } from '../utils/pdfJsCache';
 import { MathText } from './MathText';
 import { PdfAnnotator } from './PdfAnnotator';
 import { triggerSakugaBurst } from '../utils/sakugaVfx';
@@ -85,12 +87,18 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
   const [viewerMode, setViewerMode] = useState<'annotate' | 'proxy' | 'web'>('annotate');
   const [localPdf, setLocalPdf] = useState<{ url: string; filename: string } | null>(null);
   const localFileInputRef = useRef<HTMLInputElement | null>(null);
+  const viewerRef = useRef<HTMLElement | null>(null);
   const [eraFilter, setEraFilter] = useState<'all' | '2020-2026' | '2010-2019' | '2002-2009'>('all');
   const [paperFilter, setPaperFilter] = useState<'all' | '1' | '2' | '3' | '4'>('all');
   const [docFilter, setDocFilter] = useState<'all' | 'QP' | 'MS' | 'ER' | 'GT'>('all');
   const [activePrimaryPdf, setActivePrimaryPdf] = useState<PastPaperFile | null>(null);
   const [activeSecondaryPdf, setActiveSecondaryPdf] = useState<PastPaperFile | null>(null);
   const [topicQuery, setTopicQuery] = useState('');
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => warmSharedPdfWorker(), 250);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -265,6 +273,9 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
     if (apiProxyAvailable) {
       setViewerMode('annotate');
     }
+    window.requestAnimationFrame(() => {
+      viewerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   };
 
   const handleOpenLocalPdf = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -598,8 +609,9 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
       {/* Split-Screen PDF Viewer & Annotator when active */}
       {(activePrimaryPdf || localPdf) && (
         <section
+          ref={viewerRef}
           aria-label="Past Paper Document Viewer"
-          className="sk-card border-2 border-[#1D1A4A] shadow-[4px_5px_0_#B8B3FF] overflow-hidden"
+          className="sk-card border-2 border-[#1D1A4A] shadow-[4px_5px_0_#B8B3FF] overflow-hidden scroll-mt-20"
         >
           <div className="px-4 py-3 border-b-[1.5px] border-[#DCDAF0] bg-[#FAF9FF] flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3 text-xs font-mono text-[#1D1A4A]">
@@ -832,6 +844,16 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                         <div className="inline-flex items-center gap-2">
                           <button
                             type="button"
+                            onPointerEnter={() => {
+                              if (apiProxyAvailable) {
+                                prefetchPdfBytes(buildPdfByteCandidateUrls(pdfBytesUrl(file), file.url));
+                              }
+                            }}
+                            onFocus={() => {
+                              if (apiProxyAvailable) {
+                                prefetchPdfBytes(buildPdfByteCandidateUrls(pdfBytesUrl(file), file.url));
+                              }
+                            }}
                             onClick={(e) => {
                               triggerSakugaBurst(e, 'sakura');
                               setLocalPdf(null);
@@ -840,6 +862,9 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                               if (apiProxyAvailable) {
                                 setViewerMode('annotate');
                               }
+                              window.requestAnimationFrame(() => {
+                                viewerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                              });
                             }}
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold sk-btn-secondary cursor-pointer"
                           >
@@ -849,6 +874,14 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                           {hasMs && (
                             <button
                               type="button"
+                              onPointerEnter={() => {
+                                if (!apiProxyAvailable) return;
+                                prefetchPdfBytes(buildPdfByteCandidateUrls(pdfBytesUrl(file), file.url));
+                                const ms = findMatchingMarkScheme(file);
+                                if (ms) {
+                                  prefetchPdfBytes(buildPdfByteCandidateUrls(pdfBytesUrl(ms), ms.url));
+                                }
+                              }}
                               onClick={(e) => {
                                 triggerSakugaBurst(e, 'indigo', 'OPEN!');
                                 openSplitView(file);

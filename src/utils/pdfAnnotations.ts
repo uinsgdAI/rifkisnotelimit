@@ -746,15 +746,260 @@ export function buildPdfByteCandidateUrls(sourceUrl: string, externalUrl?: strin
   return candidates;
 }
 
+const PDF_BYTES_CACHE_MAX_ENTRIES = 18;
+const PDF_BYTES_CACHE_MAX_TOTAL_BYTES = 55 * 1024 * 1024;
+const PDF_PERSISTENT_CACHE_NAME = 'rifkis-notes-pdf-v1';
+const PDF_PERSISTENT_CACHE_MAX_ENTRIES = 200;
+
+const pdfBytesCache = new Map<string, { bytes: Uint8Array; loadedFrom: string }>();
+const inFlightPdfFetches = new Map<string, Promise<{ bytes: Uint8Array; loadedFrom: string }>>();
+let pdfBytesCacheTotalBytes = 0;
+let activeHighPriorityFetches = 0;
+const highPriorityIdleResolvers: Array<() => void> = [];
+
+function notifyHighPriorityIdle(): void {
+  if (activeHighPriorityFetches > 0) return;
+  while (highPriorityIdleResolvers.length > 0) {
+    const resolve = highPriorityIdleResolvers.shift();
+    resolve?.();
+  }
+}
+
+export function hasActiveHighPriorityPdfFetch(): boolean {
+  return activeHighPriorityFetches > 0;
+}
+
+export function waitForHighPriorityPdfFetches(): Promise<void> {
+  if (activeHighPriorityFetches === 0) return Promise.resolve();
+  return new Promise((resolve) => {
+    highPriorityIdleResolvers.push(resolve);
+  });
+}
+
+function toPersistentCacheKey(url: string): string | null {
+  try {
+    if (typeof window === 'undefined' || !window.location?.origin) return null;
+    return new URL(url, window.location.origin).toString();
+  } catch {
+    return null;
+  }
+}
+
+async function openPersistentPdfCache(): Promise<Cache | null> {
+  if (typeof window === 'undefined') return null;
+  const cacheStorage = window.caches;
+  if (!cacheStorage || typeof cacheStorage.open !== 'function') return null;
+  try {
+    return await cacheStorage.open(PDF_PERSISTENT_CACHE_NAME);
+  } catch {
+    return null;
+  }
+}
+
+async function readPersistentPdfCache(
+  candidateUrls: string[]
+): Promise<{ bytes: Uint8Array; loadedFrom: string } | null> {
+  const cache = await openPersistentPdfCache();
+  if (!cache) return null;
+  for (const url of candidateUrls) {
+    const cacheKey = toPersistentCacheKey(url);
+    if (!cacheKey) continue;
+    try {
+      const match = await cache.match(cacheKey);
+      if (!match || !match.ok) continue;
+      const buf = await match.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      if (!hasPdfHeader(bytes)) {
+        void cache.delete(cacheKey).catch(() => undefined);
+        continue;
+      }
+      const loadedFrom = match.headers.get('X-Pdf-Loaded-From') || url;
+      const entry = { bytes, loadedFrom };
+      writePdfBytesCache(url, entry);
+      if (loadedFrom !== url) {
+        writePdfBytesCache(loadedFrom, entry);
+      }
+      return { bytes: bytes.slice(), loadedFrom };
+    } catch {
+      // ignore Cache API read failure
+    }
+  }
+  return null;
+}
+
+async function writePersistentPdfCache(
+  urlsToIndex: string[],
+  bytes: Uint8Array,
+  loadedFrom: string
+): Promise<void> {
+  if (bytes.byteLength > 20 * 1024 * 1024) return;
+  const cache = await openPersistentPdfCache();
+  if (!cache) return;
+  try {
+    const keys = await cache.keys();
+    if (keys.length >= PDF_PERSISTENT_CACHE_MAX_ENTRIES) {
+      const removeCount = keys.length - PDF_PERSISTENT_CACHE_MAX_ENTRIES + 1;
+      for (let i = 0; i < removeCount; i++) {
+        await cache.delete(keys[i]);
+      }
+    }
+    const uniqueKeys = Array.from(
+      new Set(
+        urlsToIndex
+          .map((u) => toPersistentCacheKey(u))
+          .filter((k): k is string => Boolean(k))
+      )
+    );
+    for (const key of uniqueKeys) {
+      const copy = new Uint8Array(bytes.byteLength);
+      copy.set(bytes);
+      const response = new Response(copy.buffer, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/pdf',
+          'X-Pdf-Loaded-From': loadedFrom,
+        },
+      });
+      await cache.put(key, response);
+    }
+  } catch {
+    // ignore quota or private-mode Cache API errors cleanly
+  }
+}
+
+export async function hasCachedPdfBytes(candidateUrls: string[]): Promise<boolean> {
+  for (const url of candidateUrls) {
+    if (pdfBytesCache.has(url)) return true;
+  }
+  const cache = await openPersistentPdfCache();
+  if (!cache) return false;
+  for (const url of candidateUrls) {
+    const cacheKey = toPersistentCacheKey(url);
+    if (!cacheKey) continue;
+    try {
+      const hit = await cache.match(cacheKey);
+      if (hit && hit.ok) return true;
+    } catch {
+      // ignore
+    }
+  }
+  return false;
+}
+
+function writePdfBytesCache(url: string, entry: { bytes: Uint8Array; loadedFrom: string }): void {
+  if (entry.bytes.byteLength > 15 * 1024 * 1024) return;
+  const existing = pdfBytesCache.get(url);
+  if (existing) {
+    pdfBytesCacheTotalBytes -= existing.bytes.byteLength;
+    pdfBytesCache.delete(url);
+  }
+  while (
+    pdfBytesCache.size >= PDF_BYTES_CACHE_MAX_ENTRIES ||
+    (pdfBytesCacheTotalBytes + entry.bytes.byteLength > PDF_BYTES_CACHE_MAX_TOTAL_BYTES &&
+      pdfBytesCache.size > 0)
+  ) {
+    const oldestKey = pdfBytesCache.keys().next().value;
+    if (!oldestKey) break;
+    const oldest = pdfBytesCache.get(oldestKey);
+    if (oldest) pdfBytesCacheTotalBytes -= oldest.bytes.byteLength;
+    pdfBytesCache.delete(oldestKey);
+  }
+  pdfBytesCache.set(url, entry);
+  pdfBytesCacheTotalBytes += entry.bytes.byteLength;
+}
+
+export function clearPdfBytesCache(): void {
+  pdfBytesCache.clear();
+  inFlightPdfFetches.clear();
+  pdfBytesCacheTotalBytes = 0;
+}
+
+export function prefetchPdfBytes(candidateUrls: string[]): void {
+  if (candidateUrls.length === 0) return;
+  void fetchPdfBytesWithFallback(candidateUrls, { priority: 'high' }).catch(() => undefined);
+}
+
 export async function fetchPdfBytesWithFallback(
   candidateUrls: string[],
-  options: { signal?: AbortSignal; fetchImpl?: typeof fetch } = {}
+  options: {
+    signal?: AbortSignal;
+    fetchImpl?: typeof fetch;
+    bypassCache?: boolean;
+    priority?: 'high' | 'background';
+  } = {}
 ): Promise<{ bytes: Uint8Array; loadedFrom: string }> {
   const fetchFn = options.fetchImpl ?? fetch;
+  const canUseSharedCache = !options.bypassCache;
+  const isHighPriority = options.priority !== 'background';
+
+  if (canUseSharedCache) {
+    for (const url of candidateUrls) {
+      const cached = pdfBytesCache.get(url);
+      if (cached) {
+        // Refresh LRU order and return a fresh copy so pdf.js worker transfer cannot detach cached bytes
+        pdfBytesCache.delete(url);
+        pdfBytesCache.set(url, cached);
+        return { bytes: cached.bytes.slice(), loadedFrom: cached.loadedFrom };
+      }
+    }
+
+    const persistentHit = await readPersistentPdfCache(candidateUrls);
+    if (persistentHit) {
+      return persistentHit;
+    }
+
+    const cacheKey = candidateUrls.join('|');
+    const existingFlight = inFlightPdfFetches.get(cacheKey);
+    if (existingFlight) {
+      const result = await existingFlight;
+      return { bytes: result.bytes.slice(), loadedFrom: result.loadedFrom };
+    }
+
+    if (isHighPriority) {
+      activeHighPriorityFetches += 1;
+    }
+
+    const flightPromise = (async () => {
+      const fetched = await executeFetchCandidates(candidateUrls, fetchFn, options.signal);
+      if (isHighPriority) {
+        writePdfBytesCache(fetched.loadedFrom, fetched);
+        if (candidateUrls[0] && candidateUrls[0] !== fetched.loadedFrom) {
+          writePdfBytesCache(candidateUrls[0], fetched);
+        }
+      }
+      void writePersistentPdfCache(
+        candidateUrls[0] ? [fetched.loadedFrom, candidateUrls[0]] : [fetched.loadedFrom],
+        fetched.bytes,
+        fetched.loadedFrom
+      );
+      return fetched;
+    })();
+
+    inFlightPdfFetches.set(cacheKey, flightPromise);
+    try {
+      const result = await flightPromise;
+      return { bytes: result.bytes.slice(), loadedFrom: result.loadedFrom };
+    } finally {
+      inFlightPdfFetches.delete(cacheKey);
+      if (isHighPriority) {
+        activeHighPriorityFetches = Math.max(0, activeHighPriorityFetches - 1);
+        notifyHighPriorityIdle();
+      }
+    }
+  }
+
+  return executeFetchCandidates(candidateUrls, fetchFn, options.signal);
+}
+
+async function executeFetchCandidates(
+  candidateUrls: string[],
+  fetchFn: typeof fetch,
+  signal?: AbortSignal
+): Promise<{ bytes: Uint8Array; loadedFrom: string }> {
   let lastError = 'Unable to fetch or parse PDF bytes.';
 
   for (const url of candidateUrls) {
-    if (options.signal?.aborted) {
+    if (signal?.aborted) {
       throw new DOMException('Aborted', 'AbortError');
     }
 
@@ -763,7 +1008,7 @@ export async function fetchPdfBytesWithFallback(
       const resp = await fetchFn(url, {
         mode: isExternalHttps ? 'cors' : 'same-origin',
         credentials: isExternalHttps ? 'omit' : 'same-origin',
-        signal: options.signal,
+        signal,
       });
 
       const contentType = (resp.headers.get('content-type') || '').toLowerCase();
@@ -805,5 +1050,7 @@ export async function fetchPdfBytesWithFallback(
 
   throw new Error(lastError);
 }
+
+
 
 

@@ -17,8 +17,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
-import * as pdfjsLib from 'pdfjs-dist';
-import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import type * as pdfjsLib from 'pdfjs-dist';
 import {
   buildPdfByteCandidateUrls,
   capturePdfZoomAnchor,
@@ -47,8 +46,7 @@ import {
   type PdfZoomAnchor,
   type RulerClientGeometry,
 } from '../utils/pdfAnnotations';
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
+import { loadPdfDocumentFast } from '../utils/pdfJsCache';
 
 interface PdfAnnotatorProps {
   sourceUrl: string;
@@ -90,11 +88,13 @@ interface PdfPageCanvasProps {
   pdfDoc: pdfjsLib.PDFDocumentProxy;
   pageNumber: number;
   baseDim?: { width: number; height: number };
+  fallbackDim?: { width: number; height: number };
   scale: number;
   strokes: AnnotationStroke[];
   activeTool: AnnotationTool;
   activeColor: string;
   activeSize: number;
+  scrollRootRef: React.RefObject<HTMLDivElement | null>;
   isMultiTouchActiveRef: React.MutableRefObject<boolean>;
   multiTouchSignal: number;
   getRulerGeometry: () => RulerClientGeometry | null;
@@ -106,15 +106,19 @@ interface PdfPageCanvasProps {
   ) => void;
 }
 
-const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
+const EMPTY_STROKES: AnnotationStroke[] = [];
+
+const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
   pdfDoc,
   pageNumber,
   baseDim,
+  fallbackDim,
   scale,
   strokes,
   activeTool,
   activeColor,
   activeSize,
+  scrollRootRef,
   isMultiTouchActiveRef,
   multiTouchSignal,
   getRulerGeometry,
@@ -122,22 +126,47 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
   onEraseAtPoint,
   registerCanvases,
 }) => {
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
   const pdfCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const liveStrokeRef = useRef<AnnotationStroke | null>(null);
   const snappedEdgeRef = useRef<'top' | 'bottom' | null>(null);
   const isDrawingRef = useRef(false);
   const [renderedDims, setRenderedDims] = useState<{ width: number; height: number } | null>(null);
+  const [isNearViewport, setIsNearViewport] = useState<boolean>(pageNumber <= 2);
+
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setIsNearViewport(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          setIsNearViewport(entry.isIntersecting || pageNumber <= 2);
+        }
+      },
+      {
+        root: scrollRootRef.current,
+        rootMargin: '850px 0px',
+      }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [pageNumber, scrollRootRef]);
+
+  const effectiveBaseDim = baseDim ?? fallbackDim;
 
   const displayDims = useMemo(() => {
-    if (baseDim) {
+    if (effectiveBaseDim) {
       return {
-        width: Math.max(1, Math.floor(baseDim.width * scale)),
-        height: Math.max(1, Math.floor(baseDim.height * scale)),
+        width: Math.max(1, Math.floor(effectiveBaseDim.width * scale)),
+        height: Math.max(1, Math.floor(effectiveBaseDim.height * scale)),
       };
     }
     return renderedDims;
-  }, [baseDim, scale, renderedDims]);
+  }, [effectiveBaseDim, scale, renderedDims]);
 
   useEffect(() => {
     registerCanvases(pageNumber, {
@@ -149,15 +178,16 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
     };
   }, [pageNumber, registerCanvases]);
 
-  // Render PDF page bitmap via pdf.js
+  // Render PDF page bitmap via pdf.js only when near the scroll viewport
   useEffect(() => {
+    if (!isNearViewport) return;
     let cancelled = false;
     let renderTask: { cancel: () => void; promise: Promise<void> } | null = null;
 
     pdfDoc.getPage(pageNumber).then((page) => {
       if (cancelled) return;
       const viewport = page.getViewport({ scale });
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       const canvas = pdfCanvasRef.current;
       const drawCanvas = drawCanvasRef.current;
       if (!canvas || !drawCanvas) return;
@@ -198,14 +228,15 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
         }
       }
     };
-  }, [pdfDoc, pageNumber, scale]);
+  }, [pdfDoc, pageNumber, scale, isNearViewport]);
 
   const redrawOverlay = useCallback(() => {
+    if (!isNearViewport) return;
     const canvas = drawCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     const cssWidth = canvas.width / dpr;
     const cssHeight = canvas.height / dpr;
 
@@ -214,7 +245,7 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
 
     const all = liveStrokeRef.current ? [...strokes, liveStrokeRef.current] : strokes;
     renderStrokesToCanvas(ctx, all, cssWidth, cssHeight, scale);
-  }, [strokes, scale]);
+  }, [strokes, scale, isNearViewport]);
 
   useEffect(() => {
     redrawOverlay();
@@ -360,6 +391,7 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
 
   return (
     <div
+      ref={wrapperRef}
       data-pdf-page={pageNumber}
       className="relative mx-auto bg-white shadow-sm border border-slate-200 select-none"
       style={
@@ -396,7 +428,7 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = ({
       </div>
     </div>
   );
-};
+});
 
 export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
   sourceUrl,
@@ -522,19 +554,38 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     | { mode: 'rotate'; centerX: number; centerY: number }
   >({ mode: 'none' });
 
+  const rulerEnabledRef = useRef(rulerEnabled);
+  rulerEnabledRef.current = rulerEnabled;
+  const rulerStateRef = useRef(rulerState);
+  rulerStateRef.current = rulerState;
+
   const pageCanvasesRef = useRef<
     Record<number, { pdfCanvas: HTMLCanvasElement | null; drawCanvas: HTMLCanvasElement | null }>
   >({});
 
+  const scrollRafRef = useRef<number | null>(null);
+
   const syncScrollMetrics = useCallback(() => {
-    const el = containerRef.current;
-    const track = trackRef.current;
-    if (!el) return;
-    setScrollState({
-      scrollTop: el.scrollTop,
-      scrollHeight: el.scrollHeight,
-      clientHeight: el.clientHeight,
-      trackHeight: track ? track.clientHeight : 400,
+    if (scrollRafRef.current !== null) return;
+    scrollRafRef.current = window.requestAnimationFrame(() => {
+      scrollRafRef.current = null;
+      const el = containerRef.current;
+      const track = trackRef.current;
+      if (!el) return;
+      const next = {
+        scrollTop: Math.round(el.scrollTop),
+        scrollHeight: Math.round(el.scrollHeight),
+        clientHeight: Math.round(el.clientHeight),
+        trackHeight: track ? Math.round(track.clientHeight) : 400,
+      };
+      setScrollState((prev) =>
+        prev.scrollTop === next.scrollTop &&
+        prev.scrollHeight === next.scrollHeight &&
+        prev.clientHeight === next.clientHeight &&
+        prev.trackHeight === next.trackHeight
+          ? prev
+          : next
+      );
     });
   }, []);
 
@@ -552,6 +603,10 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     return () => {
       window.cancelAnimationFrame(raf);
       window.clearTimeout(timer);
+      if (scrollRafRef.current !== null) {
+        window.cancelAnimationFrame(scrollRafRef.current);
+        scrollRafRef.current = null;
+      }
       observer?.disconnect();
     };
   }, [pdfDoc, numPages, zoom, loading, syncScrollMetrics]);
@@ -575,11 +630,11 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     });
   }, [sourceUrl, externalUrl]);
 
-  // Fetch PDF bytes (direct CORS when supported + proxy fallback) then load into pdfjs-dist
+  // Fetch PDF bytes (with cache + direct CORS/proxy fallback), reuse shared PDFWorker + doc cache, and display Page 1 immediately
   useEffect(() => {
     let cancelled = false;
     const abortController = new AbortController();
-    let activeLoadTask: pdfjsLib.PDFDocumentLoadingTask | null = null;
+    let disposeDoc: (() => void) | null = null;
 
     setLoading(true);
     setErrorMsg(null);
@@ -589,41 +644,55 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     const candidates = localOverrideUrl
       ? [localOverrideUrl]
       : buildPdfByteCandidateUrls(sourceUrl, externalUrl);
+    const cacheKey = candidates[0] || sourceUrl;
 
     (async () => {
       try {
-        const { bytes } = await fetchPdfBytesWithFallback(candidates, {
+        const result = await loadPdfDocumentFast({
+          cacheKey,
+          useCache: !localOverrideUrl,
           signal: abortController.signal,
+          getBytes: async () => {
+            const { bytes } = await fetchPdfBytesWithFallback(candidates, {
+              signal: abortController.signal,
+            });
+            return bytes;
+          },
         });
-
-        if (cancelled) return;
-
-        activeLoadTask = pdfjsLib.getDocument({
-          data: bytes,
-          wasmUrl: '/pdfjs/wasm/',
-          standardFontDataUrl: '/pdfjs/standard_fonts/',
-        });
-        const doc = await activeLoadTask.promise;
+        disposeDoc = result.dispose;
         if (cancelled) {
-          void activeLoadTask.destroy().catch(() => undefined);
+          disposeDoc();
           return;
         }
 
-        const dimEntries = await Promise.all(
-          Array.from({ length: doc.numPages }, (_, idx) => idx + 1).map(async (pNum) => {
-            const pg = await doc.getPage(pNum);
-            const vp = pg.getViewport({ scale: 1 });
-            return [pNum, { width: vp.width, height: vp.height }] as const;
-          })
-        );
-        if (cancelled) {
-          void activeLoadTask.destroy().catch(() => undefined);
-          return;
-        }
-
-        setBasePageDims(Object.fromEntries(dimEntries));
+        const { doc, firstPageDims } = result;
+        setBasePageDims({ 1: firstPageDims });
         setPdfDoc(doc);
         setNumPages(doc.numPages);
+        setLoading(false);
+
+        // Hydrate remaining pages' exact dimensions lazily in small batches without blocking Page 1
+        if (doc.numPages > 1) {
+          (async () => {
+            const batchSize = 4;
+            for (let start = 2; start <= doc.numPages; start += batchSize) {
+              if (cancelled) return;
+              const pageSlice = Array.from(
+                { length: Math.min(batchSize, doc.numPages - start + 1) },
+                (_, i) => start + i
+              );
+              const entries = await Promise.all(
+                pageSlice.map(async (pNum) => {
+                  const pg = await doc.getPage(pNum);
+                  const vp = pg.getViewport({ scale: 1 });
+                  return [pNum, { width: vp.width, height: vp.height }] as const;
+                })
+              );
+              if (cancelled) return;
+              setBasePageDims((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
+            }
+          })().catch(() => undefined);
+        }
       } catch (err) {
         if (cancelled || (err instanceof DOMException && err.name === 'AbortError')) {
           return;
@@ -632,7 +701,6 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
         setErrorMsg(
           `Could not load PDF bytes for canvas annotation (${reason}). You can switch to Web Viewer, open the PDF directly, or upload a local PDF file to scribble on offline.`
         );
-      } finally {
         if (!cancelled) setLoading(false);
       }
     })();
@@ -640,8 +708,8 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     return () => {
       cancelled = true;
       abortController.abort();
-      if (activeLoadTask) {
-        void activeLoadTask.destroy().catch(() => undefined);
+      if (disposeDoc) {
+        disposeDoc();
       }
     };
   }, [sourceUrl, externalUrl, localOverrideUrl]);
@@ -755,19 +823,20 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
   );
 
   const getRulerGeometry = useCallback((): RulerClientGeometry | null => {
-    if (!rulerEnabled) return null;
+    if (!rulerEnabledRef.current) return null;
     const box = viewportBoxRef.current;
     if (!box) return null;
     const rect = box.getBoundingClientRect();
-    const effectiveLength = Math.min(rulerState.lengthPx, Math.max(200, rect.width - 40));
+    const curRuler = rulerStateRef.current;
+    const effectiveLength = Math.min(curRuler.lengthPx, Math.max(200, rect.width - 40));
     return {
-      centerX: rect.left + (rect.width * rulerState.xPct) / 100,
-      centerY: rect.top + (rect.height * rulerState.yPct) / 100,
-      angleDeg: rulerState.angleDeg,
+      centerX: rect.left + (rect.width * curRuler.xPct) / 100,
+      centerY: rect.top + (rect.height * curRuler.yPct) / 100,
+      angleDeg: curRuler.angleDeg,
       lengthPx: effectiveLength,
-      thicknessPx: rulerState.thicknessPx,
+      thicknessPx: curRuler.thicknessPx,
     };
-  }, [rulerEnabled, rulerState]);
+  }, []);
 
   const applyRailPointerY = useCallback(
     (clientY: number, grabOffsetRatio: number) => {
@@ -1483,11 +1552,13 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
                     pdfDoc={pdfDoc}
                     pageNumber={pageNumber}
                     baseDim={basePageDims[pageNumber]}
+                    fallbackDim={basePageDims[1]}
                     scale={zoom}
-                    strokes={history.present[pageNumber] || []}
+                    strokes={history.present[pageNumber] || EMPTY_STROKES}
                     activeTool={tool}
                     activeColor={activeColor}
                     activeSize={activeSize}
+                    scrollRootRef={containerRef}
                     isMultiTouchActiveRef={isMultiTouchActiveRef}
                     multiTouchSignal={multiTouchSignal}
                     getRulerGeometry={getRulerGeometry}

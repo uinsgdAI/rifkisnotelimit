@@ -1,6 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { FormulaSheetModal } from './components/FormulaSheetModal';
-import { GraphCalculatorModal } from './components/GraphCalculatorModal';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Header } from './components/Header';
 import { NotesView } from './components/NotesView';
 import { PastPapersView } from './components/PastPapersView';
@@ -10,6 +8,15 @@ import { UniversalPageScroller } from './components/UniversalPageScroller';
 import { ALL_SUBTOPICS_0580, findSubtopic } from './data/syllabus0580';
 import type { AppRoute } from './types/syllabus';
 import { buildAppRoutePath, parseAppRoute } from './utils/examLogic';
+import { startBackgroundAppWarmup } from './utils/backgroundPreloader';
+import {
+  loadFormulaSheetModal,
+  loadGraphCalculatorModal,
+  preloadAllAppViews,
+} from './utils/routePreloaders';
+
+const FormulaSheetModal = lazy(loadFormulaSheetModal);
+const GraphCalculatorModal = lazy(loadGraphCalculatorModal);
 
 const STUDIED_STORAGE_KEY = 'cambridge_0580_studied_topics_v1';
 const WEAK_STORAGE_KEY = 'cambridge_0580_weak_topics_v1';
@@ -45,10 +52,17 @@ export default function App() {
       setRoute(parseAppRoute(window.location.pathname, window.location.search));
     };
     window.addEventListener('popstate', handlePopState);
+    const stopWarmup = startBackgroundAppWarmup({
+      activeTopicId: route.view === 'notes' ? route.topicId : undefined,
+      preloadViews: preloadAllAppViews,
+    });
     return () => {
+      stopWarmup();
       window.removeEventListener('popstate', handlePopState);
       if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
     };
+    // Run background warmup once on initial mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const showToast = useCallback((message: string) => {
@@ -216,15 +230,23 @@ export default function App() {
         </div>
       )}
 
-      <FormulaSheetModal
-        open={formulaModalOpen}
-        onClose={() => setFormulaModalOpen(false)}
-      />
-      <GraphCalculatorModal
-        open={graphModalOpen}
-        initialTopicId={route.view === 'notes' ? activeNote.id : 'general'}
-        onClose={() => setGraphModalOpen(false)}
-      />
+      {formulaModalOpen && (
+        <Suspense fallback={null}>
+          <FormulaSheetModal
+            open={formulaModalOpen}
+            onClose={() => setFormulaModalOpen(false)}
+          />
+        </Suspense>
+      )}
+      {graphModalOpen && (
+        <Suspense fallback={null}>
+          <GraphCalculatorModal
+            open={graphModalOpen}
+            initialTopicId={route.view === 'notes' ? activeNote.id : 'general'}
+            onClose={() => setGraphModalOpen(false)}
+          />
+        </Suspense>
+      )}
       <UniversalPageScroller />
       <SakugaCanvasOverlay />
     </div>

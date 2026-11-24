@@ -11,6 +11,7 @@ import {
 } from './papacambridge';
 import {
   buildPdfByteCandidateUrls,
+  clearPdfBytesCache,
   fetchPdfBytesWithFallback,
 } from './pdfAnnotations';
 import {
@@ -19,6 +20,7 @@ import {
   findTopicalPapersForTopic,
   getTopicalPdfBytesUrl,
 } from './topicalPapers';
+import { buildTopicalWarmupQueue } from './backgroundPreloader';
 import { handleApiRequest } from './workerApi';
 
 test('All 78 Past Paper Penguin topical packs have valid URLs and map to real 0580 syllabus topics', () => {
@@ -187,4 +189,51 @@ test('Direct-CORS ordering and multi-source PDF byte fallback bypass proxy 403 e
   assert.equal(attempt, 2);
   assert.equal(upstreamRes.status, 200);
 });
+
+test('PDF byte cache deduplicates concurrent fetches and returns isolated byte copies', async () => {
+  clearPdfBytesCache();
+  let networkHits = 0;
+  const fakeUrl = 'https://pastpaperpenguin.com/wp-content/uploads/2026/09/Q-Cache-Test.pdf';
+  const mockFetch = (async () => {
+    networkHits += 1;
+    await new Promise((r) => setTimeout(r, 10));
+    return new Response(new TextEncoder().encode('%PDF-1.7\n%cached-bytes'), {
+      status: 200,
+      headers: { 'Content-Type': 'application/pdf' },
+    });
+  }) as typeof fetch;
+
+  // Two simultaneous requests deduplicate into 1 network fetch
+  const [r1, r2] = await Promise.all([
+    fetchPdfBytesWithFallback([fakeUrl], { fetchImpl: mockFetch }),
+    fetchPdfBytesWithFallback([fakeUrl], { fetchImpl: mockFetch }),
+  ]);
+  assert.equal(networkHits, 1);
+  assert.notEqual(r1.bytes.buffer, r2.bytes.buffer);
+
+  // Mutating r1.bytes simulates worker transfer/corruption without affecting cached hits
+  r1.bytes[0] = 0;
+  const r3 = await fetchPdfBytesWithFallback([fakeUrl], { fetchImpl: mockFetch });
+  assert.equal(networkHits, 1);
+  assert.equal(new TextDecoder('latin1').decode(r3.bytes.slice(0, 5)), '%PDF-');
+
+  clearPdfBytesCache();
+});
+
+test('buildTopicalWarmupQueue prioritizes active topic packs first and queues all 156 unique PDFs', () => {
+  const queue = buildTopicalWarmupQueue(TOPICAL_PAPERS_0580, '7.1');
+  assert.equal(queue.length, TOPICAL_PAPERS_0580.length * 2);
+
+  // First entries belong to topic 7.1 (Transformations), Q then A
+  const firstPack = TOPICAL_PAPERS_0580.find((p) => p.topicIds.includes('7.1'))!;
+  assert.equal(queue[0].packId, firstPack.id);
+  assert.equal(queue[0].kind, 'Q');
+  assert.equal(queue[1].packId, firstPack.id);
+  assert.equal(queue[1].kind, 'A');
+
+  // Every entry is unique by primary candidate URL
+  const uniqueUrls = new Set(queue.map((item) => item.candidates[0]));
+  assert.equal(uniqueUrls.size, TOPICAL_PAPERS_0580.length * 2);
+});
+
 

@@ -1,6 +1,20 @@
 import { fetchUpstreamPdfWithFallback, isAllowedPdfProxyUrl } from '../../../src/utils/papacambridge';
 
-export async function onRequestGet(context: { request: Request }): Promise<Response> {
+function getEdgeCache(): Cache | null {
+  try {
+    if (typeof caches !== 'undefined' && 'default' in caches) {
+      return (caches as unknown as { default: Cache }).default;
+    }
+  } catch {
+    // ignore outside Cloudflare runtime
+  }
+  return null;
+}
+
+export async function onRequestGet(context: {
+  request: Request;
+  waitUntil?: (promise: Promise<unknown>) => void;
+}): Promise<Response> {
   const reqUrl = new URL(context.request.url);
   const rawUrl = reqUrl.searchParams.get('url') || '';
   const parsed = isAllowedPdfProxyUrl(rawUrl);
@@ -13,6 +27,15 @@ export async function onRequestGet(context: { request: Request }): Promise<Respo
         headers: { 'Content-Type': 'application/json; charset=utf-8' },
       }
     );
+  }
+
+  const edgeCache = getEdgeCache();
+  const cacheKey = new Request(reqUrl.toString(), { method: 'GET' });
+  if (edgeCache) {
+    const cached = await edgeCache.match(cacheKey);
+    if (cached) {
+      return cached;
+    }
   }
 
   try {
@@ -46,14 +69,25 @@ export async function onRequestGet(context: { request: Request }): Promise<Respo
 
     const filename = parsed.pathname.split('/').pop() || '0580.pdf';
 
-    return new Response(buf, {
+    const response = new Response(buf, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `inline; filename="${filename}"`,
-        'Cache-Control': 'public, max-age=86400',
+        'Cache-Control': 'public, max-age=604800, stale-while-revalidate=86400',
       },
     });
+
+    if (edgeCache) {
+      const putPromise = edgeCache.put(cacheKey, response.clone()).catch(() => undefined);
+      if (typeof context.waitUntil === 'function') {
+        context.waitUntil(putPromise);
+      } else {
+        await putPromise;
+      }
+    }
+
+    return response;
   } catch {
     return new Response(
       JSON.stringify({ error: 'Failed to retrieve PDF from upstream archive' }),

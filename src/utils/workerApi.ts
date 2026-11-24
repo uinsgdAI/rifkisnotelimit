@@ -5,6 +5,17 @@ import {
   isAllowedPdfProxyUrl,
 } from './papacambridge';
 
+function getCloudflareEdgeCache(): Cache | null {
+  try {
+    if (typeof caches !== 'undefined' && 'default' in caches) {
+      return (caches as unknown as { default: Cache }).default;
+    }
+  } catch {
+    // ignore outside Cloudflare Worker runtime
+  }
+  return null;
+}
+
 function jsonResponse(data: unknown, status = 200, cacheControl = 'no-store'): Response {
   return new Response(JSON.stringify(data), {
     status,
@@ -34,7 +45,7 @@ export async function handleApiRequest(
 
   if (url.pathname === '/api/papacambridge/sessions') {
     const result = await fetchPapaCambridgeSessions();
-    return jsonResponse(result, 200, 'public, max-age=1800');
+    return jsonResponse(result, 200, 'public, max-age=3600, stale-while-revalidate=86400');
   }
 
   if (url.pathname === '/api/papacambridge/papers') {
@@ -43,7 +54,7 @@ export async function handleApiRequest(
       return jsonResponse({ error: 'Invalid session parameter' }, 400);
     }
     const result = await fetchPapaCambridgePapers(session);
-    return jsonResponse(result, 200, 'public, max-age=1800');
+    return jsonResponse(result, 200, 'public, max-age=3600, stale-while-revalidate=86400');
   }
 
   if (url.pathname === '/api/papacambridge/pdf') {
@@ -52,6 +63,15 @@ export async function handleApiRequest(
 
     if (!parsed) {
       return jsonResponse({ error: 'Invalid or disallowed PDF archive URL' }, 403);
+    }
+
+    const edgeCache = getCloudflareEdgeCache();
+    const cacheKey = new Request(url.toString(), { method: 'GET' });
+    if (edgeCache) {
+      const cached = await edgeCache.match(cacheKey);
+      if (cached) {
+        return cached;
+      }
     }
 
     try {
@@ -78,14 +98,20 @@ export async function handleApiRequest(
 
       const filename = parsed.pathname.split('/').pop() || '0580.pdf';
 
-      return new Response(buf, {
+      const response = new Response(buf, {
         status: 200,
         headers: {
           'Content-Type': 'application/pdf',
           'Content-Disposition': `inline; filename="${filename}"`,
-          'Cache-Control': 'public, max-age=86400',
+          'Cache-Control': 'public, max-age=604800, stale-while-revalidate=86400',
         },
       });
+
+      if (edgeCache) {
+        await edgeCache.put(cacheKey, response.clone()).catch(() => undefined);
+      }
+
+      return response;
     } catch {
       return jsonResponse({ error: 'Failed to retrieve PDF from upstream archive' }, 502);
     }
