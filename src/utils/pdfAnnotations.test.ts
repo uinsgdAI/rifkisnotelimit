@@ -8,6 +8,7 @@ import {
   computeScrollTopFromTrackY,
   computeTwoFingerPanAndZoom,
   evaluateTwoFingerPinchEngagement,
+  resolveDefaultAnnotatorToolAndWidth,
   snapClientPointToRulerEdge,
 } from './pdfAnnotations';
 
@@ -199,5 +200,24 @@ test('evaluateTwoFingerPinchEngagement resists single-finger pan stagger while e
   });
   assert.equal(anchoredPinch.engage, true);
   assert.equal(anchoredPinch.pinchStartDist, 172);
+});
+
+test('resolveDefaultAnnotatorToolAndWidth defaults MS/answers to pan(scroll) and QP/questions to pen+fine', () => {
+  assert.deepEqual(resolveDefaultAnnotatorToolAndWidth('qp'), {
+    tool: 'pen',
+    widthPreset: 'fine',
+  });
+  assert.deepEqual(resolveDefaultAnnotatorToolAndWidth('questions'), {
+    tool: 'pen',
+    widthPreset: 'fine',
+  });
+  assert.deepEqual(resolveDefaultAnnotatorToolAndWidth('ms'), {
+    tool: 'pan',
+    widthPreset: 'fine',
+  });
+  assert.deepEqual(resolveDefaultAnnotatorToolAndWidth('answers'), {
+    tool: 'pan',
+    widthPreset: 'fine',
+  });
 });
 

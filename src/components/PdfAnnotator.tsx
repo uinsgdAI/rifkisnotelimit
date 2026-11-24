@@ -45,6 +45,7 @@ import {
   type AnnotationTool,
   type PdfZoomAnchor,
   type RulerClientGeometry,
+  type StrokeWidthPresetId,
 } from '../utils/pdfAnnotations';
 import { loadPdfDocumentFast } from '../utils/pdfJsCache';
 
@@ -56,6 +57,7 @@ interface PdfAnnotatorProps {
   heightClass?: string;
   initialTool?: AnnotationTool;
   initialPenColorHex?: string;
+  initialWidthPreset?: StrokeWidthPresetId;
   onFallbackViewer?: () => void;
 }
 
@@ -438,6 +440,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
   heightClass = 'h-[620px]',
   initialTool = 'pen',
   initialPenColorHex = PEN_COLORS[1].hex,
+  initialWidthPreset = 'fine',
   onFallbackViewer,
 }) => {
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
@@ -456,7 +459,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
   const [tool, setTool] = useState<AnnotationTool>(initialTool);
   const [penColor, setPenColor] = useState(initialPenColorHex);
   const [hlColor, setHlColor] = useState(HIGHLIGHT_COLORS[0].hex);
-  const [widthPreset, setWidthPreset] = useState<(typeof STROKE_WIDTHS)[number]['id']>('med');
+  const [widthPreset, setWidthPreset] = useState<StrokeWidthPresetId>(initialWidthPreset);
   const [activeExportPage, setActiveExportPage] = useState(1);
 
   const [rulerEnabled, setRulerEnabled] = useState(false);
@@ -611,11 +614,14 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     };
   }, [pdfDoc, numPages, zoom, loading, syncScrollMetrics]);
 
-  // Sync annotations map from localStorage when switching papers
+  // Sync annotations map & default tool/width preset when switching papers
   useEffect(() => {
     setHistory(createInitialAnnotationHistory(loadPaperAnnotations(paperKey)));
     setActiveExportPage(1);
-  }, [paperKey]);
+    setTool(initialTool);
+    setPenColor(initialPenColorHex);
+    setWidthPreset(initialWidthPreset);
+  }, [paperKey, initialTool, initialPenColorHex, initialWidthPreset]);
 
   // Persist changes to localStorage
   useEffect(() => {

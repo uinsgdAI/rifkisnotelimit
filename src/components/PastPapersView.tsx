@@ -729,6 +729,8 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                   sourceUrl={localPdf.url}
                   paperKey={`local:${localPdf.filename}`}
                   paperTitle={localPdf.filename}
+                  initialTool="pen"
+                  initialWidthPreset="fine"
                 />
               ) : activePrimaryPdf && viewerMode === 'annotate' ? (
                 <PdfAnnotator
@@ -736,6 +738,8 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                   externalUrl={activePrimaryPdf.url}
                   paperKey={activePrimaryPdf.filename}
                   paperTitle={activePrimaryPdf.filename}
+                  initialTool={activePrimaryPdf.docType === 'MS' ? 'pan' : 'pen'}
+                  initialWidthPreset="fine"
                   onFallbackViewer={() => setViewerMode('web')}
                 />
               ) : activePrimaryPdf ? (
@@ -766,7 +770,9 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                     externalUrl={activeSecondaryPdf.url}
                     paperKey={activeSecondaryPdf.filename}
                     paperTitle={activeSecondaryPdf.filename}
+                    initialTool="pan"
                     initialPenColorHex="#dc2626"
+                    initialWidthPreset="fine"
                     onFallbackViewer={() => setViewerMode('web')}
                   />
                 ) : (

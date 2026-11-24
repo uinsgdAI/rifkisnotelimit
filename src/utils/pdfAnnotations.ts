@@ -6,6 +6,16 @@ export interface NormalizedPoint {
 }
 
 export type AnnotationTool = 'pen' | 'highlighter' | 'eraser' | 'pan';
+export type StrokeWidthPresetId = 'fine' | 'med' | 'bold';
+
+export function resolveDefaultAnnotatorToolAndWidth(
+  docRole: 'qp' | 'questions' | 'ms' | 'answers' | 'general'
+): { tool: AnnotationTool; widthPreset: StrokeWidthPresetId } {
+  if (docRole === 'ms' || docRole === 'answers') {
+    return { tool: 'pan', widthPreset: 'fine' };
+  }
+  return { tool: 'pen', widthPreset: 'fine' };
+}
 
 export interface AnnotationStroke {
   id: string;

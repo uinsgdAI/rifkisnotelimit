@@ -517,6 +517,8 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                   externalUrl={activePack.questionsUrl}
                   paperKey={`topical:${activePack.questionsFilename}`}
                   paperTitle={`${activePack.title} — Questions`}
+                  initialTool="pen"
+                  initialWidthPreset="fine"
                   onFallbackViewer={() => setViewerMode('web')}
                 />
               ) : viewerMode === 'proxy' ? (
@@ -554,7 +556,9 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                     externalUrl={activePack.answersUrl}
                     paperKey={`topical:${activePack.answersFilename}`}
                     paperTitle={`${activePack.title} — Worked Answers`}
+                    initialTool="pan"
                     initialPenColorHex="#dc2626"
+                    initialWidthPreset="fine"
                     onFallbackViewer={() => setViewerMode('web')}
                   />
                 ) : viewerMode === 'proxy' ? (
