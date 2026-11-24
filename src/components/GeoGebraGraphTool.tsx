@@ -1117,7 +1117,7 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
       data-point-count={points.length}
     >
       {/* Top Toolbar: Tools + Preset Switcher + View Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200">
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b-[1.5px] border-[#DCDAF0]">
         <div
           className="flex flex-wrap items-center gap-1"
           role="toolbar"
@@ -1145,10 +1145,10 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
                   if (tool.id === 'tangent') setTangentEnabled(true);
                 }}
                 aria-pressed={active}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border transition-colors cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-[11px] border-[1.5px] transition-colors cursor-pointer ${
                   active
-                    ? 'bg-blue-700 text-white border-blue-700'
-                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                    ? 'bg-[#6D69F2] text-white border-[#1D1A4A] shadow-[2px_2px_0_#B8B3FF]'
+                    : 'bg-[#F4F3FC] text-[#393469] border-[#DCDAF0] hover:border-[#1D1A4A] hover:text-[#1D1A4A]'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5 shrink-0" />
@@ -1160,13 +1160,13 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
 
         <div className="flex flex-wrap items-center gap-1.5">
           {allowPresetSwitch && (
-            <label className="inline-flex items-center gap-1.5 text-xs text-slate-600">
+            <label className="inline-flex items-center gap-1.5 text-xs text-[#5E588C]">
               <span className="sr-only">Load preset</span>
               <select
                 aria-label="Graph preset"
                 value={activePresetId}
                 onChange={(e) => applyPreset(getGraphPresetForTopic(e.target.value))}
-                className="px-2.5 py-1.5 text-xs font-medium bg-white border border-slate-200 rounded-lg text-slate-800 cursor-pointer"
+                className="sk-input px-2.5 py-1.5 text-xs font-semibold cursor-pointer"
               >
                 {CALCULATOR_PRESET_OPTIONS.map((opt) => (
                   <option key={opt.id} value={opt.id}>
@@ -1182,10 +1182,10 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
             onClick={() => setSnapToGrid((s) => !s)}
             aria-pressed={snapToGrid}
             title="Snap points to grid"
-            className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg border cursor-pointer ${
+            className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-[11px] border-[1.5px] cursor-pointer ${
               snapToGrid
-                ? 'bg-slate-900 text-white border-slate-900'
-                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                ? 'bg-[#1D1A4A] text-white border-[#1D1A4A] shadow-[2px_2px_0_#B8B3FF]'
+                : 'bg-white text-[#393469] border-[#DCDAF0] hover:border-[#1D1A4A] hover:bg-[#F4F3FC]'
             }`}
           >
             <Magnet className="w-3.5 h-3.5" />
@@ -1197,10 +1197,10 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
             onClick={() => setShowKeyPoints((k) => !k)}
             aria-pressed={showKeyPoints}
             title="Highlight roots, extrema & intersections"
-            className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg border cursor-pointer ${
+            className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-[11px] border-[1.5px] cursor-pointer ${
               showKeyPoints
-                ? 'bg-blue-50 text-blue-800 border-blue-200'
-                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                ? 'bg-[#F4F3FC] text-[#1D1A4A] border-[#1D1A4A] shadow-[2px_2px_0_#B8B3FF]'
+                : 'bg-white text-[#393469] border-[#DCDAF0] hover:border-[#1D1A4A] hover:bg-[#F4F3FC]'
             }`}
           >
             <Grid className="w-3.5 h-3.5" />
@@ -1210,18 +1210,18 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
           <button
             type="button"
             onClick={toggleAngleUnit}
-            className="px-2.5 py-1.5 text-xs font-mono font-semibold bg-white border border-slate-200 rounded-lg text-slate-700 hover:bg-slate-50 cursor-pointer"
+            className="sk-btn-subtle px-2.5 py-1.5 text-xs font-mono font-semibold cursor-pointer"
             title="Switch angle unit between Radians and Degrees"
           >
             {angleUnit === 'deg' ? 'DEG °' : 'RAD'}
           </button>
 
-          <div className="inline-flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white">
+          <div className="inline-flex items-center border-[1.5px] border-[#DCDAF0] rounded-[11px] overflow-hidden bg-white">
             <button
               type="button"
               onClick={() => zoomBy(1.25)}
               aria-label="Zoom in graph"
-              className="px-2 py-1.5 text-slate-700 hover:bg-slate-50 border-r border-slate-200 cursor-pointer"
+              className="px-2 py-1.5 text-[#1D1A4A] hover:bg-[#F4F3FC] border-r border-[#DCDAF0] cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
@@ -1229,7 +1229,7 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
               type="button"
               onClick={() => zoomBy(0.8)}
               aria-label="Zoom out graph"
-              className="px-2 py-1.5 text-slate-700 hover:bg-slate-50 border-r border-slate-200 cursor-pointer"
+              className="px-2 py-1.5 text-[#1D1A4A] hover:bg-[#F4F3FC] border-r border-[#DCDAF0] cursor-pointer"
             >
               <Minus className="w-3.5 h-3.5" />
             </button>
@@ -1238,7 +1238,7 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
               onClick={() => applyPreset(currentPreset)}
               aria-label="Reset graph view"
               title="Reset to topic preset"
-              className="px-2 py-1.5 text-slate-700 hover:bg-slate-50 cursor-pointer"
+              className="px-2 py-1.5 text-[#1D1A4A] hover:bg-[#F4F3FC] cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
             </button>
@@ -1249,17 +1249,17 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
       {/* Main Split Workbench: Algebra Input & Live Analysis + Interactive Canvas */}
       <div className="grid lg:grid-cols-[330px_1fr] gap-4 items-start">
         {/* Left Algebra & Geometry Panel (stacks below canvas on tablet/mobile) */}
-        <div className="order-2 lg:order-1 space-y-3 bg-slate-50 border border-slate-200 rounded-xl p-3">
+        <div className="order-2 lg:order-1 space-y-3 bg-[#FAF9FF] border-[1.5px] border-[#DCDAF0] rounded-[16px] p-3">
           {/* Expressions */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-700">
+              <span className="text-xs font-semibold text-[#1D1A4A]">
                 Equations &amp; Inequalities
               </span>
               <button
                 type="button"
                 onClick={addExpression}
-                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50 rounded-md cursor-pointer"
+                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-[#6D69F2] hover:bg-[#F4F3FC] rounded-md cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Add Equation
@@ -1271,7 +1271,7 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
               const isValid = compiled.parsed.ok || exp.input.trim() === '';
               return (
                 <div key={exp.id} className="space-y-1">
-                  <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1.5 focus-within:border-blue-600">
+                  <div className="flex items-center gap-1.5 bg-white border-[1.5px] border-[#DCDAF0] rounded-[11px] px-2 py-1.5 focus-within:border-[#1D1A4A]">
                     <button
                       type="button"
                       onClick={() =>
@@ -1282,10 +1282,10 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
                         )
                       }
                       aria-label={`${exp.visible ? 'Hide' : 'Show'} expression ${idx + 1}`}
-                      className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 cursor-pointer border border-slate-200"
+                      className="w-6 h-6 rounded-md flex items-center justify-center shrink-0 cursor-pointer border border-[#DCDAF0]"
                       style={{
-                        backgroundColor: exp.visible ? exp.color : '#f8fafc',
-                        color: exp.visible ? '#ffffff' : '#94a3b8',
+                        backgroundColor: exp.visible ? exp.color : '#FAF9FF',
+                        color: exp.visible ? '#ffffff' : '#8580B0',
                       }}
                     >
                       {exp.visible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
@@ -1303,7 +1303,7 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
                       }
                       aria-label={`Equation ${idx + 1}`}
                       placeholder="e.g. y = x^2 - 4 or 2x + 3y = 12"
-                      className="flex-1 min-w-0 text-xs font-mono text-slate-900 bg-transparent focus:outline-none"
+                      className="flex-1 min-w-0 text-xs font-mono text-[#1D1A4A] bg-transparent focus:outline-none"
                     />
                     <button
                       type="button"
@@ -1311,13 +1311,13 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
                         setExpressions((prev) => prev.filter((item) => item.id !== exp.id))
                       }
                       aria-label={`Remove expression ${idx + 1}`}
-                      className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer shrink-0"
+                      className="p-1 text-[#5E588C] hover:text-[#C0266B] cursor-pointer shrink-0"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                   {!isValid && !compiled.parsed.ok && (
-                    <div className="text-[11px] text-rose-700 px-1">{compiled.parsed.error}</div>
+                    <div className="text-[11px] text-[#C0266B] px-1">{compiled.parsed.error}</div>
                   )}
                 </div>
               );
@@ -1339,7 +1339,7 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
                   key={chip.label}
                   type="button"
                   onClick={() => insertSnippet(chip.insert)}
-                  className="px-2 py-0.5 text-[11px] font-mono font-medium bg-white border border-slate-200 rounded hover:bg-slate-100 text-slate-700 cursor-pointer"
+                  className="px-2 py-0.5 text-[11px] font-mono font-medium bg-white border border-[#DCDAF0] rounded-md hover:border-[#1D1A4A] hover:bg-[#F4F3FC] text-[#1D1A4A] cursor-pointer"
                 >
                   {chip.label}
                 </button>
@@ -1349,8 +1349,8 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
 
           {/* Parameter Sliders */}
           {activeParamNames.length > 0 && (
-            <div className="pt-2 border-t border-slate-200 space-y-2">
-              <div className="text-xs font-semibold text-slate-700">Parameter Sliders</div>
+            <div className="pt-2 border-t border-[#DCDAF0] space-y-2">
+              <div className="text-xs font-semibold text-[#1D1A4A]">Parameter Sliders</div>
               {activeParamNames.map((name) => {
                 const cfg = sliderConfigs[name] ?? defaultSliderForParam(name);
                 const val = resolvedParams[name] ?? 1;
@@ -1358,14 +1358,14 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
                 return (
                   <div key={name} className="space-y-1">
                     <div className="flex items-center justify-between text-xs">
-                      <label htmlFor={`slider-${name}`} className="font-mono font-semibold text-slate-800">
+                      <label htmlFor={`slider-${name}`} className="font-mono font-semibold text-[#1D1A4A]">
                         {name} = {formatGraphNumber(val, 2)}
                       </label>
                       <button
                         type="button"
                         onClick={() => setAnimatingParam(isPlaying ? null : name)}
                         aria-label={`${isPlaying ? 'Pause' : 'Animate'} parameter ${name}`}
-                        className="p-1 rounded border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 cursor-pointer"
+                        className="p-1 rounded border border-[#DCDAF0] bg-white text-[#1D1A4A] hover:bg-[#F4F3FC] cursor-pointer"
                       >
                         {isPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
                       </button>
@@ -1380,7 +1380,7 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
                       onChange={(e) =>
                         setParams((prev) => ({ ...prev, [name]: Number(e.target.value) }))
                       }
-                      className="w-full accent-blue-700"
+                      className="w-full accent-[#6D69F2]"
                     />
                   </div>
                 );
@@ -1390,15 +1390,15 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
 
           {/* Tangent Line Inspector */}
           {tangentEnabled && visibleFunctions.length > 0 && (
-            <div className="pt-2 border-t border-slate-200 space-y-1.5">
+            <div className="pt-2 border-t border-[#DCDAF0] space-y-1.5">
               <div className="flex items-center justify-between text-xs">
-                <label htmlFor="tangent-x0" className="font-semibold text-slate-700">
+                <label htmlFor="tangent-x0" className="font-semibold text-[#1D1A4A]">
                   Tangent at x₀ = <span className="font-mono">{formatGraphNumber(tangentX, 2)}</span>
                 </label>
                 <button
                   type="button"
                   onClick={() => setTangentEnabled(false)}
-                  className="text-[11px] text-slate-500 hover:text-slate-800 cursor-pointer"
+                  className="text-[11px] text-[#5E588C] hover:text-[#1D1A4A] cursor-pointer"
                 >
                   Hide
                 </button>
@@ -1411,15 +1411,15 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
                 step={angleUnit === 'deg' ? 5 : 0.1}
                 value={tangentX}
                 onChange={(e) => setTangentX(Number(e.target.value))}
-                className="w-full accent-rose-600"
+                className="w-full accent-[#FF5FA8]"
               />
               {tangentInfo && (
-                <div className="text-[11px] font-mono text-slate-700 bg-white border border-slate-200 rounded-lg p-2 space-y-0.5">
+                <div className="text-[11px] font-mono text-[#393469] bg-white border border-[#DCDAF0] rounded-lg p-2 space-y-0.5">
                   <div>
                     Point: ({formatGraphNumber(tangentInfo.x0, 2)},{' '}
                     {formatGraphNumber(tangentInfo.y0, 2)})
                   </div>
-                  <div className="text-rose-700 font-semibold">
+                  <div className="text-[#C0266B] font-semibold">
                     Gradient dy/dx = {formatGraphNumber(tangentInfo.slope, 3)}
                   </div>
                   <div>
@@ -1435,9 +1435,9 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
 
           {/* Geometry Objects & Live Measurements */}
           {(points.length > 0 || segments.length > 0 || polygons.length > 0 || circles.length > 0) && (
-            <div className="pt-2 border-t border-slate-200 space-y-1.5">
+            <div className="pt-2 border-t border-[#DCDAF0] space-y-1.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-700">Geometry Objects</span>
+                <span className="text-xs font-semibold text-[#1D1A4A]">Geometry Objects</span>
                 <button
                   type="button"
                   onClick={() => {
@@ -1447,7 +1447,7 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
                     setCircles([]);
                     setPendingStart(null);
                   }}
-                  className="text-[11px] text-slate-500 hover:text-rose-700 cursor-pointer"
+                  className="text-[11px] text-[#5E588C] hover:text-[#C0266B] cursor-pointer"
                 >
                   Clear All
                 </button>
@@ -1457,9 +1457,9 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
                 {points.map((pt) => (
                   <div
                     key={pt.id}
-                    className="flex items-center justify-between bg-white border border-slate-200 rounded px-2 py-1"
+                    className="flex items-center justify-between bg-white border border-[#DCDAF0] rounded-md px-2 py-1"
                   >
-                    <span className="text-slate-800">
+                    <span className="text-[#1D1A4A]">
                       <strong>{pt.label}</strong> = ({formatGraphNumber(pt.x, 2)},{' '}
                       {formatGraphNumber(pt.y, 2)})
                     </span>
@@ -1467,7 +1467,7 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
                       type="button"
                       onClick={() => setPoints((prev) => prev.filter((p) => p.id !== pt.id))}
                       aria-label={`Delete point ${pt.label}`}
-                      className="text-slate-400 hover:text-rose-600 cursor-pointer"
+                      className="text-[#5E588C] hover:text-[#C0266B] cursor-pointer"
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
@@ -1479,9 +1479,9 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
                   return (
                     <div
                       key={seg.id}
-                      className="bg-white border border-slate-200 rounded px-2 py-1 space-y-0.5"
+                      className="bg-white border border-[#DCDAF0] rounded-md px-2 py-1 space-y-0.5"
                     >
-                      <div className="flex items-center justify-between text-slate-900 font-semibold">
+                      <div className="flex items-center justify-between text-[#1D1A4A] font-semibold">
                         <span>
                           {seg.kind === 'vector' ? 'Vector' : 'Segment'} {seg.label ?? ''}
                         </span>
@@ -1489,18 +1489,18 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
                           type="button"
                           onClick={() => setSegments((prev) => prev.filter((s) => s.id !== seg.id))}
                           aria-label={`Delete ${seg.kind} ${seg.label ?? ''}`}
-                          className="text-slate-400 hover:text-rose-600 cursor-pointer"
+                          className="text-[#5E588C] hover:text-[#C0266B] cursor-pointer"
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>
                       </div>
                       {seg.kind === 'vector' ? (
-                        <div className="text-emerald-800">
+                        <div className="text-[#047857]">
                           ({formatGraphNumber(m.dx, 2)}, {formatGraphNumber(m.dy, 2)}) · |v| ={' '}
                           {formatGraphNumber(m.length, 2)}
                         </div>
                       ) : (
-                        <div className="text-slate-600">
+                        <div className="text-[#393469]">
                           d = {formatGraphNumber(m.length, 2)} · m ={' '}
                           {m.gradient !== null ? formatGraphNumber(m.gradient, 2) : 'undef'} · mid (
                           {formatGraphNumber(m.midpoint.x, 2)}, {formatGraphNumber(m.midpoint.y, 2)}
@@ -1516,9 +1516,9 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
                   return (
                     <div
                       key={poly.id}
-                      className="bg-white border border-slate-200 rounded px-2 py-1 text-slate-700"
+                      className="bg-white border border-[#DCDAF0] rounded-md px-2 py-1 text-[#393469]"
                     >
-                      <strong>{poly.label ?? 'Polygon'}</strong>: Area ={' '}
+                      <strong className="text-[#1D1A4A]">{poly.label ?? 'Polygon'}</strong>: Area ={' '}
                       {formatGraphNumber(m.area, 2)} · Perim = {formatGraphNumber(m.perimeter, 2)}
                     </div>
                   );
@@ -1527,7 +1527,7 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
                 {circles.map((c) => (
                   <div
                     key={c.id}
-                    className="flex items-center justify-between bg-white border border-slate-200 rounded px-2 py-1 text-slate-700"
+                    className="flex items-center justify-between bg-white border border-[#DCDAF0] rounded-md px-2 py-1 text-[#393469]"
                   >
                     <span>
                       Circle ({formatGraphNumber(c.cx, 1)}, {formatGraphNumber(c.cy, 1)}) r ={' '}
@@ -1537,7 +1537,7 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
                       type="button"
                       onClick={() => setCircles((prev) => prev.filter((item) => item.id !== c.id))}
                       aria-label="Delete circle"
-                      className="text-slate-400 hover:text-rose-600 cursor-pointer"
+                      className="text-[#5E588C] hover:text-[#C0266B] cursor-pointer"
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
@@ -1552,18 +1552,18 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
             (analysisPoints.roots.length > 0 ||
               analysisPoints.extrema.length > 0 ||
               analysisPoints.intersections.length > 0) && (
-              <div className="pt-2 border-t border-slate-200 space-y-1 text-[11px] font-mono">
-                <div className="font-sans text-xs font-semibold text-slate-700">
+              <div className="pt-2 border-t border-[#DCDAF0] space-y-1 text-[11px] font-mono">
+                <div className="font-sans text-xs font-semibold text-[#1D1A4A]">
                   Special Key Points (Visible Window)
                 </div>
                 {analysisPoints.intersections.length > 0 && (
-                  <div className="text-slate-900">
+                  <div className="text-[#1D1A4A]">
                     <span className="font-semibold">Intersections:</span>{' '}
                     {analysisPoints.intersections.map((p) => p.label).join(', ')}
                   </div>
                 )}
                 {analysisPoints.roots.length > 0 && (
-                  <div className="text-emerald-800">
+                  <div className="text-[#047857]">
                     <span className="font-semibold">Roots (x-int):</span>{' '}
                     {analysisPoints.roots
                       .map((r) => `(${formatGraphNumber(r.x, 2)}, 0)`)
@@ -1571,7 +1571,7 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
                   </div>
                 )}
                 {analysisPoints.extrema.length > 0 && (
-                  <div className="text-violet-800">
+                  <div className="text-[#5B57E8]">
                     <span className="font-semibold">Turning Pts:</span>{' '}
                     {analysisPoints.extrema
                       .map(
@@ -1589,7 +1589,7 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
         <div className="order-1 lg:order-2 space-y-1.5">
           <div
             ref={containerRef}
-            className={`relative w-full ${heightClassName} bg-white border border-slate-200 rounded-xl overflow-hidden select-none`}
+            className={`relative w-full ${heightClassName} bg-white border-2 border-[#1D1A4A] rounded-[16px] shadow-[3px_4px_0_#B8B3FF] overflow-hidden select-none`}
           >
             <canvas
               ref={canvasRef}
@@ -1610,7 +1610,7 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
 
             {/* Mode Instruction / Hover Readout Badge */}
             {(hoveredReadout || pendingStart) && (
-              <div className="pointer-events-none absolute top-2.5 left-2.5 px-2.5 py-1 rounded-md bg-white/95 border border-slate-200 text-xs font-mono text-slate-900 shadow-xs">
+              <div className="pointer-events-none absolute top-2.5 left-2.5 px-2.5 py-1 rounded-lg bg-white/95 border-[1.5px] border-[#1D1A4A] text-xs font-mono text-[#1D1A4A] shadow-[2px_2px_0_#B8B3FF]">
                 {pendingStart
                   ? `Click second point to finish ${toolMode}...`
                   : hoveredReadout}
@@ -1619,14 +1619,14 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
 
             {/* Live Coordinate Readout */}
             {cursorWorld && (
-              <div className="pointer-events-none absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-md bg-white/95 border border-slate-200 text-[11px] font-mono tabular-nums text-slate-700 shadow-xs">
+              <div className="pointer-events-none absolute bottom-2.5 right-2.5 px-2.5 py-1 rounded-lg bg-white/95 border-[1.5px] border-[#1D1A4A] text-[11px] font-mono tabular-nums text-[#1D1A4A] shadow-[2px_2px_0_#B8B3FF]">
                 ({formatGraphNumber(cursorWorld.wx, 2)}
                 {angleUnit === 'deg' ? '°' : ''}, {formatGraphNumber(cursorWorld.wy, 2)})
               </div>
             )}
           </div>
 
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-[#5E588C]">
             {currentPreset.subtitle} Drag canvas to pan, scroll or pinch to zoom, or drag plotted
             points directly.
           </p>

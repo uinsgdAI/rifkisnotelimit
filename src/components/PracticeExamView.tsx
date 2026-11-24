@@ -25,6 +25,7 @@ import {
 } from '../utils/questionGenerator';
 import { MathText } from './MathText';
 import { TopicalPastPapersSection } from './TopicalPastPapersSection';
+import { triggerSakugaBurst } from '../utils/sakugaVfx';
 
 interface PracticeExamViewProps {
   initialMode?: string;
@@ -315,24 +316,24 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
 
     return (
       <main className="max-w-[1440px] mx-auto px-4 sm:px-6 py-6 space-y-8">
-        <section className="p-6 bg-white border border-slate-200 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <section className="p-6 sk-card flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="text-xs text-slate-500 mb-1">
-              Cambridge IGCSE Mathematics (0580) · Timed Exam & Topical Drills
+            <div className="text-xs text-[#5E588C] mb-1">
+              Cambridge IGCSE Mathematics (0580) · Timed Exam &amp; Topical Drills
             </div>
-            <h1 className="font-display text-2xl font-bold text-slate-900">
+            <h1 className="font-display text-2xl font-bold text-[#1D1A4A]">
               IGCSE 0580 Practice Tests
             </h1>
-            <p className="text-sm text-slate-600 mt-1 max-w-2xl">
+            <p className="text-sm text-[#393469] mt-1 max-w-2xl">
               Practise with Multiple Choice, Numeric, and Exact Fraction questions under Non-Calculator (Papers 1/2) or Calculator (Papers 3/4) rules. Every retry generates fresh questions with new numbers and scenarios.
             </p>
           </div>
           <button
             type="button"
             onClick={onOpenFormulaSheet}
-            className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border border-slate-200 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-800 cursor-pointer shrink-0 whitespace-nowrap"
+            className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold sk-btn-secondary cursor-pointer shrink-0 whitespace-nowrap"
           >
-            <FileSpreadsheet className="w-4 h-4 text-blue-700" />
+            <FileSpreadsheet className="w-4 h-4 text-[#5B57E8]" />
             View 0580 Formula Sheet
           </button>
         </section>
@@ -340,10 +341,10 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
         {/* Timed Mock Exam Presets */}
         <section className="space-y-3">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="font-display text-base font-bold text-slate-900">
+            <h2 className="font-display text-base font-bold text-[#1D1A4A]">
               Timed IGCSE Mock Papers
             </h2>
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-[#5E588C]">
               Unlimited retries — every retake swaps in brand-new questions
             </span>
           </div>
@@ -351,34 +352,43 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
             {presets.map((preset) => (
               <article
                 key={preset.id}
-                className={`p-5 bg-white border border-slate-200 rounded-xl flex flex-col justify-between gap-4 ${
-                  preset.id === 'mock-full' ? 'md:col-span-2 lg:col-span-2 bg-slate-50/40' : ''
+                className={`p-5 flex flex-col justify-between gap-4 ${
+                  preset.id === 'mock-full'
+                    ? 'md:col-span-2 lg:col-span-2 sk-card-accent'
+                    : 'sk-card'
                 }`}
               >
                 <div className="space-y-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+                  <div
+                    className={`flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-[#5E588C] ${
+                      preset.id === 'mock-full' ? 'items-center justify-between' : 'flex-col'
+                    }`}
+                  >
                     <span
                       className={
                         preset.tier === 'Extended'
-                          ? 'text-amber-700 font-semibold'
-                          : 'text-slate-700 font-semibold'
+                          ? 'text-[#C0266B] font-bold'
+                          : 'text-[#1D1A4A] font-bold'
                       }
                     >
                       {preset.tier} Tier · {preset.formatLabel}
                     </span>
                     <span className="font-mono tabular-nums">{preset.questionCountLabel}</span>
                   </div>
-                  <h3 className="font-display text-base font-bold text-slate-900">
+                  <h3 className="font-display text-base font-bold text-[#1D1A4A]">
                     {preset.title}
                   </h3>
-                  <p className="text-xs text-slate-600 leading-relaxed">{preset.subtitle}</p>
+                  <p className="text-xs text-[#393469] leading-relaxed">{preset.subtitle}</p>
                 </div>
 
                 <div>
                   <button
                     type="button"
-                    onClick={() => startPreset(preset)}
-                    className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded-lg cursor-pointer"
+                    onClick={(e) => {
+                      triggerSakugaBurst(e, 'indigo', 'GO!');
+                      startPreset(preset);
+                    }}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold sk-btn-primary cursor-pointer"
                   >
                     <Play className="w-3.5 h-3.5" />
                     Begin Paper
@@ -390,20 +400,23 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
         </section>
 
         {/* Topical Practice Builder */}
-        <section className="p-6 bg-white border border-slate-200 rounded-xl space-y-4">
+        <section className="p-6 sk-card space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h2 className="font-display text-base font-bold text-slate-900">
+              <h2 className="font-display text-base font-bold text-[#1D1A4A]">
                 Topical Practice by Syllabus Chapter
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-[#5E588C] mt-0.5">
                 Target a specific chapter from the 0580 curriculum with non-repeating variants
               </p>
             </div>
             <button
               type="button"
-              onClick={() => startChapterDrill(selectedChapterFilter, 1)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg cursor-pointer shrink-0"
+              onClick={(e) => {
+                triggerSakugaBurst(e, 'sakura', 'DRILL!');
+                startChapterDrill(selectedChapterFilter, 1);
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold sk-btn-ink cursor-pointer shrink-0"
             >
               <Play className="w-3.5 h-3.5" />
               Start Drill ({previewSample.questions.length} Fresh Questions)
@@ -414,10 +427,10 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
             <button
               type="button"
               onClick={() => setSelectedChapterFilter('all')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg border cursor-pointer ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-xl border-[1.5px] cursor-pointer transition-colors ${
                 selectedChapterFilter === 'all'
-                  ? 'bg-blue-50 border-blue-200 text-blue-800'
-                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  ? 'bg-[#F4F3FC] border-[#1D1A4A] text-[#1D1A4A] shadow-[2px_2px_0_#B8B3FF]'
+                  : 'bg-[#FAF9FF] border-[#DCDAF0] text-[#393469] hover:border-[#1D1A4A]'
               }`}
             >
               All Chapters
@@ -427,10 +440,10 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
                 key={ch.id}
                 type="button"
                 onClick={() => setSelectedChapterFilter(ch.id)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg border cursor-pointer ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-xl border-[1.5px] cursor-pointer transition-colors ${
                   selectedChapterFilter === ch.id
-                    ? 'bg-blue-50 border-blue-200 text-blue-800'
-                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                    ? 'bg-[#F4F3FC] border-[#1D1A4A] text-[#1D1A4A] shadow-[2px_2px_0_#B8B3FF]'
+                    : 'bg-[#FAF9FF] border-[#DCDAF0] text-[#393469] hover:border-[#1D1A4A]'
                 }`}
               >
                 {ch.id}. {ch.title}
@@ -470,34 +483,36 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
   const visibleResults = showWrongOnly
     ? scoredResults.filter((r) => !r.isCorrect)
     : scoredResults;
+  const answeredCount = activeExam.questions.filter((q) => Boolean((answers[q.id] || '').trim())).length;
+  const progressPct = Math.round((answeredCount / Math.max(1, activeExam.questions.length)) * 100);
 
   if (submitted) {
     return (
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-        <section className="p-6 bg-white border border-slate-200 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <section className="p-6 sk-card flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-1">
-            <div className="text-xs text-slate-500">
+            <div className="text-xs text-[#5E588C]">
               {activeExam.title} · Attempt #{activeExam.attemptNumber} · {activeExam.tier} Tier Grading
             </div>
-            <h1 className="font-display text-2xl font-bold text-slate-900">
+            <h1 className="font-display text-2xl font-bold text-[#1D1A4A]">
               Examination Results &amp; Mark Scheme
             </h1>
-            <p className="text-sm text-slate-600">{gradeInfo.descriptor}</p>
+            <p className="text-sm text-[#393469]">{gradeInfo.descriptor}</p>
           </div>
 
           <div className="flex items-center gap-6 shrink-0">
             <div className="text-right">
-              <div className="text-xs text-slate-500">Total Score</div>
-              <div className="font-mono text-2xl font-bold tabular-nums text-slate-900">
+              <div className="text-xs text-[#5E588C]">Total Score</div>
+              <div className="font-mono text-2xl font-bold tabular-nums text-[#1D1A4A]">
                 {earnedMarks} / {totalMarks}{' '}
-                <span className="text-sm font-normal text-slate-500">
+                <span className="text-sm font-normal text-[#5E588C]">
                   ({gradeInfo.percentage}%)
                 </span>
               </div>
             </div>
-            <div className="px-4 py-2 rounded-xl bg-blue-50 border border-blue-200 text-center">
-              <div className="text-[11px] font-medium text-blue-700">Est. Grade</div>
-              <div className="font-display text-2xl font-bold text-blue-800">
+            <div className="px-4 py-2 rounded-2xl bg-[#F4F3FC] border-2 border-[#1D1A4A] shadow-[3px_3px_0_#B8B3FF] text-center">
+              <div className="text-[11px] font-semibold text-[#5B57E8]">Est. Grade</div>
+              <div className="font-display text-2xl font-extrabold text-[#1D1A4A]">
                 {gradeInfo.grade}
               </div>
             </div>
@@ -508,14 +523,14 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
         {weakTopics.length > 0 ? (
           <section
             aria-label="Topics to Revise Based on Wrong Answers"
-            className="p-6 bg-white border border-rose-200 rounded-xl space-y-4"
+            className="p-6 rounded-[18px] bg-white border-2 border-[#FF5FA8] shadow-[4px_5px_0_#FBCFE8] space-y-4"
           >
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <div>
-                <h2 className="font-display text-base font-bold text-slate-900">
+                <h2 className="font-display text-base font-bold text-[#1D1A4A]">
                   Topics to Study Based on Your Wrong Answers
                 </h2>
-                <p className="text-xs text-slate-600 mt-0.5">
+                <p className="text-xs text-[#393469] mt-0.5">
                   You missed {wrongCount} {wrongCount === 1 ? 'question' : 'questions'} across{' '}
                   {weakTopics.length} syllabus {weakTopics.length === 1 ? 'topic' : 'topics'}. Jump directly to the corresponding 0580 study notes to fix each gap:
                 </p>
@@ -526,17 +541,17 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
               {weakTopics.map((wt) => (
                 <div
                   key={wt.topicId}
-                  className="p-4 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between gap-3"
+                  className="p-4 sk-card-soft flex items-center justify-between gap-3"
                 >
                   <div className="min-w-0">
-                    <div className="text-[11px] font-medium text-slate-500">
+                    <div className="text-[11px] font-medium text-[#5E588C]">
                       Chapter {wt.chapterId}: {wt.chapterTitle}
                     </div>
-                    <div className="font-display text-sm font-bold text-slate-900 truncate">
-                      <span className="font-mono text-blue-700 mr-1.5">{wt.topicId}</span>
+                    <div className="font-display text-sm font-bold text-[#1D1A4A] truncate">
+                      <span className="font-mono text-[#5B57E8] mr-1.5">{wt.topicId}</span>
                       {wt.topicTitle}
                     </div>
-                    <div className="text-xs font-mono text-rose-700 mt-0.5 tabular-nums">
+                    <div className="text-xs font-mono font-semibold text-[#C0266B] mt-0.5 tabular-nums">
                       {wt.marksLost} {wt.marksLost === 1 ? 'mark' : 'marks'} missed
                     </div>
                   </div>
@@ -549,7 +564,7 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
                         topicId: wt.topicId,
                       })
                     }
-                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded-lg cursor-pointer shrink-0"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold sk-btn-primary cursor-pointer shrink-0"
                   >
                     Study {wt.topicId} Notes
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -559,18 +574,21 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
             </div>
           </section>
         ) : (
-          <section className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-xl flex items-center gap-2 text-xs font-medium text-emerald-900">
+          <section className="p-4 bg-emerald-50 border-2 border-emerald-700 rounded-2xl flex items-center gap-2 text-xs font-bold text-emerald-900 shadow-[3px_3px_0_#BBF7D0]">
             <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
             100% accuracy on this paper — no weak syllabus topics detected.
           </section>
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2.5">
             <button
               type="button"
-              onClick={retryWithNewQuestions}
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded-lg cursor-pointer"
+              onClick={(e) => {
+                triggerSakugaBurst(e, 'indigo', 'FRESH!');
+                retryWithNewQuestions();
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold sk-btn-primary cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               Retry with New Questions
@@ -578,7 +596,7 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
             <button
               type="button"
               onClick={() => retakeExactExam(activeExam)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700 cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold sk-btn-secondary cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               Retake Exact Paper
@@ -587,23 +605,21 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
               <div
                 role="group"
                 aria-label="Filter results"
-                className="flex gap-1 p-1 bg-slate-100 rounded-lg"
+                className="flex gap-1 sk-tabs"
               >
                 <button
                   type="button"
+                  data-active={!showWrongOnly}
                   onClick={() => setShowWrongOnly(false)}
-                  className={`px-3 py-1 text-xs font-medium rounded-md cursor-pointer ${
-                    !showWrongOnly ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
-                  }`}
+                  className="px-3 py-1 text-xs font-semibold cursor-pointer sk-tab"
                 >
                   All Questions ({scoredResults.length})
                 </button>
                 <button
                   type="button"
+                  data-active={showWrongOnly}
                   onClick={() => setShowWrongOnly(true)}
-                  className={`px-3 py-1 text-xs font-medium rounded-md cursor-pointer ${
-                    showWrongOnly ? 'bg-white text-rose-700 shadow-xs' : 'text-slate-600'
-                  }`}
+                  className="px-3 py-1 text-xs font-semibold cursor-pointer sk-tab"
                 >
                   Wrong Answers Only ({wrongCount})
                 </button>
@@ -616,7 +632,7 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
               setActiveExam(null);
               onNavigate({ view: 'practice' });
             }}
-            className="px-4 py-2 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg cursor-pointer"
+            className="px-4 py-2 text-xs font-bold sk-btn-ink cursor-pointer"
           >
             Back to All Practice Tests
           </button>
@@ -626,11 +642,11 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
           {visibleResults.map((res) => (
             <article
               key={res.question.id}
-              className="p-5 bg-white border border-slate-200 rounded-xl space-y-4"
+              className="p-5 sk-card space-y-4"
             >
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                  <span className="font-mono font-semibold text-slate-800">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-[#5E588C]">
+                  <span className="font-mono font-bold text-[#1D1A4A]">
                     Q{res.questionNumber}
                   </span>
                   <span aria-hidden="true">·</span>
@@ -643,7 +659,7 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
                   <span className="font-mono">{res.question.sourceRef}</span>
                 </div>
 
-                <div className="flex items-center gap-2 text-xs font-semibold">
+                <div className="flex items-center gap-2 text-xs font-bold">
                   {res.isCorrect ? (
                     <span className="inline-flex items-center gap-1 text-emerald-700">
                       <CheckCircle2 className="w-4 h-4" />
@@ -658,18 +674,18 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
                 </div>
               </div>
 
-              <p className="text-sm text-slate-800 leading-relaxed">
+              <p className="text-sm text-[#1D1A4A] leading-relaxed">
                 <MathText text={res.question.question} />
               </p>
 
               <div className="grid sm:grid-cols-2 gap-3 text-xs">
-                <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                  <span className="text-slate-500 block mb-0.5">Your Answer</span>
-                  <span className="font-mono font-semibold text-slate-900">
+                <div className="p-3 sk-card-soft">
+                  <span className="text-[#5E588C] block mb-0.5">Your Answer</span>
+                  <span className="font-mono font-semibold text-[#1D1A4A]">
                     {res.userVal ? <MathText text={res.userVal} /> : '(No answer entered)'}
                   </span>
                 </div>
-                <div className="p-3 rounded-lg bg-emerald-50/70 border border-emerald-200">
+                <div className="p-3 rounded-xl bg-emerald-50 border-[1.5px] border-emerald-200">
                   <span className="text-emerald-800 block mb-0.5">Official Answer</span>
                   <span className="font-mono font-semibold text-emerald-900">
                     {res.question.unit && ['$', '£', '€'].includes(res.question.unit) ? (
@@ -687,14 +703,14 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 space-y-2">
-                <div className="text-xs font-semibold text-slate-800">
+              <div className="p-3.5 sk-card-soft space-y-2">
+                <div className="text-xs font-bold text-[#1D1A4A]">
                   Cambridge Mark Scheme &amp; Working
                 </div>
-                <ul className="space-y-1 text-xs text-slate-700">
+                <ul className="space-y-1 text-xs text-[#393469]">
                   {res.question.markScheme.map((ms, mi) => (
                     <li key={mi} className="flex gap-2">
-                      <span className="font-mono font-bold text-blue-700 shrink-0">
+                      <span className="font-mono font-bold text-[#5B57E8] shrink-0">
                         {ms.code}
                       </span>
                       <span>
@@ -703,7 +719,7 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
                     </li>
                   ))}
                 </ul>
-                <p className="text-xs text-slate-600 pt-1 border-t border-slate-200">
+                <p className="text-xs text-[#5E588C] pt-1 border-t border-[#DCDAF0]">
                   <MathText text={res.question.fullSolution} />
                 </p>
               </div>
@@ -720,7 +736,7 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
                           topicId: res.question.topicId,
                         })
                       }
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-slate-700 cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold sk-btn-subtle cursor-pointer"
                     >
                       <Play className="w-3.5 h-3.5" />
                       More Topic {res.question.topicId} Questions
@@ -734,7 +750,7 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
                           topicId: res.question.topicId,
                         })
                       }
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded-lg cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold sk-btn-primary cursor-pointer"
                     >
                       <BookOpen className="w-3.5 h-3.5" />
                       Study Topic {res.question.topicId} Notes to Fix This
@@ -751,7 +767,7 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
                         topicId: res.question.topicId,
                       })
                     }
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-700 hover:text-blue-800 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5B57E8] hover:text-[#1D1A4A] cursor-pointer"
                   >
                     <BookOpen className="w-3.5 h-3.5" />
                     Revise Topic {res.question.topicId} Notes
@@ -768,54 +784,71 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
   return (
     <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
       {/* Exam Top Bar */}
-      <section className="p-4 bg-white border border-slate-200 rounded-xl flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-base font-bold text-slate-900">
-            {activeExam.title}
-          </h1>
-          <div className="text-xs text-slate-500 flex flex-wrap items-center gap-2 mt-0.5">
-            <span>
-              Question {currentIdx + 1} of {activeExam.questions.length}
-            </span>
-            <span aria-hidden="true">·</span>
-            <span className="font-mono font-medium text-slate-700">
-              Attempt #{activeExam.attemptNumber}
-            </span>
-            <span aria-hidden="true">·</span>
-            <span className="inline-flex items-center gap-1">
-              <Calculator className="w-3.5 h-3.5" />
-              {currentQ.paperType}
-            </span>
+      <section className="p-4 sk-card space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="font-display text-base font-bold text-[#1D1A4A]">
+              {activeExam.title}
+            </h1>
+            <div className="text-xs text-[#5E588C] flex flex-wrap items-center gap-2 mt-0.5">
+              <span>
+                Question {currentIdx + 1} of {activeExam.questions.length}
+              </span>
+              <span aria-hidden="true">·</span>
+              <span className="font-mono font-semibold text-[#1D1A4A]">
+                Attempt #{activeExam.attemptNumber}
+              </span>
+              <span aria-hidden="true">·</span>
+              <span className="inline-flex items-center gap-1">
+                <Calculator className="w-3.5 h-3.5 text-[#5B57E8]" />
+                {currentQ.paperType}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onOpenFormulaSheet}
+              className="px-3 py-1.5 text-xs font-semibold sk-btn-subtle cursor-pointer whitespace-nowrap"
+            >
+              Formula Sheet
+            </button>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F4F3FC] border-[1.5px] border-[#1D1A4A] font-mono text-xs font-bold tabular-nums text-[#1D1A4A]">
+              <Clock className="w-3.5 h-3.5 text-[#5B57E8]" />
+              {formatCountdown(secondsLeft)}
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                triggerSakugaBurst(e, 'emerald', 'SUBMIT!');
+                setSubmitted(true);
+              }}
+              className="px-4 py-1.5 text-xs font-bold sk-btn-primary cursor-pointer whitespace-nowrap"
+            >
+              Submit Paper
+            </button>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onOpenFormulaSheet}
-            className="px-3 py-1.5 text-xs font-medium border border-slate-200 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 cursor-pointer whitespace-nowrap"
-          >
-            Formula Sheet
-          </button>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 font-mono text-xs font-semibold tabular-nums text-slate-900">
-            <Clock className="w-3.5 h-3.5 text-blue-700" />
-            {formatCountdown(secondsLeft)}
+          <div className="h-2.5 flex-1 sk-progress-track">
+            <div
+              className="h-full sk-progress-fill rounded-full"
+              style={{ width: `${Math.max(4, progressPct)}%` }}
+            />
           </div>
-          <button
-            type="button"
-            onClick={() => setSubmitted(true)}
-            className="px-4 py-1.5 text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded-lg cursor-pointer whitespace-nowrap"
-          >
-            Submit Paper
-          </button>
+          <span className="font-mono text-[11px] font-semibold tabular-nums text-[#5E588C] shrink-0">
+            {answeredCount}/{activeExam.questions.length} answered
+          </span>
         </div>
       </section>
 
       {/* Question Card */}
-      <section className="p-6 bg-white border border-slate-200 rounded-xl space-y-5">
+      <section className="p-6 sk-card space-y-5">
         <div className="flex flex-wrap items-baseline justify-between gap-4">
-          <div className="text-xs text-slate-500 flex flex-wrap items-center gap-2">
-            <span className="font-mono font-semibold text-slate-800">
+          <div className="text-xs text-[#5E588C] flex flex-wrap items-center gap-2">
+            <span className="font-mono font-bold text-[#1D1A4A]">
               Question {currentIdx + 1}
             </span>
             <span aria-hidden="true">·</span>
@@ -825,22 +858,22 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
             <span aria-hidden="true">·</span>
             <span>{currentQ.tier}</span>
             <span aria-hidden="true">·</span>
-            <span className="font-medium text-slate-700">
+            <span className="font-semibold text-[#5B57E8]">
               {getQuestionFormatLabel(currentQ.questionType)}
             </span>
           </div>
-          <span className="font-mono text-xs font-semibold tabular-nums text-slate-600">
+          <span className="font-mono text-xs font-bold tabular-nums text-[#5E588C]">
             [{currentQ.marks} {currentQ.marks === 1 ? 'mark' : 'marks'}]
           </span>
         </div>
 
-        <p className="text-base text-slate-900 leading-relaxed">
+        <p className="text-base text-[#1D1A4A] leading-relaxed">
           <MathText text={currentQ.question} />
         </p>
 
         {currentQ.questionType === 'mcq' && currentQ.options && currentQ.options.length > 0 ? (
           <fieldset className="pt-2 space-y-2.5">
-            <legend className="text-xs font-medium text-slate-600 mb-2">
+            <legend className="text-xs font-semibold text-[#5E588C] mb-2">
               Select the correct answer
             </legend>
             <div className="grid sm:grid-cols-2 gap-3">
@@ -850,10 +883,10 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
                 return (
                   <label
                     key={`${currentQ.id}-opt-${optIdx}`}
-                    className={`flex items-center gap-3 p-3.5 rounded-lg border cursor-pointer transition-colors ${
+                    className={`flex items-center gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-all ${
                       selected
-                        ? 'bg-blue-50 border-blue-600 text-slate-900'
-                        : 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-slate-100'
+                        ? 'bg-[#F4F3FC] border-[#1D1A4A] text-[#1D1A4A] shadow-[3px_3px_0_#B8B3FF]'
+                        : 'bg-[#FAF9FF] border-[#DCDAF0] text-[#393469] hover:border-[#8F8DF7] hover:bg-white'
                     }`}
                   >
                     <input
@@ -867,15 +900,15 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
                       className="sr-only"
                     />
                     <span
-                      className={`w-7 h-7 rounded-md font-mono text-xs font-bold flex items-center justify-center shrink-0 border ${
+                      className={`w-7 h-7 rounded-lg font-mono text-xs font-bold flex items-center justify-center shrink-0 border-[1.5px] ${
                         selected
-                          ? 'bg-blue-700 text-white border-blue-700'
-                          : 'bg-white text-slate-700 border-slate-300'
+                          ? 'bg-[#6D69F2] text-white border-[#1D1A4A]'
+                          : 'bg-white text-[#1D1A4A] border-[#DCDAF0]'
                       }`}
                     >
                       {optionLetter}
                     </span>
-                    <span className="text-sm font-medium">
+                    <span className="text-sm font-semibold">
                       <MathText text={opt} />
                     </span>
                   </label>
@@ -887,7 +920,7 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
           <div className="pt-2">
             <label
               htmlFor={`exam-ans-${currentQ.id}`}
-              className="block text-xs font-medium text-slate-600 mb-1.5"
+              className="block text-xs font-semibold text-[#5E588C] mb-1.5"
             >
               Your Final Answer {currentQ.unit ? `(in ${currentQ.unit})` : ''}
             </label>
@@ -903,17 +936,17 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
                   ? 'Enter simplified fraction (a/b) or exact decimal'
                   : 'Enter exact value or 3 s.f. number'
               }
-              className="w-full max-w-md px-3.5 py-2.5 text-sm font-mono bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:border-blue-600"
+              className="w-full max-w-md px-3.5 py-2.5 text-sm font-mono sk-input"
             />
           </div>
         )}
 
-        <div className="pt-4 border-t border-slate-200 flex items-center justify-between gap-4">
+        <div className="pt-4 border-t border-[#DCDAF0] flex items-center justify-between gap-4">
           <button
             type="button"
             disabled={currentIdx === 0}
             onClick={() => setCurrentIdx((i) => Math.max(0, i - 1))}
-            className="px-4 py-2 text-xs font-medium border border-slate-200 rounded-lg bg-white hover:bg-slate-50 disabled:opacity-40 cursor-pointer"
+            className="px-4 py-2 text-xs font-semibold sk-btn-subtle disabled:opacity-40 cursor-pointer"
           >
             Previous Question
           </button>
@@ -924,15 +957,18 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
               onClick={() =>
                 setCurrentIdx((i) => Math.min(activeExam.questions.length - 1, i + 1))
               }
-              className="px-4 py-2 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg cursor-pointer"
+              className="px-4 py-2 text-xs font-bold sk-btn-ink cursor-pointer"
             >
               Next Question
             </button>
           ) : (
             <button
               type="button"
-              onClick={() => setSubmitted(true)}
-              className="px-4 py-2 text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded-lg cursor-pointer"
+              onClick={(e) => {
+                triggerSakugaBurst(e, 'emerald', 'DONE!');
+                setSubmitted(true);
+              }}
+              className="px-4 py-2 text-xs font-bold sk-btn-primary cursor-pointer"
             >
               Finish &amp; Grade Paper
             </button>
@@ -941,11 +977,11 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
       </section>
 
       {/* Question Navigator Grid */}
-      <section className="p-4 bg-white border border-slate-200 rounded-xl">
-        <div className="text-xs font-medium text-slate-500 mb-2.5">
+      <section className="p-4 sk-card">
+        <div className="text-xs font-semibold text-[#5E588C] mb-2.5">
           Question Navigator
         </div>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-2">
           {activeExam.questions.map((q, idx) => {
             const answered = Boolean((answers[q.id] || '').trim());
             const active = idx === currentIdx;
@@ -954,12 +990,12 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
                 key={q.id}
                 type="button"
                 onClick={() => setCurrentIdx(idx)}
-                className={`w-9 h-9 text-xs font-mono font-semibold rounded-lg border cursor-pointer transition-colors ${
+                className={`w-9 h-9 text-xs font-mono font-bold rounded-xl border-2 cursor-pointer transition-all ${
                   active
-                    ? 'bg-blue-700 text-white border-blue-700'
+                    ? 'bg-[#6D69F2] text-white border-[#1D1A4A] shadow-[2px_2px_0_#B8B3FF]'
                     : answered
-                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-600'
+                      : 'bg-[#FAF9FF] text-[#393469] border-[#DCDAF0] hover:border-[#1D1A4A]'
                 }`}
               >
                 {idx + 1}

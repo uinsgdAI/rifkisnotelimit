@@ -6,12 +6,28 @@
     --font-display: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
     --font-sans: "DM Sans", system-ui, -apple-system, sans-serif;
     --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+
+    /* Sakuga VFX Gallery Palette & Tactile System */
+    --sk-page: #ffffff;
+    --sk-surface: #faf9ff;
+    --sk-chip: #f4f3fc;
+    --sk-ink: #1d1a4a;
+    --sk-body: #393469;
+    --sk-dim: #5e588c;
+    --sk-mute: #8580b0;
+    --sk-line: #dcdaf0;
+    --sk-soft: #b8b3ff;
+    --sk-pri: #6d69f2;
+    --sk-pri-hover: #5b57e8;
+    --sk-pri-bright: #8f8df7;
+    --sk-acc: #ff5fa8;
+    --sk-track: #c9cbe0;
   }
 
   html {
     font-family: var(--font-sans);
-    background-color: #f8fafc;
-    color: #0f172a;
+    background-color: var(--sk-page);
+    color: var(--sk-ink);
     -webkit-font-smoothing: antialiased;
   }
 
@@ -28,6 +44,172 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Sakuga Tactile Surfaces & Controls */
+.sk-card {
+  background-color: var(--sk-page);
+  border: 1.5px solid var(--sk-line);
+  border-radius: 18px;
+}
+
+.sk-card-soft {
+  background-color: var(--sk-chip);
+  border: 1.5px solid var(--sk-line);
+  border-radius: 14px;
+}
+
+.sk-card-accent {
+  background-color: var(--sk-chip);
+  border: 2px solid var(--sk-ink);
+  border-radius: 18px;
+  box-shadow: 4px 5px 0 var(--sk-soft);
+}
+
+.sk-btn-primary {
+  background-color: var(--sk-pri);
+  color: #ffffff;
+  border: 2px solid var(--sk-ink);
+  border-radius: 12px;
+  box-shadow: 3px 4px 0 var(--sk-soft);
+  transition: transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 160ms ease,
+    background-color 140ms ease;
+}
+
+.sk-btn-primary:hover:not(:disabled) {
+  background-color: var(--sk-pri-hover);
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 5px 0 var(--sk-soft);
+}
+
+.sk-btn-primary:active:not(:disabled) {
+  transform: translate(2px, 3px);
+  box-shadow: 1px 1px 0 var(--sk-soft);
+}
+
+.sk-btn-ink {
+  background-color: var(--sk-ink);
+  color: #ffffff;
+  border: 2px solid var(--sk-ink);
+  border-radius: 12px;
+  box-shadow: 3px 4px 0 var(--sk-soft);
+  transition: transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 160ms ease,
+    background-color 140ms ease;
+}
+
+.sk-btn-ink:hover:not(:disabled) {
+  background-color: #2c2769;
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 5px 0 var(--sk-soft);
+}
+
+.sk-btn-ink:active:not(:disabled) {
+  transform: translate(2px, 3px);
+  box-shadow: 1px 1px 0 var(--sk-soft);
+}
+
+.sk-btn-secondary {
+  background-color: var(--sk-page);
+  color: var(--sk-ink);
+  border: 2px solid var(--sk-ink);
+  border-radius: 12px;
+  box-shadow: 3px 3px 0 var(--sk-soft);
+  transition: transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 160ms ease,
+    background-color 140ms ease;
+}
+
+.sk-btn-secondary:hover:not(:disabled) {
+  background-color: var(--sk-chip);
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--sk-soft);
+}
+
+.sk-btn-secondary:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--sk-soft);
+}
+
+.sk-btn-subtle {
+  background-color: var(--sk-page);
+  color: var(--sk-ink);
+  border: 1.5px solid var(--sk-line);
+  border-radius: 11px;
+  transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease;
+}
+
+.sk-btn-subtle:hover:not(:disabled) {
+  background-color: var(--sk-chip);
+  border-color: var(--sk-ink);
+}
+
+.sk-btn-subtle:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+/* Connected Sakuga Tab Bar */
+.sk-tabs {
+  background-color: var(--sk-chip);
+  border: 2px solid var(--sk-ink);
+  border-radius: 13px;
+  box-shadow: 3px 3px 0 var(--sk-soft);
+  padding: 3px;
+}
+
+.sk-tab {
+  border-radius: 9px;
+  color: var(--sk-dim);
+  border: 1.5px solid transparent;
+  transition: background-color 150ms ease, color 150ms ease, transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 150ms ease, border-color 150ms ease;
+}
+
+.sk-tab:hover:not([data-active="true"]) {
+  color: var(--sk-ink);
+}
+
+.sk-tab[data-active="true"] {
+  background-color: #ffffff;
+  color: var(--sk-ink);
+  border-color: var(--sk-ink);
+  box-shadow: 0 2px 0 var(--sk-soft);
+}
+
+/* Sakuga Progress Track & Fill */
+.sk-progress-track {
+  background-color: var(--sk-chip);
+  border: 2px solid var(--sk-ink);
+  border-radius: 999px;
+  box-shadow: 2px 2px 0 var(--sk-soft);
+  overflow: hidden;
+}
+
+.sk-progress-fill {
+  background: linear-gradient(90deg, #8f8df7 0%, #ff5fa8 100%);
+  transition: width 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Sakuga Inputs */
+.sk-input {
+  background-color: var(--sk-chip);
+  border: 1.5px solid var(--sk-line);
+  border-radius: 12px;
+  color: var(--sk-ink);
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.sk-input::placeholder {
+  color: var(--sk-dim);
+  opacity: 0.78;
+}
+
+.sk-input:focus {
+  outline: none;
+  background-color: #ffffff;
+  border-color: var(--sk-ink);
+  box-shadow: 0 0 0 3px rgba(184, 179, 255, 0.45);
+}
+
 .katex-display {
   overflow-x: auto;
   overflow-y: hidden;
@@ -37,7 +219,7 @@
 
 .pdf-annotator-scroll {
   scrollbar-width: auto;
-  scrollbar-color: #64748b #e2e8f0;
+  scrollbar-color: #8f8df7 #f4f3fc;
 }
 
 .pdf-annotator-scroll::-webkit-scrollbar {
@@ -46,15 +228,27 @@
 }
 
 .pdf-annotator-scroll::-webkit-scrollbar-track {
-  background: #e2e8f0;
+  background: #f4f3fc;
 }
 
 .pdf-annotator-scroll::-webkit-scrollbar-thumb {
-  background-color: #64748b;
+  background-color: #8f8df7;
   border-radius: 9px;
-  border: 3px solid #e2e8f0;
+  border: 3px solid #f4f3fc;
 }
 
 .pdf-annotator-scroll::-webkit-scrollbar-thumb:hover {
-  background-color: #334155;
+  background-color: #1d1a4a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sk-btn-primary,
+  .sk-btn-ink,
+  .sk-btn-secondary,
+  .sk-btn-subtle,
+  .sk-tab,
+  .sk-progress-fill {
+    transition: none;
+    transform: none;
+  }
 }

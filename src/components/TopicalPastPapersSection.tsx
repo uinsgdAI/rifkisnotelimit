@@ -23,6 +23,7 @@ import {
   getTopicalPdfBytesUrl,
 } from '../utils/topicalPapers';
 import { PdfAnnotator } from './PdfAnnotator';
+import { triggerSakugaBurst } from '../utils/sakugaVfx';
 
 interface TopicalPastPapersSectionProps {
   selectedChapterFilter: number | 'all';
@@ -86,8 +87,8 @@ const NativePdfFrame: React.FC<NativePdfFrameProps> = ({
 
   if (loading) {
     return (
-      <div className="w-full h-[640px] flex flex-col items-center justify-center gap-3 text-sm text-slate-600 bg-slate-50">
-        <Loader2 className="w-5 h-5 animate-spin text-blue-700" />
+      <div className="w-full h-[640px] flex flex-col items-center justify-center gap-3 text-sm text-[#5E588C] bg-[#FAF9FF]">
+        <Loader2 className="w-5 h-5 animate-spin text-[#6D69F2]" />
         <span>Loading native PDF viewer...</span>
       </div>
     );
@@ -95,22 +96,22 @@ const NativePdfFrame: React.FC<NativePdfFrameProps> = ({
 
   if (error || !blobUrl) {
     return (
-      <div className="w-full h-[640px] flex flex-col items-center justify-center gap-3 p-6 text-center bg-slate-50">
-        <p className="text-sm text-slate-700 max-w-md">
+      <div className="w-full h-[640px] flex flex-col items-center justify-center gap-3 p-6 text-center bg-[#FAF9FF]">
+        <p className="text-sm text-[#393469] max-w-md">
           Native browser PDF could not be embedded ({error || 'blocked by network'}).
         </p>
         <div className="flex flex-wrap items-center justify-center gap-2">
           <button
             type="button"
             onClick={onSwitchToAnnotate}
-            className="px-3.5 py-2 text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded-lg cursor-pointer"
+            className="px-3.5 py-2 text-xs font-bold sk-btn-primary cursor-pointer"
           >
             Open in Annotate (Draw)
           </button>
           <button
             type="button"
             onClick={onSwitchToWeb}
-            className="px-3.5 py-2 text-xs font-semibold border border-slate-200 bg-white hover:bg-slate-100 text-slate-800 rounded-lg cursor-pointer"
+            className="px-3.5 py-2 text-xs font-semibold sk-btn-subtle cursor-pointer"
           >
             Switch to Web Viewer
           </button>
@@ -118,7 +119,7 @@ const NativePdfFrame: React.FC<NativePdfFrameProps> = ({
             href={externalUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-3.5 py-2 text-xs font-semibold border border-slate-200 bg-white hover:bg-slate-100 text-slate-800 rounded-lg"
+            className="px-3.5 py-2 text-xs font-semibold sk-btn-subtle"
           >
             Open PDF Directly
           </a>
@@ -132,24 +133,24 @@ const NativePdfFrame: React.FC<NativePdfFrameProps> = ({
       aria-label={title}
       data={blobUrl}
       type="application/pdf"
-      className="w-full h-[640px] block bg-slate-50"
+      className="w-full h-[640px] block bg-[#FAF9FF]"
     >
-      <div className="w-full h-[640px] flex flex-col items-center justify-center gap-3 p-6 text-center bg-slate-50">
-        <p className="text-sm text-slate-700 max-w-md">
+      <div className="w-full h-[640px] flex flex-col items-center justify-center gap-3 p-6 text-center bg-[#FAF9FF]">
+        <p className="text-sm text-[#393469] max-w-md">
           This browser does not embed Native PDF plugins inline. Use Annotate (Draw) to view &amp; scribble directly on every page, or open the PDF in a new tab.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-2">
           <button
             type="button"
             onClick={onSwitchToAnnotate}
-            className="px-3.5 py-2 text-xs font-semibold bg-blue-700 hover:bg-blue-800 text-white rounded-lg cursor-pointer"
+            className="px-3.5 py-2 text-xs font-bold sk-btn-primary cursor-pointer"
           >
             Switch to Annotate (Draw)
           </button>
           <button
             type="button"
             onClick={onSwitchToWeb}
-            className="px-3.5 py-2 text-xs font-semibold border border-slate-200 bg-white hover:bg-slate-100 text-slate-800 rounded-lg cursor-pointer"
+            className="px-3.5 py-2 text-xs font-semibold sk-btn-subtle cursor-pointer"
           >
             Switch to Web Viewer
           </button>
@@ -157,7 +158,7 @@ const NativePdfFrame: React.FC<NativePdfFrameProps> = ({
             href={externalUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-3.5 py-2 text-xs font-semibold border border-slate-200 bg-white hover:bg-slate-100 text-slate-800 rounded-lg"
+            className="px-3.5 py-2 text-xs font-semibold sk-btn-subtle"
           >
             Open PDF Directly
           </a>
@@ -256,51 +257,48 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
       className="space-y-4"
     >
       {/* Section Header & Filters */}
-      <div className="p-6 bg-white border border-slate-200 rounded-xl space-y-4">
+      <div className="p-6 sk-card space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <div className="text-xs text-slate-500 mb-1">
+            <div className="text-xs text-[#5E588C] mb-1">
               Cambridge IGCSE 0580 · Topical Past Paper Archive ({TOPICAL_PAPERS_0580.length} Topic Packs)
             </div>
-            <h2 className="font-display text-lg font-bold text-slate-900">
+            <h2 className="font-display text-lg font-bold text-[#1D1A4A]">
               Topical Past Papers &amp; Worked Solutions (Annotate Q + Answers)
             </h2>
-            <p className="text-xs text-slate-600 mt-1 max-w-2xl">
+            <p className="text-xs text-[#393469] mt-1 max-w-2xl">
               Practise real exam-style topical PDF sheets with step-by-step worked solutions. Open any topic directly in the PDF annotator (Pen, Highlighter, Ruler, Split Questions + Answers) or jump back to its 0580 study notes.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <div className="relative w-full sm:w-72">
               <label htmlFor="topical-papers-search" className="sr-only">
                 Search topical past paper packs
               </label>
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-4 h-4 text-[#5E588C] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 id="topical-papers-search"
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search topic or code (e.g. Surds, 2.5, Vectors)"
-                className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white"
+                className="w-full pl-9 pr-3 py-2 text-xs sk-input"
               />
             </div>
 
             <div
               role="group"
               aria-label="Filter by calculator rule"
-              className="flex gap-1 p-1 bg-slate-100 rounded-lg"
+              className="flex gap-1 sk-tabs"
             >
               {(['all', 'Non-Calc', 'Calc', 'Mixed'] as const).map((mode) => (
                 <button
                   key={mode}
                   type="button"
+                  data-active={paperModeFilter === mode}
                   onClick={() => setPaperModeFilter(mode)}
-                  className={`px-2.5 py-1 text-xs font-medium rounded-md cursor-pointer whitespace-nowrap ${
-                    paperModeFilter === mode
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                  className="px-2.5 py-1 text-xs font-semibold cursor-pointer whitespace-nowrap sk-tab"
                 >
                   {mode === 'all' ? 'All Modes' : mode}
                 </button>
@@ -314,10 +312,10 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
             <button
               type="button"
               onClick={() => setChapterFilter('all')}
-              className={`px-2.5 py-1.5 text-xs font-medium rounded-lg border cursor-pointer ${
+              className={`px-2.5 py-1.5 text-xs font-semibold rounded-xl border-[1.5px] cursor-pointer transition-colors ${
                 chapterFilter === 'all'
-                  ? 'bg-blue-50 border-blue-200 text-blue-800'
-                  : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  ? 'bg-[#F4F3FC] border-[#1D1A4A] text-[#1D1A4A] shadow-[2px_2px_0_#B8B3FF]'
+                  : 'bg-[#FAF9FF] border-[#DCDAF0] text-[#393469] hover:border-[#1D1A4A]'
               }`}
             >
               All Topics ({TOPICAL_PAPERS_0580.length})
@@ -327,10 +325,10 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                 key={ch.id}
                 type="button"
                 onClick={() => setChapterFilter(ch.id)}
-                className={`px-2.5 py-1.5 text-xs font-medium rounded-lg border cursor-pointer ${
+                className={`px-2.5 py-1.5 text-xs font-semibold rounded-xl border-[1.5px] cursor-pointer transition-colors ${
                   chapterFilter === ch.id
-                    ? 'bg-blue-50 border-blue-200 text-blue-800'
-                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                    ? 'bg-[#F4F3FC] border-[#1D1A4A] text-[#1D1A4A] shadow-[2px_2px_0_#B8B3FF]'
+                    : 'bg-[#FAF9FF] border-[#DCDAF0] text-[#393469] hover:border-[#1D1A4A]'
                 }`}
               >
                 {ch.id}. {ch.title} ({chapterCounts[ch.id] || 0})
@@ -338,7 +336,7 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
             ))}
           </div>
 
-          <span className="text-xs font-mono tabular-nums text-slate-500 shrink-0">
+          <span className="text-xs font-mono font-semibold tabular-nums text-[#5E588C] shrink-0">
             Showing {filteredPacks.length} of {TOPICAL_PAPERS_0580.length} packs
           </span>
         </div>
@@ -350,17 +348,17 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
           ref={viewerRef}
           aria-label={`Topical PDF Viewer for ${activePack.title}`}
           data-testid="topical-pdf-viewer"
-          className="bg-white border border-slate-200 rounded-xl overflow-hidden"
+          className="sk-card overflow-hidden border-2 border-[#1D1A4A] shadow-[4px_5px_0_#B8B3FF]"
         >
-          <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-3">
+          <div className="px-4 py-3 border-b-[1.5px] border-[#DCDAF0] bg-[#FAF9FF] flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="font-display font-bold text-slate-900">
+                <span className="font-display font-bold text-[#1D1A4A]">
                   #{activePack.order} · {activePack.title}
                 </span>
-                <span className="font-mono text-slate-500">({activePack.paperMode})</span>
+                <span className="font-mono text-[#5E588C]">({activePack.paperMode})</span>
               </div>
-              <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] font-mono text-slate-600">
+              <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] font-mono text-[#5E588C]">
                 <span>{activePack.questionsFilename}</span>
                 {splitAnswers && (
                   <>
@@ -386,7 +384,7 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                       topicId: targetTopic,
                     });
                   }}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-lg cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold sk-btn-subtle text-[#5B57E8] cursor-pointer"
                 >
                   <BookOpen className="w-3.5 h-3.5" />
                   Study {activePack.topicIds.join(', ')} Notes
@@ -397,10 +395,10 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
               <button
                 type="button"
                 onClick={() => setSplitAnswers((s) => !s)}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border rounded-lg cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-xl border-[1.5px] cursor-pointer ${
                   splitAnswers
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    ? 'bg-emerald-50 border-emerald-600 text-emerald-900'
+                    : 'sk-btn-subtle'
                 }`}
               >
                 <Columns2 className="w-3.5 h-3.5" />
@@ -410,39 +408,30 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
               <div
                 role="group"
                 aria-label="Topical PDF viewer engine"
-                className="inline-flex p-0.5 bg-slate-200/80 rounded-lg"
+                className="inline-flex gap-1 sk-tabs"
               >
                 <button
                   type="button"
+                  data-active={viewerMode === 'annotate'}
                   onClick={() => setViewerMode('annotate')}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md cursor-pointer ${
-                    viewerMode === 'annotate'
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600'
-                  }`}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold cursor-pointer sk-tab"
                 >
                   <Pen className="w-3 h-3" />
                   Annotate (Draw)
                 </button>
                 <button
                   type="button"
+                  data-active={viewerMode === 'proxy'}
                   onClick={() => setViewerMode('proxy')}
-                  className={`px-2.5 py-1 text-xs font-medium rounded-md cursor-pointer ${
-                    viewerMode === 'proxy'
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600'
-                  }`}
+                  className="px-2.5 py-1 text-xs font-semibold cursor-pointer sk-tab"
                 >
                   Native PDF
                 </button>
                 <button
                   type="button"
+                  data-active={viewerMode === 'web'}
                   onClick={() => setViewerMode('web')}
-                  className={`px-2.5 py-1 text-xs font-medium rounded-md cursor-pointer ${
-                    viewerMode === 'web'
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600'
-                  }`}
+                  className="px-2.5 py-1 text-xs font-semibold cursor-pointer sk-tab"
                 >
                   Web Viewer
                 </button>
@@ -452,7 +441,7 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                 href={activePack.questionsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-slate-700"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold sk-btn-subtle"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
                 Open Q
@@ -463,7 +452,7 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                   href={activePack.answersUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium border border-emerald-200 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold border-[1.5px] border-emerald-600 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                   Open Answers
@@ -473,7 +462,7 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
               <button
                 type="button"
                 onClick={() => setActivePack(null)}
-                className="px-3 py-1.5 text-xs font-medium bg-slate-900 text-white rounded-lg hover:bg-slate-800 cursor-pointer"
+                className="px-3 py-1.5 text-xs font-bold sk-btn-ink cursor-pointer"
               >
                 Close Viewer
               </button>
@@ -481,18 +470,18 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
           </div>
 
           <div
-            className={`grid gap-px bg-slate-200 ${
+            className={`grid gap-px bg-[#DCDAF0] ${
               splitAnswers ? 'lg:grid-cols-2' : 'grid-cols-1'
             }`}
           >
             <div className="bg-white min-w-0" data-testid="topical-qp-pane">
-              <div className="px-3 py-1.5 text-[11px] font-medium text-slate-500 border-b border-slate-200 flex items-center justify-between gap-2">
+              <div className="px-3 py-1.5 text-[11px] font-semibold text-[#5E588C] border-b border-[#DCDAF0] flex items-center justify-between gap-2">
                 <span>Questions — {activePack.questionsFilename}</span>
                 <a
                   href={activePack.questionsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-700 hover:underline shrink-0"
+                  className="text-[#5B57E8] hover:underline shrink-0"
                 >
                   Open in new tab
                 </a>
@@ -516,14 +505,14 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                 <iframe
                   title={activePack.questionsFilename}
                   src={buildGoogleDocsViewerUrl(activePack.questionsUrl)}
-                  className="w-full h-[640px] border-0 bg-slate-50"
+                  className="w-full h-[640px] border-0 bg-[#FAF9FF]"
                 />
               )}
             </div>
 
             {splitAnswers && (
               <div className="bg-white min-w-0" data-testid="topical-ms-pane">
-                <div className="px-3 py-1.5 text-[11px] font-medium text-emerald-700 border-b border-slate-200 flex items-center justify-between gap-2">
+                <div className="px-3 py-1.5 text-[11px] font-semibold text-emerald-800 border-b border-[#DCDAF0] flex items-center justify-between gap-2">
                   <span>Worked Solutions — {activePack.answersFilename}</span>
                   <a
                     href={activePack.answersUrl}
@@ -554,7 +543,7 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                   <iframe
                     title={activePack.answersFilename}
                     src={buildGoogleDocsViewerUrl(activePack.answersUrl)}
-                    className="w-full h-[640px] border-0 bg-slate-50"
+                    className="w-full h-[640px] border-0 bg-[#FAF9FF]"
                   />
                 )}
               </div>
@@ -564,16 +553,16 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
       )}
 
       {/* Topical Papers Table */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+      <div className="sk-card overflow-hidden">
         {filteredPacks.length === 0 ? (
-          <div className="p-8 text-center text-sm text-slate-500">
-            No topical packs match "{query}". Try clearing your search or switching back to All Topics.
+          <div className="p-8 text-center text-sm text-[#5E588C]">
+            No topical packs match &quot;{query}&quot;. Try clearing your search or switching back to All Topics.
           </div>
         ) : (
           <div className="overflow-x-auto max-h-[620px] overflow-y-auto">
             <table className="w-full text-left border-collapse text-sm">
-              <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200">
-                <tr className="text-xs font-semibold text-slate-600">
+              <thead className="sticky top-0 z-10 bg-[#F4F3FC] border-b-[1.5px] border-[#DCDAF0]">
+                <tr className="text-xs font-bold text-[#1D1A4A]">
                   <th className="py-3 px-4 w-12">#</th>
                   <th className="py-3 px-4">Topical Question Pack</th>
                   <th className="py-3 px-4">Syllabus Coverage</th>
@@ -581,7 +570,7 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                   <th className="py-3 px-4 text-right">Study &amp; Annotate</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-[#ECEBF8]">
                 {filteredPacks.map((pack) => {
                   const isActive = activePack?.id === pack.id;
                   const chTitle =
@@ -596,17 +585,17 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                       key={pack.id}
                       data-testid={`topical-row-${pack.id}`}
                       className={`transition-colors ${
-                        isActive ? 'bg-blue-50/70' : 'hover:bg-slate-50/70'
+                        isActive ? 'bg-[#F4F3FC]' : 'hover:bg-[#FAF9FF]'
                       }`}
                     >
-                      <td className="py-3 px-4 font-mono text-xs tabular-nums text-slate-400">
+                      <td className="py-3 px-4 font-mono text-xs tabular-nums text-[#5E588C]">
                         {pack.order}
                       </td>
                       <td className="py-3 px-4">
-                        <div className="font-semibold text-xs sm:text-sm text-slate-900">
+                        <div className="font-bold text-xs sm:text-sm text-[#1D1A4A]">
                           {pack.title}
                         </div>
-                        <div className="text-[11px] font-mono text-slate-500 mt-0.5">
+                        <div className="text-[11px] font-mono text-[#5E588C] mt-0.5">
                           Ch. {pack.chapterId}: {chTitle}
                         </div>
                       </td>
@@ -626,7 +615,7 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                                   })
                                 }
                                 title={`Open Study Notes for ${tid}`}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-mono font-medium rounded border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-200 text-blue-700 cursor-pointer"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-mono font-semibold rounded-lg border border-[#DCDAF0] bg-[#FAF9FF] hover:bg-[#F4F3FC] hover:border-[#1D1A4A] text-[#5B57E8] cursor-pointer"
                               >
                                 {tid}
                               </button>
@@ -638,10 +627,10 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                         <span
                           className={
                             pack.paperMode === 'Non-Calc'
-                              ? 'font-medium text-amber-800'
+                              ? 'font-semibold text-[#C0266B]'
                               : pack.paperMode === 'Calc'
-                                ? 'font-medium text-slate-700'
-                                : 'text-slate-600'
+                                ? 'font-semibold text-[#1D1A4A]'
+                                : 'text-[#5E588C]'
                           }
                         >
                           {pack.paperMode}
@@ -659,24 +648,30 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                                   topicId: primaryTopic,
                                 })
                               }
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-slate-700 cursor-pointer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold sk-btn-subtle cursor-pointer"
                             >
-                              <BookOpen className="w-3.5 h-3.5 text-blue-700" />
+                              <BookOpen className="w-3.5 h-3.5 text-[#5B57E8]" />
                               Notes
                             </button>
                           )}
                           <button
                             type="button"
-                            onClick={() => openPack(pack, false)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium border border-slate-200 rounded-lg bg-white hover:bg-slate-100 text-slate-700 cursor-pointer"
+                            onClick={(e) => {
+                              triggerSakugaBurst(e, 'sakura');
+                              openPack(pack, false);
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold sk-btn-secondary cursor-pointer"
                           >
                             <Pen className="w-3.5 h-3.5" />
                             Annotate Q
                           </button>
                           <button
                             type="button"
-                            onClick={() => openPack(pack, true)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-blue-700 hover:bg-blue-800 text-white cursor-pointer"
+                            onClick={(e) => {
+                              triggerSakugaBurst(e, 'indigo', 'OPEN!');
+                              openPack(pack, true);
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold sk-btn-primary cursor-pointer"
                           >
                             <Columns2 className="w-3.5 h-3.5" />
                             Split Q + Ans
@@ -693,7 +688,7 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                             disabled={downloadingId === pack.id}
                             aria-label={`Download ${pack.questionsFilename}`}
                             title="Download Questions PDF"
-                            className="p-1.5 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 cursor-pointer disabled:opacity-50"
+                            className="p-1.5 text-[#5E588C] hover:text-[#1D1A4A] rounded-lg hover:bg-[#F4F3FC] cursor-pointer disabled:opacity-50"
                           >
                             {downloadingId === pack.id ? (
                               <Loader2 className="w-4 h-4 animate-spin" />

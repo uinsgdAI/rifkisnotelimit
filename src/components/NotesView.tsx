@@ -23,6 +23,7 @@ import { findTopicalPapersForTopic } from '../utils/topicalPapers';
 import { KaTeXFormula, MathText } from './MathText';
 import { SyllabusSidebar } from './SyllabusSidebar';
 import { TopicSandbox } from './TopicSandbox';
+import { triggerSakugaBurst } from '../utils/sakugaVfx';
 
 interface NotesViewProps {
   chapterId: number;
@@ -74,7 +75,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
       : undefined;
   const matchingTopicalPacks = findTopicalPapersForTopic(note.id);
 
-  const handleQuickSubmit = (e: React.FormEvent) => {
+  const handleQuickSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!quickInput.trim()) return;
     const ok = evaluateStudentAnswer(quickInput, {
@@ -85,6 +86,10 @@ export const NotesView: React.FC<NotesViewProps> = ({
       tolerance: note.quickCheck.tolerance,
     });
     setQuickStatus(ok ? 'correct' : 'incorrect');
+    if (ok) {
+      const submitBtn = e.currentTarget.querySelector('button[type="submit"]') as HTMLElement | null;
+      triggerSakugaBurst(submitBtn, 'emerald', 'NICE!');
+    }
   };
 
   const toggleMarkScheme = (idx: number) => {
@@ -94,7 +99,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
   };
 
   return (
-    <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-6 flex flex-col lg:flex-row gap-6 items-start">
+    <div className="w-full min-w-0 max-w-[1440px] mx-auto px-4 sm:px-6 py-6 flex flex-col lg:flex-row gap-6 items-stretch lg:items-start">
       <SyllabusSidebar
         activeChapterId={chapterId}
         activeTopicId={topicId}
@@ -105,32 +110,37 @@ export const NotesView: React.FC<NotesViewProps> = ({
         }
       />
 
-      <main className="flex-1 min-w-0 w-full space-y-6">
+      <main className="flex-1 min-w-0 max-w-full w-full space-y-6">
         {/* Topic Header Card */}
-        <section className="p-6 bg-white border border-slate-200 rounded-xl space-y-4">
+        <section className="p-6 sk-card space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-[#5E588C]">
               <span>IGCSE Mathematics (0580)</span>
               <span aria-hidden="true">·</span>
               <span>
                 Chapter {chapterId}: {chapter?.title}
               </span>
               <span aria-hidden="true">·</span>
-              <span className="font-mono text-slate-700 font-medium">{note.code}</span>
+              <span className="font-mono text-[#1D1A4A] font-semibold">{note.code}</span>
               <span aria-hidden="true">·</span>
-              <span className={note.tier === 'Extended' ? 'text-amber-700 font-medium' : 'text-slate-700'}>
+              <span className={note.tier === 'Extended' ? 'text-[#C0266B] font-semibold' : 'text-[#393469]'}>
                 {note.tier}
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <button
                 type="button"
-                onClick={() => onToggleStudied(note.id)}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors cursor-pointer ${
+                onClick={(e) => {
+                  if (!isStudied) {
+                    triggerSakugaBurst(e, 'emerald', 'STUDIED!');
+                  }
+                  onToggleStudied(note.id);
+                }}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold cursor-pointer ${
                   isStudied
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                    ? 'rounded-xl border-2 border-[#16A34A] bg-emerald-50 text-emerald-900 shadow-[3px_3px_0_#BBF7D0]'
+                    : 'sk-btn-secondary'
                 }`}
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
@@ -138,10 +148,11 @@ export const NotesView: React.FC<NotesViewProps> = ({
               </button>
               <button
                 type="button"
-                onClick={() =>
-                  onNavigate({ view: 'practice', mode: 'topical', topicId: note.id })
-                }
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-700 hover:bg-blue-800 text-white transition-colors cursor-pointer"
+                onClick={(e) => {
+                  triggerSakugaBurst(e, 'indigo', 'PRACTICE!');
+                  onNavigate({ view: 'practice', mode: 'topical', topicId: note.id });
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold sk-btn-primary cursor-pointer"
               >
                 <Play className="w-3.5 h-3.5" />
                 Practice {note.code}
@@ -151,16 +162,16 @@ export const NotesView: React.FC<NotesViewProps> = ({
 
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div className="min-w-0">
-              <h1 className="font-display text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight text-balance">
-                <span className="font-mono text-blue-700 mr-2.5">{note.code}</span>
+              <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#1D1A4A] tracking-tight text-balance">
+                <span className="font-mono text-[#5B57E8] mr-2">{note.code}</span>{' '}
                 {note.title}
               </h1>
-              <p className="mt-2 text-sm sm:text-base text-slate-600 leading-relaxed max-w-3xl">
+              <p className="mt-2 text-sm sm:text-base text-[#393469] leading-relaxed max-w-3xl">
                 <MathText text={note.summary} />
               </p>
               {note.coursebookRef && (
-                <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-                  <span className="font-medium text-slate-700">
+                <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#5E588C]">
+                  <span className="font-semibold text-[#1D1A4A]">
                     Morrison &amp; Hamshaw Coursebook (2nd Ed.)
                   </span>
                   <span aria-hidden="true">·</span>
@@ -173,36 +184,36 @@ export const NotesView: React.FC<NotesViewProps> = ({
                 </div>
               )}
               {note.coursebookRef?.editionNote && (
-                <p className="mt-1 text-xs text-amber-800">{note.coursebookRef.editionNote}</p>
+                <p className="mt-1 text-xs font-medium text-[#C0266B]">{note.coursebookRef.editionNote}</p>
               )}
             </div>
 
             <div
-              className="inline-flex items-center p-1 bg-slate-100 border border-slate-200 rounded-lg shrink-0 self-start md:self-auto"
+              className="inline-flex items-center gap-1 sk-tabs shrink-0 self-start md:self-auto"
               role="group"
               aria-label="Study depth mode"
             >
               <button
                 type="button"
                 aria-pressed={studyMode === 'conceptual'}
-                onClick={() => setStudyMode('conceptual')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer whitespace-nowrap ${
-                  studyMode === 'conceptual'
-                    ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
+                data-active={studyMode === 'conceptual'}
+                onClick={(e) => {
+                  triggerSakugaBurst(e, 'sakura');
+                  setStudyMode('conceptual');
+                }}
+                className="px-3 py-1.5 text-xs font-semibold cursor-pointer whitespace-nowrap sk-tab"
               >
                 Quick Concept
               </button>
               <button
                 type="button"
                 aria-pressed={studyMode === 'detailed'}
-                onClick={() => setStudyMode('detailed')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer whitespace-nowrap ${
-                  studyMode === 'detailed'
-                    ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
+                data-active={studyMode === 'detailed'}
+                onClick={(e) => {
+                  triggerSakugaBurst(e, 'indigo');
+                  setStudyMode('detailed');
+                }}
+                className="px-3 py-1.5 text-xs font-semibold cursor-pointer whitespace-nowrap sk-tab"
               >
                 Detailed Coursebook
               </button>
@@ -210,7 +221,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
           </div>
 
           {isFlaggedForReview && (
-            <div className="p-3.5 rounded-lg bg-amber-50/80 border border-amber-200 flex flex-wrap items-center justify-between gap-3 text-xs text-amber-950">
+            <div className="p-3.5 rounded-xl bg-[#FFF0F6] border-[1.5px] border-[#FF5FA8]/50 flex flex-wrap items-center justify-between gap-3 text-xs text-[#831843]">
               <span>
                 Flagged for revision from a missed practice or past paper question. Review the rules below, then click <strong>Mark as Studied</strong> once mastered.
               </span>
@@ -225,7 +236,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
                         topicId: nextWeakNote.id,
                       })
                     }
-                    className="px-2.5 py-1 font-semibold bg-white border border-amber-300 rounded-md text-amber-900 hover:bg-amber-100 cursor-pointer"
+                    className="px-2.5 py-1 font-semibold sk-btn-subtle text-[#831843] cursor-pointer"
                   >
                     Next Flagged: {nextWeakNote.code} →
                   </button>
@@ -233,7 +244,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
                 <button
                   type="button"
                   onClick={() => onClearWeakTopic(note.id)}
-                  className="px-2.5 py-1 font-medium text-amber-800 hover:text-amber-950 cursor-pointer"
+                  className="px-2.5 py-1 font-semibold text-[#9D174D] hover:text-[#1D1A4A] cursor-pointer"
                 >
                   Dismiss Flag
                 </button>
@@ -244,34 +255,34 @@ export const NotesView: React.FC<NotesViewProps> = ({
 
         {/* Core Intuition & Quick Concept Summary */}
         {note.bigIdea && (
-          <section className="p-5 sm:p-6 bg-blue-50/60 border border-blue-200 rounded-xl space-y-4">
+          <section className="p-5 sm:p-6 sk-card-accent space-y-4">
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
-                <Lightbulb className="w-4 h-4 text-blue-700 shrink-0" />
-                <h2 className="font-display text-sm font-bold text-blue-950">
+                <Lightbulb className="w-4 h-4 text-[#5B57E8] shrink-0" />
+                <h2 className="font-display text-sm font-bold text-[#1D1A4A]">
                   {studyMode === 'conceptual' ? 'Quick Concept — Core Intuition' : 'Big Idea & Core Intuition'}
                 </h2>
               </div>
-              <p className="text-sm sm:text-base text-slate-800 leading-relaxed max-w-3xl">
+              <p className="text-sm sm:text-base text-[#1D1A4A] leading-relaxed max-w-3xl">
                 <MathText text={note.bigIdea} />
               </p>
             </div>
 
             {studyMode === 'conceptual' && note.rapidSummary && note.rapidSummary.length > 0 && (
-              <div className="pt-3 border-t border-blue-200/70 space-y-2.5">
-                <div className="text-xs font-semibold text-blue-950">
+              <div className="pt-3 border-t border-[#DCDAF0] space-y-2.5">
+                <div className="text-xs font-bold text-[#1D1A4A]">
                   Key Takeaways at a Glance
                 </div>
                 <div className="grid sm:grid-cols-2 gap-3">
                   {note.rapidSummary.map((item, idx) => (
                     <div
                       key={idx}
-                      className="p-3.5 rounded-lg bg-white border border-blue-200/80 space-y-1"
+                      className="p-3.5 rounded-xl bg-white border-[1.5px] border-[#DCDAF0] space-y-1"
                     >
-                      <div className="font-display text-xs font-bold text-slate-900">
+                      <div className="font-display text-xs font-bold text-[#1D1A4A]">
                         <MathText text={item.rule} />
                       </div>
-                      <p className="text-xs text-slate-600 leading-relaxed">
+                      <p className="text-xs text-[#393469] leading-relaxed">
                         <MathText text={item.detail} />
                       </p>
                     </div>
@@ -293,22 +304,22 @@ export const NotesView: React.FC<NotesViewProps> = ({
             }`}
           >
             {note.coursebookTip && (
-              <div className="p-4 sm:p-5 rounded-xl bg-amber-50/60 border border-amber-200/80 space-y-1.5">
-                <div className="text-xs font-bold text-amber-900">
+              <div className="p-4 sm:p-5 rounded-[18px] bg-[#FFF5FA] border-[1.5px] border-[#F8C8E0] space-y-1.5">
+                <div className="text-xs font-bold text-[#9D174D]">
                   Coursebook Tip · Morrison &amp; Hamshaw
                 </div>
-                <p className="text-sm text-slate-800 leading-relaxed">
+                <p className="text-sm text-[#393469] leading-relaxed">
                   <MathText text={note.coursebookTip} />
                 </p>
               </div>
             )}
             {studyMode === 'detailed' && note.fastForward && (
-              <div className="p-4 sm:p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
-                  <Compass className="w-3.5 h-3.5 text-blue-700 shrink-0" />
+              <div className="p-4 sm:p-5 sk-card-soft space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[#1D1A4A]">
+                  <Compass className="w-3.5 h-3.5 text-[#5B57E8] shrink-0" />
                   <span>Fast Forward · Where This Connects Next</span>
                 </div>
-                <p className="text-sm text-slate-700 leading-relaxed">
+                <p className="text-sm text-[#393469] leading-relaxed">
                   <MathText text={note.fastForward} />
                 </p>
               </div>
@@ -318,18 +329,18 @@ export const NotesView: React.FC<NotesViewProps> = ({
 
         {/* Syllabus Objectives (Detailed mode) */}
         {studyMode === 'detailed' && (
-          <section className="p-6 bg-white border border-slate-200 rounded-xl space-y-4">
+          <section className="p-6 sk-card space-y-4">
             <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-blue-700" />
-              <h2 className="font-display text-base font-bold text-slate-900">
+              <BookOpen className="w-4 h-4 text-[#5B57E8]" />
+              <h2 className="font-display text-base font-bold text-[#1D1A4A]">
                 Curriculum Learning Objectives (2025–2027)
               </h2>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <h3 className="text-xs font-semibold text-slate-500 mb-2">Core Curriculum</h3>
-                <ul className="space-y-2 text-sm text-slate-700 leading-relaxed list-disc pl-5">
+                <h3 className="text-xs font-semibold text-[#5E588C] mb-2">Core Curriculum</h3>
+                <ul className="space-y-2 text-sm text-[#393469] leading-relaxed list-disc pl-5">
                   {note.coreObjectives.map((obj, idx) => (
                     <li key={idx}>
                       <MathText text={obj} />
@@ -340,10 +351,10 @@ export const NotesView: React.FC<NotesViewProps> = ({
 
               {note.extendedObjectives && note.extendedObjectives.length > 0 && (
                 <div>
-                  <h3 className="text-xs font-semibold text-amber-800 mb-2">
+                  <h3 className="text-xs font-semibold text-[#C0266B] mb-2">
                     Extended Supplement
                   </h3>
-                  <ul className="space-y-2 text-sm text-slate-700 leading-relaxed list-disc pl-5">
+                  <ul className="space-y-2 text-sm text-[#393469] leading-relaxed list-disc pl-5">
                     {note.extendedObjectives.map((obj, idx) => (
                       <li key={idx}>
                         <MathText text={obj} />
@@ -357,22 +368,22 @@ export const NotesView: React.FC<NotesViewProps> = ({
         )}
 
         {/* Key Formulae */}
-        <section className="p-6 bg-white border border-slate-200 rounded-xl space-y-4">
-          <h2 className="font-display text-base font-bold text-slate-900">
-            Key Rules & Formulae
+        <section className="p-6 sk-card space-y-4">
+          <h2 className="font-display text-base font-bold text-[#1D1A4A]">
+            Key Rules &amp; Formulae
           </h2>
           <div className="grid sm:grid-cols-2 gap-4">
             {note.keyFormulas.map((f) => (
               <div
                 key={f.label}
-                className="p-4 rounded-lg bg-slate-50 border border-slate-200 space-y-2"
+                className="p-4 sk-card-soft space-y-2"
               >
-                <div className="text-xs font-semibold text-slate-700">{f.label}</div>
-                <div className="overflow-x-auto text-slate-900">
+                <div className="text-xs font-semibold text-[#1D1A4A]">{f.label}</div>
+                <div className="overflow-x-auto text-[#1D1A4A]">
                   <KaTeXFormula latex={f.latex} />
                 </div>
                 {f.note && (
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-[#5E588C]">
                     <MathText text={f.note} />
                   </p>
                 )}
@@ -383,17 +394,17 @@ export const NotesView: React.FC<NotesViewProps> = ({
 
         {/* Step-by-Step Exam Method (Detailed mode) */}
         {studyMode === 'detailed' && note.stepByStepMethod && note.stepByStepMethod.length > 0 && (
-          <section className="p-6 bg-white border border-slate-200 rounded-xl space-y-4">
+          <section className="p-6 sk-card space-y-4">
             <div className="flex items-center gap-2">
-              <ListChecks className="w-4 h-4 text-blue-700 shrink-0" />
-              <h2 className="font-display text-base font-bold text-slate-900">
+              <ListChecks className="w-4 h-4 text-[#5B57E8] shrink-0" />
+              <h2 className="font-display text-base font-bold text-[#1D1A4A]">
                 Step-by-Step Exam Method
               </h2>
             </div>
             <ol className="space-y-3">
               {note.stepByStepMethod.map((step, idx) => (
-                <li key={idx} className="flex items-start gap-3 text-sm text-slate-700 leading-relaxed max-w-3xl">
-                  <span className="w-6 h-6 rounded-md bg-slate-100 border border-slate-200 text-slate-800 font-mono text-xs font-semibold flex items-center justify-center shrink-0 mt-0.5">
+                <li key={idx} className="flex items-start gap-3 text-sm text-[#393469] leading-relaxed max-w-3xl">
+                  <span className="w-6 h-6 rounded-lg bg-[#F4F3FC] border-[1.5px] border-[#1D1A4A] text-[#1D1A4A] font-mono text-xs font-bold flex items-center justify-center shrink-0 mt-0.5 shadow-[2px_2px_0_#B8B3FF]">
                     {idx + 1}
                   </span>
                   <span>
@@ -407,36 +418,36 @@ export const NotesView: React.FC<NotesViewProps> = ({
 
         {/* Structured Textbook Comparison / Reference Table (Detailed mode) */}
         {studyMode === 'detailed' && note.comparisonTable && (
-          <section className="p-6 bg-white border border-slate-200 rounded-xl space-y-4">
+          <section className="p-6 sk-card min-w-0 w-full max-w-full overflow-x-clip space-y-4">
             <div className="flex items-center gap-2">
-              <Table2 className="w-4 h-4 text-blue-700 shrink-0" />
-              <h2 className="font-display text-base font-bold text-slate-900">
+              <Table2 className="w-4 h-4 text-[#5B57E8] shrink-0" />
+              <h2 className="font-display text-base font-bold text-[#1D1A4A]">
                 {note.comparisonTable.title}
               </h2>
             </div>
-            <div className="overflow-x-auto border border-slate-200 rounded-lg">
+            <div className="w-full max-w-full overflow-x-auto border-[1.5px] border-[#DCDAF0] rounded-xl">
               <table className="w-full text-left border-collapse text-sm">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200">
+                  <tr className="bg-[#F4F3FC] border-b-[1.5px] border-[#DCDAF0]">
                     {note.comparisonTable.headers.map((header, hi) => (
                       <th
                         key={hi}
                         scope="col"
-                        className="px-4 py-2.5 text-xs font-semibold text-slate-700 whitespace-nowrap"
+                        className="px-4 py-2.5 text-xs font-bold text-[#1D1A4A] whitespace-nowrap"
                       >
                         <MathText text={header} />
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200">
+                <tbody className="divide-y divide-[#ECEBF8]">
                   {note.comparisonTable.rows.map((row, ri) => (
-                    <tr key={ri} className="bg-white hover:bg-slate-50/70">
+                    <tr key={ri} className="bg-white hover:bg-[#FAF9FF]">
                       {row.map((cell, ci) => (
                         <td
                           key={ci}
-                          className={`px-4 py-2.5 text-slate-700 align-top ${
-                            ci === 0 ? 'font-medium text-slate-900' : ''
+                          className={`px-4 py-2.5 text-[#393469] align-top ${
+                            ci === 0 ? 'font-semibold text-[#1D1A4A]' : ''
                           }`}
                         >
                           <MathText text={cell} />
@@ -457,28 +468,28 @@ export const NotesView: React.FC<NotesViewProps> = ({
 
         {/* Detailed Revision Notes */}
         {studyMode === 'detailed' && (
-          <section className="p-6 bg-white border border-slate-200 rounded-xl space-y-6">
+          <section className="p-6 sk-card space-y-6">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="font-display text-base font-bold text-slate-900">
+              <h2 className="font-display text-base font-bold text-[#1D1A4A]">
                 Detailed Coursebook Study Notes
               </h2>
               {note.coursebookRef && (
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-[#5E588C]">
                   Aligned with Chapter {note.coursebookRef.chapter}: {note.coursebookRef.chapterTitle}
                 </span>
               )}
             </div>
-            <div className="space-y-6 divide-y divide-slate-100">
+            <div className="space-y-6 divide-y divide-[#ECEBF8]">
               {note.studyNotes.map((sec, idx) => (
                 <div key={idx} className={idx > 0 ? 'pt-6' : ''}>
-                  <h3 className="font-display text-sm font-bold text-slate-900 mb-2">
+                  <h3 className="font-display text-sm font-bold text-[#1D1A4A] mb-2">
                     {sec.heading}
                   </h3>
-                  <p className="text-sm text-slate-700 leading-relaxed max-w-3xl">
+                  <p className="text-sm text-[#393469] leading-relaxed max-w-3xl">
                     <MathText text={sec.body} />
                   </p>
                   {sec.bullets && (
-                    <ul className="mt-3 space-y-2 text-sm text-slate-700 leading-relaxed list-disc pl-5 max-w-3xl">
+                    <ul className="mt-3 space-y-2 text-sm text-[#393469] leading-relaxed list-disc pl-5 max-w-3xl">
                       {sec.bullets.map((b, bi) => (
                         <li key={bi}>
                           <MathText text={b} />
@@ -493,16 +504,16 @@ export const NotesView: React.FC<NotesViewProps> = ({
         )}
 
         {/* Worked Examples */}
-        <section className="p-6 bg-white border border-slate-200 rounded-xl space-y-5">
+        <section className="p-6 sk-card space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="font-display text-base font-bold text-slate-900">
+            <h2 className="font-display text-base font-bold text-[#1D1A4A]">
               {studyMode === 'conceptual' ? 'Quick Walkthrough Example' : 'Worked Exam Examples'}
             </h2>
             {studyMode === 'conceptual' && (
               <button
                 type="button"
                 onClick={() => setStudyMode('detailed')}
-                className="text-xs font-semibold text-blue-700 hover:text-blue-800 cursor-pointer"
+                className="text-xs font-bold text-[#5B57E8] hover:text-[#1D1A4A] cursor-pointer"
               >
                 Show full objectives, tables &amp; all {note.workedExamples.length} examples (Detailed Coursebook) →
               </button>
@@ -517,22 +528,22 @@ export const NotesView: React.FC<NotesViewProps> = ({
               return (
                 <article
                   key={idx}
-                  className="p-5 rounded-lg bg-slate-50 border border-slate-200 space-y-4"
+                  className="p-5 sk-card-soft space-y-4"
                 >
                   <div className="flex items-baseline justify-between gap-4">
-                    <h3 className="font-display text-sm font-bold text-slate-900">
+                    <h3 className="font-display text-sm font-bold text-[#1D1A4A]">
                       Example {idx + 1}: {ex.title}
                     </h3>
-                    <span className="font-mono text-xs tabular-nums text-slate-500 shrink-0">
+                    <span className="font-mono text-xs tabular-nums text-[#5E588C] shrink-0">
                       [{ex.marks} {ex.marks === 1 ? 'mark' : 'marks'}]
                     </span>
                   </div>
 
-                  <p className="text-sm text-slate-800 leading-relaxed">
+                  <p className="text-sm text-[#1D1A4A] leading-relaxed">
                     <MathText text={ex.question} />
                   </p>
 
-                  <ol className="space-y-2 text-sm text-slate-700 list-decimal pl-5">
+                  <ol className="space-y-2 text-sm text-[#393469] list-decimal pl-5">
                     {ex.steps.map((s, si) => (
                       <li key={si}>
                         <MathText text={s} />
@@ -540,14 +551,14 @@ export const NotesView: React.FC<NotesViewProps> = ({
                     ))}
                   </ol>
 
-                  <div className="pt-3 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
-                    <div className="text-sm font-semibold text-blue-800">
+                  <div className="pt-3 border-t border-[#DCDAF0] flex flex-wrap items-center justify-between gap-3">
+                    <div className="text-sm font-bold text-[#5B57E8]">
                       Answer: <MathText text={ex.answer} />
                     </div>
                     <button
                       type="button"
                       onClick={() => toggleMarkScheme(idx)}
-                      className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 cursor-pointer"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5E588C] hover:text-[#1D1A4A] cursor-pointer"
                     >
                       <Eye className="w-3.5 h-3.5" />
                       {showMs ? 'Hide Mark Scheme' : 'Show Mark Scheme'}
@@ -555,7 +566,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
                   </div>
 
                   {showMs && (
-                    <div className="p-3 rounded-lg bg-white border border-slate-200 text-xs text-slate-600 font-mono">
+                    <div className="p-3 rounded-xl bg-white border-[1.5px] border-[#DCDAF0] text-xs text-[#393469] font-mono">
                       <MathText text={ex.markSchemeNotes} />
                     </div>
                   )}
@@ -567,32 +578,32 @@ export const NotesView: React.FC<NotesViewProps> = ({
 
         {/* Rapid Exam Summary Table (Detailed mode; Quick Concept already renders Takeaways cards above) */}
         {studyMode === 'detailed' && note.rapidSummary && note.rapidSummary.length > 0 && (
-          <section className="p-6 bg-white border border-slate-200 rounded-xl space-y-4">
+          <section className="p-6 sk-card min-w-0 w-full max-w-full overflow-x-clip space-y-4">
             <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-amber-600 shrink-0" />
-              <h2 className="font-display text-base font-bold text-slate-900">
+              <Zap className="w-4 h-4 text-[#FF5FA8] shrink-0" />
+              <h2 className="font-display text-base font-bold text-[#1D1A4A]">
                 Rapid Exam Summary
               </h2>
             </div>
-            <div className="overflow-x-auto border border-slate-200 rounded-lg">
+            <div className="w-full max-w-full overflow-x-auto border-[1.5px] border-[#DCDAF0] rounded-xl">
               <table className="w-full text-left border-collapse text-sm">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200">
-                    <th scope="col" className="px-4 py-2.5 text-xs font-semibold text-slate-700 w-1/3">
+                  <tr className="bg-[#F4F3FC] border-b-[1.5px] border-[#DCDAF0]">
+                    <th scope="col" className="px-4 py-2.5 text-xs font-bold text-[#1D1A4A] w-1/3">
                       Must Remember
                     </th>
-                    <th scope="col" className="px-4 py-2.5 text-xs font-semibold text-slate-700">
+                    <th scope="col" className="px-4 py-2.5 text-xs font-bold text-[#1D1A4A]">
                       Rule &amp; Application
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200">
+                <tbody className="divide-y divide-[#ECEBF8]">
                   {note.rapidSummary.map((item, ri) => (
                     <tr key={ri} className="bg-white">
-                      <td className="px-4 py-2.5 font-semibold text-slate-900 align-top">
+                      <td className="px-4 py-2.5 font-semibold text-[#1D1A4A] align-top">
                         <MathText text={item.rule} />
                       </td>
-                      <td className="px-4 py-2.5 text-slate-700 align-top">
+                      <td className="px-4 py-2.5 text-[#393469] align-top">
                         <MathText text={item.detail} />
                       </td>
                     </tr>
@@ -606,11 +617,11 @@ export const NotesView: React.FC<NotesViewProps> = ({
         {/* Common Mistakes & Quick Concept Check */}
         <div className={`grid gap-6 ${studyMode === 'detailed' ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
           {studyMode === 'detailed' && (
-            <section className="p-6 bg-white border border-slate-200 rounded-xl space-y-3">
-              <h2 className="font-display text-base font-bold text-slate-900">
+            <section className="p-6 sk-card space-y-3">
+              <h2 className="font-display text-base font-bold text-[#1D1A4A]">
                 Common Exam Pitfalls
               </h2>
-              <ul className="space-y-2.5 text-sm text-slate-700 list-disc pl-5 leading-relaxed">
+              <ul className="space-y-2.5 text-sm text-[#393469] list-disc pl-5 leading-relaxed">
                 {note.commonMistakes.map((m, i) => (
                   <li key={i}>
                     <MathText text={m} />
@@ -622,17 +633,17 @@ export const NotesView: React.FC<NotesViewProps> = ({
 
           <section
             aria-label={parsedPaper ? 'Topical Past Paper Question' : 'Topical Concept Check'}
-            className="p-6 bg-white border border-slate-200 rounded-xl space-y-4"
+            className="p-6 sk-card space-y-4"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h2 className="font-display text-base font-bold text-slate-900">
+                <h2 className="font-display text-base font-bold text-[#1D1A4A]">
                   {parsedPaper ? 'Topical Past Paper Question' : 'Topical Concept Check'}
                 </h2>
-                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-[#5E588C]">
                   {parsedPaper && note.quickCheck.paperCode ? (
                     <>
-                      <span className="font-mono font-semibold text-blue-800">
+                      <span className="font-mono font-semibold text-[#5B57E8]">
                         {note.quickCheck.paperCode}
                         {note.quickCheck.questionNumber ? ` · ${note.quickCheck.questionNumber}` : ''}
                       </span>
@@ -643,7 +654,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
                     </>
                   ) : (
                     <>
-                      <span className="font-mono font-semibold text-slate-800">
+                      <span className="font-mono font-semibold text-[#1D1A4A]">
                         Syllabus {note.code}
                       </span>
                       <span aria-hidden="true">·</span>
@@ -655,7 +666,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
                   {typeof note.quickCheck.marks === 'number' && (
                     <>
                       <span aria-hidden="true">·</span>
-                      <span className="font-mono text-slate-500">
+                      <span className="font-mono text-[#5E588C]">
                         [{note.quickCheck.marks} {note.quickCheck.marks === 1 ? 'mark' : 'marks'}]
                       </span>
                     </>
@@ -673,7 +684,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
                       paperFilename: parsedPaper.qpFilename,
                     })
                   }
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-slate-50 hover:bg-blue-50 text-blue-700 border border-slate-200 hover:border-blue-200 rounded-lg transition-colors cursor-pointer shrink-0"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold sk-btn-subtle text-[#5B57E8] cursor-pointer shrink-0"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                   View {parsedPaper.paperCode} in Past Papers
@@ -682,7 +693,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
                 <button
                   type="button"
                   onClick={() => onNavigate({ view: 'past-papers' })}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-slate-50 hover:bg-blue-50 text-blue-700 border border-slate-200 hover:border-blue-200 rounded-lg transition-colors cursor-pointer shrink-0"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold sk-btn-subtle text-[#5B57E8] cursor-pointer shrink-0"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                   Browse 0580 Past Papers
@@ -690,11 +701,11 @@ export const NotesView: React.FC<NotesViewProps> = ({
               )}
             </div>
 
-            <p className="text-sm text-slate-700 leading-relaxed">
+            <p className="text-sm text-[#393469] leading-relaxed">
               <MathText text={note.quickCheck.prompt} />
             </p>
 
-            <form onSubmit={handleQuickSubmit} className="flex gap-2">
+            <form onSubmit={handleQuickSubmit} className="flex gap-2.5">
               <label htmlFor={`qc-${note.id}`} className="sr-only">
                 Your answer
               </label>
@@ -711,23 +722,23 @@ export const NotesView: React.FC<NotesViewProps> = ({
                     ? `Enter value (${note.quickCheck.unit})`
                     : 'Type your answer'
                 }
-                className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:border-blue-600 font-mono"
+                className="flex-1 px-3 py-2 text-sm sk-input font-mono"
               />
               <button
                 type="submit"
-                className="px-4 py-2 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg cursor-pointer shrink-0"
+                className="px-4 py-2 text-xs font-bold sk-btn-ink cursor-pointer shrink-0"
               >
                 Check
               </button>
             </form>
 
             {quickStatus === 'correct' && (
-              <div className="text-xs font-medium text-emerald-700">
+              <div className="text-xs font-semibold text-emerald-700">
                 Correct — full marks!
               </div>
             )}
             {quickStatus === 'incorrect' && (
-              <div className="text-xs font-medium text-rose-700">
+              <div className="text-xs font-semibold text-rose-700">
                 Not quite. Try the hint or reveal the worked solution below.
               </div>
             )}
@@ -736,7 +747,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
               <button
                 type="button"
                 onClick={() => setShowHint((h) => !h)}
-                className="inline-flex items-center gap-1 text-xs font-medium text-slate-600 hover:text-slate-900 cursor-pointer"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-[#5E588C] hover:text-[#1D1A4A] cursor-pointer"
               >
                 <HelpCircle className="w-3.5 h-3.5" />
                 {showHint ? 'Hide Hint' : 'Show Hint'}
@@ -744,7 +755,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
               <button
                 type="button"
                 onClick={() => setShowSolution((s) => !s)}
-                className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 hover:text-blue-800 cursor-pointer"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-[#5B57E8] hover:text-[#1D1A4A] cursor-pointer"
               >
                 <Eye className="w-3.5 h-3.5" />
                 {showSolution ? 'Hide Solution' : 'Reveal Solution'}
@@ -752,12 +763,12 @@ export const NotesView: React.FC<NotesViewProps> = ({
             </div>
 
             {showHint && (
-              <p className="text-xs text-slate-600 p-3 bg-slate-50 rounded-lg border border-slate-200">
+              <p className="text-xs text-[#393469] p-3 sk-card-soft">
                 <MathText text={note.quickCheck.hint} />
               </p>
             )}
             {showSolution && (
-              <p className="text-xs text-slate-700 p-3 bg-blue-50/70 rounded-lg border border-blue-200">
+              <p className="text-xs text-[#1D1A4A] p-3 rounded-xl bg-[#F4F3FC] border-[1.5px] border-[#8F8DF7]">
                 <MathText text={note.quickCheck.solution} />
               </p>
             )}
@@ -768,35 +779,36 @@ export const NotesView: React.FC<NotesViewProps> = ({
         {matchingTopicalPacks.length > 0 && (
           <section
             aria-label="Topical Past Paper PDFs for this topic"
-            className="p-5 bg-white border border-slate-200 rounded-xl space-y-3"
+            className="p-5 sk-card space-y-3"
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h2 className="font-display text-sm font-bold text-slate-900">
+                <h2 className="font-display text-sm font-bold text-[#1D1A4A]">
                   Annotatable Topical Past Paper Sheets for {note.code} {note.title}
                 </h2>
-                <p className="text-xs text-slate-600 mt-0.5">
+                <p className="text-xs text-[#5E588C] mt-0.5">
                   Solve full exam-style topical PDFs side-by-side with worked solutions using Pen, Highlighter, and Ruler.
                 </p>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2.5">
               {matchingTopicalPacks.map((pack) => (
                 <button
                   key={pack.id}
                   type="button"
-                  onClick={() =>
+                  onClick={(e) => {
+                    triggerSakugaBurst(e, 'indigo');
                     onNavigate({
                       view: 'practice',
                       topicalPackId: pack.id,
-                    })
-                  }
-                  className="inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg border border-blue-200 bg-blue-50/70 hover:bg-blue-100 text-blue-900 cursor-pointer"
+                    });
+                  }}
+                  className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-bold sk-btn-secondary cursor-pointer"
                 >
-                  <Columns2 className="w-3.5 h-3.5 text-blue-700" />
+                  <Columns2 className="w-3.5 h-3.5 text-[#5B57E8]" />
                   <span>{pack.title}</span>
-                  <span className="font-mono text-[11px] text-blue-700">({pack.paperMode})</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-blue-700" />
+                  <span className="font-mono text-[11px] text-[#5E588C]">({pack.paperMode})</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-[#FF5FA8]" />
                 </button>
               ))}
             </div>
@@ -816,7 +828,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
                     topicId: prev.id,
                   })
                 }
-                className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-medium bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700 cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold sk-btn-subtle cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>
@@ -830,9 +842,9 @@ export const NotesView: React.FC<NotesViewProps> = ({
             <button
               type="button"
               onClick={() => onNavigate({ view: 'past-papers' })}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold sk-btn-subtle cursor-pointer"
             >
-              <FileText className="w-3.5 h-3.5" />
+              <FileText className="w-3.5 h-3.5 text-[#5B57E8]" />
               0580 Past Papers
             </button>
             {next && (
@@ -845,7 +857,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
                     topicId: next.id,
                   })
                 }
-                className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-lg cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold sk-btn-ink cursor-pointer"
               >
                 <span>
                   Next: {next.code} {next.title}

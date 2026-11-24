@@ -96,18 +96,18 @@ export const FormulaSheetModal: React.FC<FormulaSheetModalProps> = ({ open, onCl
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#1D1A4A]/50 backdrop-blur-xs p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="formula-sheet-title"
     >
-      <div className="bg-white border border-slate-200 rounded-xl max-w-4xl w-full max-h-[88vh] flex flex-col shadow-xl">
-        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between gap-4">
+      <div className="bg-white border-2 border-[#1D1A4A] rounded-[20px] max-w-4xl w-full max-h-[88vh] flex flex-col shadow-[6px_7px_0_#B8B3FF]">
+        <div className="px-6 py-4 border-b-[1.5px] border-[#DCDAF0] flex items-center justify-between gap-4">
           <div>
-            <h2 id="formula-sheet-title" className="font-display text-lg font-bold text-slate-900">
+            <h2 id="formula-sheet-title" className="font-display text-lg font-bold text-[#1D1A4A]">
               Cambridge IGCSE 0580 Formula Sheet (2025–2027)
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-[#5E588C] mt-0.5">
               Official formulae printed on Papers 1–4 compared with essential memorised formulae
             </p>
           </div>
@@ -115,7 +115,7 @@ export const FormulaSheetModal: React.FC<FormulaSheetModalProps> = ({ open, onCl
             type="button"
             onClick={onClose}
             aria-label="Close formula sheet"
-            className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
+            className="p-2 rounded-xl text-[#5E588C] hover:text-[#1D1A4A] hover:bg-[#F4F3FC] border border-transparent hover:border-[#DCDAF0] cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -124,10 +124,10 @@ export const FormulaSheetModal: React.FC<FormulaSheetModalProps> = ({ open, onCl
         <div className="p-6 overflow-y-auto space-y-8">
           <section>
             <div className="mb-3">
-              <h3 className="font-display text-sm font-semibold text-slate-900">
+              <h3 className="font-display text-sm font-bold text-[#1D1A4A]">
                 Provided on the 2025–2027 Examination Formula Page
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-[#5E588C]">
                 Included inside Papers 1, 2, 3, and 4 for reference during the exam
               </p>
             </div>
@@ -135,13 +135,13 @@ export const FormulaSheetModal: React.FC<FormulaSheetModalProps> = ({ open, onCl
               {GIVEN_FORMULAS.map((f) => (
                 <div
                   key={f.title}
-                  className="p-4 rounded-lg border border-slate-200 bg-slate-50/70"
+                  className="p-4 sk-card-soft"
                 >
-                  <div className="flex items-baseline justify-between gap-2 text-xs text-slate-500 mb-2">
-                    <span className="font-medium text-slate-800">{f.title}</span>
+                  <div className="flex items-baseline justify-between gap-2 text-xs text-[#5E588C] mb-2">
+                    <span className="font-semibold text-[#1D1A4A]">{f.title}</span>
                     <span className="shrink-0">{f.tier}</span>
                   </div>
-                  <div className="overflow-x-auto text-slate-900">
+                  <div className="overflow-x-auto text-[#1D1A4A]">
                     <KaTeXFormula latex={f.latex} />
                   </div>
                 </div>
@@ -151,10 +151,10 @@ export const FormulaSheetModal: React.FC<FormulaSheetModalProps> = ({ open, onCl
 
           <section>
             <div className="mb-3">
-              <h3 className="font-display text-sm font-semibold text-slate-900">
+              <h3 className="font-display text-sm font-bold text-[#1D1A4A]">
                 Must Be Memorised (Not Printed on the Exam Sheet)
               </h3>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-[#5E588C]">
                 Required by syllabus recall in both Core and Extended tiers
               </p>
             </div>
@@ -162,10 +162,10 @@ export const FormulaSheetModal: React.FC<FormulaSheetModalProps> = ({ open, onCl
               {MEMORISED_FORMULAS.map((f) => (
                 <div
                   key={f.title}
-                  className="p-4 rounded-lg border border-slate-200 bg-white"
+                  className="p-4 rounded-xl border-[1.5px] border-[#DCDAF0] bg-white"
                 >
-                  <div className="text-xs font-medium text-slate-800 mb-2">{f.title}</div>
-                  <div className="overflow-x-auto text-slate-900">
+                  <div className="text-xs font-semibold text-[#1D1A4A] mb-2">{f.title}</div>
+                  <div className="overflow-x-auto text-[#1D1A4A]">
                     <KaTeXFormula latex={f.latex} />
                   </div>
                 </div>

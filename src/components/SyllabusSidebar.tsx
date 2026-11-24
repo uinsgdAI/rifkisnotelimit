@@ -49,90 +49,100 @@ export const SyllabusSidebar: React.FC<SyllabusSidebarProps> = ({
       });
       return { ...ch, subtopics };
     }).filter((ch) => ch.subtopics.length > 0);
-  }, [search, tierFilter]);
+  }, [search, tierFilter, weakSet]);
 
   const isSearching = search.trim().length > 0 || tierFilter !== 'all';
+
+  const studiedPct = Math.round(
+    (studiedTopicIds.length / Math.max(1, ALL_SUBTOPICS_0580.length)) * 100
+  );
 
   return (
     <aside
       aria-label="0580 Syllabus Curriculum"
-      className="w-full lg:w-80 shrink-0 bg-white border border-slate-200 rounded-xl flex flex-col overflow-hidden"
+      className="w-full lg:w-80 shrink-0 sk-card flex flex-col overflow-hidden"
     >
       <button
         type="button"
         aria-expanded={mobileOpen}
         onClick={() => setMobileOpen((o) => !o)}
-        className="lg:hidden w-full px-4 py-3 flex items-center justify-between gap-2 text-left bg-white hover:bg-slate-50 cursor-pointer"
+        className="lg:hidden w-full px-4 py-3 flex items-center justify-between gap-2 text-left bg-white hover:bg-[#F4F3FC] cursor-pointer"
       >
-        <span className="font-display text-xs font-bold text-slate-900">
+        <span className="font-display text-xs font-bold text-[#1D1A4A]">
           0580 Syllabus Topics · Active: {activeTopicId}
         </span>
-        <span className="text-xs font-medium text-blue-700">
+        <span className="text-xs font-semibold text-[#6D69F2]">
           {mobileOpen ? 'Hide' : 'Browse (72)'}
         </span>
       </button>
 
       <div className={`${mobileOpen ? 'block' : 'hidden'} lg:block`}>
-      <div className="p-4 border-t lg:border-t-0 border-b border-slate-200 space-y-3">
-        <div className="flex items-baseline justify-between gap-2">
-          <h2 className="font-display text-sm font-bold text-slate-900">
-            0580 Syllabus (2025–2027)
-          </h2>
-          <span className="font-mono text-xs tabular-nums text-slate-500">
-            {studiedTopicIds.length}/{ALL_SUBTOPICS_0580.length} studied
-          </span>
+      <div className="p-4 border-t lg:border-t-0 border-b-[1.5px] border-[#DCDAF0] space-y-3">
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 className="font-display text-sm font-bold text-[#1D1A4A]">
+              0580 Syllabus (2025–2027)
+            </h2>
+            <span className="font-mono text-xs font-semibold tabular-nums text-[#5E588C]">
+              {studiedTopicIds.length}/{ALL_SUBTOPICS_0580.length} studied
+            </span>
+          </div>
+          <div
+            className="h-2.5 w-full sk-progress-track"
+            role="progressbar"
+            aria-valuenow={studiedPct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Syllabus study progress"
+          >
+            <div
+              className="h-full sk-progress-fill rounded-full"
+              style={{ width: `${Math.max(studiedTopicIds.length > 0 ? 4 : 0, studiedPct)}%` }}
+            />
+          </div>
         </div>
 
         <div className="relative">
           <label htmlFor="syllabus-search" className="sr-only">
             Search 0580 topics
           </label>
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Search className="w-4 h-4 text-[#5E588C] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             id="syllabus-search"
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Filter by code or topic (e.g. 1.16, surds)"
-            className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white"
+            className="w-full pl-9 pr-3 py-2 text-xs sk-input"
           />
         </div>
 
         <div
           role="group"
           aria-label="Filter by syllabus tier"
-          className="grid grid-cols-3 gap-1 p-1 bg-slate-100 rounded-lg"
+          className="grid grid-cols-3 gap-1 sk-tabs"
         >
           <button
             type="button"
+            data-active={tierFilter === 'all'}
             onClick={() => setTierFilter('all')}
-            className={`px-2 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap cursor-pointer ${
-              tierFilter === 'all'
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+            className="px-2 py-1.5 text-xs font-semibold whitespace-nowrap cursor-pointer sk-tab"
           >
             All (72)
           </button>
           <button
             type="button"
+            data-active={tierFilter === 'core'}
             onClick={() => setTierFilter('core')}
-            className={`px-2 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap cursor-pointer ${
-              tierFilter === 'core'
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+            className="px-2 py-1.5 text-xs font-semibold whitespace-nowrap cursor-pointer sk-tab"
           >
             Core
           </button>
           <button
             type="button"
+            data-active={tierFilter === 'extended'}
             onClick={() => setTierFilter('extended')}
-            className={`px-2 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap cursor-pointer ${
-              tierFilter === 'extended'
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+            className="px-2 py-1.5 text-xs font-semibold whitespace-nowrap cursor-pointer sk-tab"
           >
             Extended
           </button>
@@ -144,10 +154,10 @@ export const SyllabusSidebar: React.FC<SyllabusSidebarProps> = ({
             onClick={() =>
               setTierFilter((f) => (f === 'review' ? 'all' : 'review'))
             }
-            className={`w-full px-3 py-1.5 text-xs font-semibold rounded-lg border flex items-center justify-between cursor-pointer transition-colors ${
+            className={`w-full px-3 py-1.5 text-xs font-semibold rounded-xl border-[1.5px] flex items-center justify-between cursor-pointer transition-colors ${
               tierFilter === 'review'
-                ? 'bg-amber-50 border-amber-300 text-amber-900'
-                : 'bg-amber-50/50 border-amber-200 text-amber-800 hover:bg-amber-50'
+                ? 'bg-[#FFF0F6] border-[#FF5FA8] text-[#9D174D]'
+                : 'bg-[#FFF7FA] border-[#FBCFE8] text-[#9D174D] hover:bg-[#FFF0F6]'
             }`}
           >
             <span>Flagged from Wrong Answers</span>
@@ -156,10 +166,10 @@ export const SyllabusSidebar: React.FC<SyllabusSidebarProps> = ({
         )}
       </div>
 
-      <nav className="overflow-y-auto max-h-[68vh] lg:max-h-[calc(100vh-14rem)] divide-y divide-slate-100">
+      <nav className="overflow-y-auto max-h-[68vh] lg:max-h-[calc(100vh-14rem)] divide-y divide-[#ECEBF8]">
         {filteredChapters.length === 0 ? (
-          <div className="p-6 text-center text-xs text-slate-500">
-            No syllabus topics match "{search}".
+          <div className="p-6 text-center text-xs text-[#5E588C]">
+            No syllabus topics match &quot;{search}&quot;.
           </div>
         ) : (
           filteredChapters.map((chapter) => {
@@ -174,20 +184,20 @@ export const SyllabusSidebar: React.FC<SyllabusSidebarProps> = ({
                   type="button"
                   aria-expanded={isExpanded}
                   onClick={() => toggleChapter(chapter.id)}
-                  className="w-full px-4 py-3 flex items-center justify-between gap-2 text-left hover:bg-slate-50 transition-colors cursor-pointer"
+                  className="w-full px-4 py-3 flex items-center justify-between gap-2 text-left hover:bg-[#FAF9FF] transition-colors cursor-pointer"
                 >
                   <div className="min-w-0">
-                    <div className="font-display text-xs font-bold text-slate-900 truncate">
+                    <div className="font-display text-xs font-bold text-[#1D1A4A] truncate">
                       {chapter.id}. {chapter.title}
                     </div>
-                    <div className="text-[11px] text-slate-500 tabular-nums mt-0.5">
+                    <div className="text-[11px] text-[#5E588C] tabular-nums mt-0.5">
                       {chapter.subtopics.length} subtopics
                     </div>
                   </div>
                   {isExpanded ? (
-                    <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                    <ChevronDown className="w-4 h-4 text-[#5E588C] shrink-0" />
                   ) : (
-                    <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                    <ChevronRight className="w-4 h-4 text-[#5E588C] shrink-0" />
                   )}
                 </button>
 
@@ -206,16 +216,16 @@ export const SyllabusSidebar: React.FC<SyllabusSidebarProps> = ({
                               onSelectTopic(chapter.id, topic.id);
                               setMobileOpen(false);
                             }}
-                            className={`w-full px-2.5 py-2 rounded-lg text-left flex items-center justify-between gap-2 transition-colors cursor-pointer ${
+                            className={`w-full px-2.5 py-2 rounded-xl text-left flex items-center justify-between gap-2 transition-colors cursor-pointer border ${
                               isActive
-                                ? 'bg-blue-50 text-blue-800 font-semibold'
-                                : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
+                                ? 'bg-[#F4F3FC] border-[#1D1A4A] text-[#1D1A4A] font-semibold shadow-[2px_2px_0_#B8B3FF]'
+                                : 'border-transparent text-[#393469] hover:bg-[#FAF9FF] hover:text-[#1D1A4A]'
                             }`}
                           >
                             <div className="flex items-baseline gap-2 min-w-0">
                               <span
                                 className={`font-mono text-xs tabular-nums shrink-0 ${
-                                  isActive ? 'text-blue-700 font-semibold' : 'text-slate-400'
+                                  isActive ? 'text-[#5B57E8] font-bold' : 'text-[#5E588C]'
                                 }`}
                               >
                                 {topic.code}
@@ -225,13 +235,13 @@ export const SyllabusSidebar: React.FC<SyllabusSidebarProps> = ({
                             <div className="flex items-center gap-1.5 shrink-0">
                               {weakSet.has(topic.id) && (
                                 <span
-                                  className="w-2 h-2 rounded-full bg-amber-500"
+                                  className="w-2 h-2 rounded-full bg-[#FF5FA8]"
                                   title="Flagged for revision"
                                   aria-label="Flagged for revision"
                                 />
                               )}
                               {topic.tier === 'Extended' && (
-                                <span className="text-[10px] font-mono text-amber-700">
+                                <span className="text-[10px] font-mono font-semibold text-[#C0266B]">
                                   EXT
                                 </span>
                               )}

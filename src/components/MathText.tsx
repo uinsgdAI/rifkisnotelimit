@@ -155,7 +155,7 @@ export const MathText: React.FC<MathTextProps> = ({ text, className = '' }) => {
         }
         if (seg.type === 'bold') {
           return (
-            <strong key={idx} className="font-semibold text-slate-900">
+            <strong key={idx} className="font-semibold text-[#1D1A4A]">
               <MathText text={seg.content} />
             </strong>
           );
@@ -171,7 +171,7 @@ export const MathText: React.FC<MathTextProps> = ({ text, className = '' }) => {
           return (
             <span
               key={idx}
-              className="font-mono text-[0.9em] font-semibold text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded"
+              className="font-mono text-[0.9em] font-semibold text-[#1D1A4A] bg-[#F4F3FC] border border-[#DCDAF0] px-1.5 py-0.5 rounded-md"
             >
               {seg.content}
             </span>

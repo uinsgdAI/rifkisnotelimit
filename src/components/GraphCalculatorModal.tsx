@@ -26,18 +26,18 @@ export const GraphCalculatorModal: React.FC<GraphCalculatorModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-3 sm:p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#1D1A4A]/50 backdrop-blur-xs p-3 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="graph-calculator-title"
     >
-      <div className="bg-white border border-slate-200 rounded-xl max-w-6xl w-full max-h-[92vh] flex flex-col shadow-xl">
-        <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between gap-4">
+      <div className="bg-white border-2 border-[#1D1A4A] rounded-[20px] max-w-6xl w-full max-h-[92vh] flex flex-col shadow-[6px_7px_0_#B8B3FF]">
+        <div className="px-5 py-3.5 border-b-[1.5px] border-[#DCDAF0] flex items-center justify-between gap-4">
           <div>
-            <h2 id="graph-calculator-title" className="font-display text-base sm:text-lg font-bold text-slate-900">
+            <h2 id="graph-calculator-title" className="font-display text-base sm:text-lg font-bold text-[#1D1A4A]">
               GeoGebra-Style Graphing &amp; Geometry Tool
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-[#5E588C] mt-0.5">
               Plot functions, inequalities, gradients, tangents, vectors, segments, and circles
             </p>
           </div>
@@ -45,7 +45,7 @@ export const GraphCalculatorModal: React.FC<GraphCalculatorModalProps> = ({
             type="button"
             onClick={onClose}
             aria-label="Close graphing tool"
-            className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
+            className="p-2 rounded-xl text-[#5E588C] hover:text-[#1D1A4A] hover:bg-[#F4F3FC] border border-transparent hover:border-[#DCDAF0] cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>

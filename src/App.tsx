@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FormulaSheetModal } from './components/FormulaSheetModal';
 import { GraphCalculatorModal } from './components/GraphCalculatorModal';
 import { Header } from './components/Header';
 import { NotesView } from './components/NotesView';
 import { PastPapersView } from './components/PastPapersView';
 import { PracticeExamView } from './components/PracticeExamView';
+import { SakugaCanvasOverlay } from './components/SakugaCanvasOverlay';
 import { UniversalPageScroller } from './components/UniversalPageScroller';
 import { ALL_SUBTOPICS_0580, findSubtopic } from './data/syllabus0580';
 import type { AppRoute } from './types/syllabus';
@@ -20,6 +21,8 @@ export default function App() {
   const [formulaModalOpen, setFormulaModalOpen] = useState(false);
   const [graphModalOpen, setGraphModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sakugaToast, setSakugaToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
   const [studiedTopicIds, setStudiedTopicIds] = useState<string[]>(() => {
     try {
       const saved = window.localStorage.getItem(STUDIED_STORAGE_KEY);
@@ -42,7 +45,19 @@ export default function App() {
       setRoute(parseAppRoute(window.location.pathname, window.location.search));
     };
     window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+
+  const showToast = useCallback((message: string) => {
+    setSakugaToast(message);
+    if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = window.setTimeout(() => {
+      setSakugaToast(null);
+      toastTimerRef.current = null;
+    }, 2400);
   }, []);
 
   const navigate = useCallback((nextRoute: AppRoute, explicitPath?: string) => {
@@ -95,10 +110,11 @@ export default function App() {
       }
       if (willBeStudied) {
         clearWeakTopic(topicId);
+        showToast(`Topic ${topicId} marked as studied (${next.length}/${ALL_SUBTOPICS_0580.length})`);
       }
       return next;
     });
-  }, [clearWeakTopic]);
+  }, [clearWeakTopic, showToast]);
 
   const activeNote =
     route.view === 'notes'
@@ -108,7 +124,7 @@ export default function App() {
       : ALL_SUBTOPICS_0580[0];
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-slate-900">
+    <div className="min-h-screen flex flex-col bg-[#FFFFFF] text-[#1D1A4A] overflow-x-clip">
       <Header
         activeView={route.view}
         onNavigate={navigate}
@@ -122,7 +138,7 @@ export default function App() {
         onToggleMobileMenu={() => setMobileMenuOpen((o) => !o)}
       />
 
-      <div className="flex-1 pr-11 sm:pr-12">
+      <div className="flex-1 w-full min-w-0 pr-11 sm:pr-12">
         {route.view === 'notes' && (
           <NotesView
             chapterId={activeNote.chapterId}
@@ -159,36 +175,46 @@ export default function App() {
         )}
       </div>
 
-      <footer className="border-t border-slate-200 bg-white mt-12 pr-11 sm:pr-12">
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-5 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-500">
+      <footer className="border-t-[1.5px] border-[#DCDAF0] bg-white mt-12 pr-11 sm:pr-12">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-5 flex flex-wrap items-center justify-between gap-4 text-xs text-[#5E588C]">
           <div>
-            Cambridge IGCSE Mathematics (0580) · 2025–2027 Syllabus · Free Study Notes & Practice
+            Cambridge IGCSE Mathematics (0580) · 2025–2027 Syllabus · Free Study Notes &amp; Practice
           </div>
           <div className="flex items-center gap-5">
             <button
               type="button"
               onClick={() => navigate({ view: 'notes', chapterId: 1, topicId: '1.16' })}
-              className="hover:text-slate-900 cursor-pointer"
+              className="hover:text-[#1D1A4A] font-medium cursor-pointer"
             >
               1.16 Money
             </button>
             <button
               type="button"
               onClick={() => navigate({ view: 'past-papers' })}
-              className="hover:text-slate-900 cursor-pointer"
+              className="hover:text-[#1D1A4A] font-medium cursor-pointer"
             >
               PapaCambridge 0580 Papers
             </button>
             <button
               type="button"
               onClick={() => navigate({ view: 'practice' })}
-              className="hover:text-slate-900 cursor-pointer"
+              className="hover:text-[#1D1A4A] font-medium cursor-pointer"
             >
               Practice Exams
             </button>
           </div>
         </div>
       </footer>
+
+      {sakugaToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 px-4 py-2 bg-[#1D1A4A] text-white text-xs font-semibold rounded-xl border-2 border-[#1D1A4A] shadow-[3px_4px_0_#B8B3FF] pointer-events-none"
+        >
+          {sakugaToast}
+        </div>
+      )}
 
       <FormulaSheetModal
         open={formulaModalOpen}
@@ -200,6 +226,7 @@ export default function App() {
         onClose={() => setGraphModalOpen(false)}
       />
       <UniversalPageScroller />
+      <SakugaCanvasOverlay />
     </div>
   );
 }
