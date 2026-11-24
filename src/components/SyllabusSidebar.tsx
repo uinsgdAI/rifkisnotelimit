@@ -100,6 +100,9 @@ export const SyllabusSidebar: React.FC<SyllabusSidebarProps> = ({
               style={{ width: `${Math.max(studiedTopicIds.length > 0 ? 4 : 0, studiedPct)}%` }}
             />
           </div>
+          <p className="text-[11px] text-[#5E588C] leading-snug">
+            72 official 0580 subtopics · linked to all 78 topical PDF packs
+          </p>
         </div>
 
         <div className="relative">

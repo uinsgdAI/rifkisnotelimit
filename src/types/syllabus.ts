@@ -47,6 +47,12 @@ export interface CoursebookRef {
   editionNote?: string;
 }
 
+export interface KeyFindingItem {
+  title: string;
+  finding: string;
+  noteBox?: string;
+}
+
 export interface SubtopicNote {
   id: string; // e.g. '1.16'
   chapterId: number; // e.g. 1
@@ -54,10 +60,12 @@ export interface SubtopicNote {
   title: string; // e.g. 'Money'
   tier: TierLevel;
   summary: string;
+  aims?: string[];
   coursebookRef?: CoursebookRef;
   coursebookTip?: string;
   fastForward?: string;
   bigIdea?: string;
+  keyFindings?: KeyFindingItem[];
   stepByStepMethod?: string[];
   coreObjectives: string[];
   extendedObjectives?: string[];
@@ -75,6 +83,7 @@ export interface SubtopicNote {
     heading: string;
     body: string;
     bullets?: string[];
+    noteBox?: string;
   }[];
   workedExamples: WorkedExample[];
   commonMistakes: string[];

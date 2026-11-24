@@ -23,6 +23,8 @@ import { findTopicalPapersForTopic } from '../utils/topicalPapers';
 import { KaTeXFormula, MathText } from './MathText';
 import { SyllabusSidebar } from './SyllabusSidebar';
 import { TopicSandbox } from './TopicSandbox';
+import { TransformationDiagrams } from './TransformationDiagrams';
+import { getKeyFindingsForNote, highlightImportantText } from '../utils/noteKeyFindings';
 import { triggerSakugaBurst } from '../utils/sakugaVfx';
 
 interface NotesViewProps {
@@ -74,6 +76,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
       ? SYLLABUS_0580.flatMap((c) => c.subtopics).find((t) => t.id === otherWeakIds[0])
       : undefined;
   const matchingTopicalPacks = findTopicalPapersForTopic(note.id);
+  const keyFindings = getKeyFindingsForNote(note);
 
   const handleQuickSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -167,8 +170,22 @@ export const NotesView: React.FC<NotesViewProps> = ({
                 {note.title}
               </h1>
               <p className="mt-2 text-sm sm:text-base text-[#393469] leading-relaxed max-w-3xl">
-                <MathText text={note.summary} />
+                <MathText text={highlightImportantText(note.summary)} />
               </p>
+              {note.aims && note.aims.length > 0 && (
+                <div className="mt-3 p-3.5 rounded-xl bg-[#FAF9FF] border-[1.5px] border-[#1D1A4A] shadow-[2px_3px_0_#B8B3FF] max-w-3xl space-y-1">
+                  <div className="text-xs font-bold uppercase tracking-wide text-[#5B57E8]">
+                    Aim · Learning Target
+                  </div>
+                  <ul className="space-y-1 text-xs sm:text-sm text-[#1D1A4A] list-disc pl-4">
+                    {note.aims.map((aim, ai) => (
+                      <li key={ai}>
+                        <MathText text={highlightImportantText(aim)} />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {note.coursebookRef && (
                 <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#5E588C]">
                   <span className="font-semibold text-[#1D1A4A]">
@@ -264,7 +281,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
                 </h2>
               </div>
               <p className="text-sm sm:text-base text-[#1D1A4A] leading-relaxed max-w-3xl">
-                <MathText text={note.bigIdea} />
+                <MathText text={highlightImportantText(note.bigIdea)} />
               </p>
             </div>
 
@@ -280,10 +297,10 @@ export const NotesView: React.FC<NotesViewProps> = ({
                       className="p-3.5 rounded-xl bg-white border-[1.5px] border-[#DCDAF0] space-y-1"
                     >
                       <div className="font-display text-xs font-bold text-[#1D1A4A]">
-                        <MathText text={item.rule} />
+                        <MathText text={highlightImportantText(item.rule)} />
                       </div>
                       <p className="text-xs text-[#393469] leading-relaxed">
-                        <MathText text={item.detail} />
+                        <MathText text={highlightImportantText(item.detail)} />
                       </p>
                     </div>
                   ))}
@@ -292,6 +309,51 @@ export const NotesView: React.FC<NotesViewProps> = ({
             )}
           </section>
         )}
+
+        {/* Key Findings & Boxed Notes (Temuan Kunci — structured notebook style for all 72 topics) */}
+        {keyFindings.length > 0 && (
+          <section
+            aria-label="Key Findings and Underlined Rules"
+            className="p-5 sm:p-6 sk-card space-y-4"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-[#FF5FA8] shrink-0" />
+                <h2 className="font-display text-base font-bold text-[#1D1A4A]">
+                  Key Findings &amp; Underlined Essentials (Temuan Kunci)
+                </h2>
+              </div>
+              <span className="text-[11px] font-semibold text-[#5E588C]">
+                Underlined rules = must-state exam requirements
+              </span>
+            </div>
+
+            <div className="grid gap-3.5">
+              {keyFindings.map((item, idx) => (
+                <div
+                  key={idx}
+                  className="p-4 rounded-[16px] bg-[#FAF9FF] border-[1.5px] border-[#DCDAF0] space-y-2.5"
+                >
+                  <div className="font-display text-sm font-bold text-[#1D1A4A]">
+                    <MathText text={item.title} />
+                  </div>
+                  <p className="text-sm text-[#393469] leading-relaxed">
+                    <MathText text={item.finding} />
+                  </p>
+                  {item.noteBox && (
+                    <div className="p-3 rounded-xl bg-[#FFF5FA] border-[1.5px] border-[#1D1A4A] shadow-[2px_3px_0_#B8B3FF] text-xs sm:text-sm text-[#1D1A4A] leading-relaxed">
+                      <span className="font-bold mr-1.5">Note:</span>
+                      <MathText text={item.noteBox} />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Dedicated Graph-Paper Diagrams for 7.1 Transformations */}
+        {note.id === '7.1' && <TransformationDiagrams />}
 
         {/* Coursebook Margin Pedagogy: Tip & Fast Forward (Morrison & Hamshaw) */}
         {(note.coursebookTip || (studyMode === 'detailed' && note.fastForward)) && (
@@ -384,7 +446,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
                 </div>
                 {f.note && (
                   <p className="text-xs text-[#5E588C]">
-                    <MathText text={f.note} />
+                    <MathText text={highlightImportantText(f.note)} />
                   </p>
                 )}
               </div>
@@ -408,7 +470,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
                     {idx + 1}
                   </span>
                   <span>
-                    <MathText text={step} />
+                    <MathText text={highlightImportantText(step)} />
                   </span>
                 </li>
               ))}
@@ -486,16 +548,22 @@ export const NotesView: React.FC<NotesViewProps> = ({
                     {sec.heading}
                   </h3>
                   <p className="text-sm text-[#393469] leading-relaxed max-w-3xl">
-                    <MathText text={sec.body} />
+                    <MathText text={highlightImportantText(sec.body)} />
                   </p>
                   {sec.bullets && (
                     <ul className="mt-3 space-y-2 text-sm text-[#393469] leading-relaxed list-disc pl-5 max-w-3xl">
                       {sec.bullets.map((b, bi) => (
                         <li key={bi}>
-                          <MathText text={b} />
+                          <MathText text={highlightImportantText(b)} />
                         </li>
                       ))}
                     </ul>
+                  )}
+                  {sec.noteBox && (
+                    <div className="mt-3 p-3 rounded-xl bg-[#FFF5FA] border-[1.5px] border-[#1D1A4A] shadow-[2px_3px_0_#B8B3FF] text-xs sm:text-sm text-[#1D1A4A] leading-relaxed max-w-3xl">
+                      <span className="font-bold mr-1.5">Note:</span>
+                      <MathText text={highlightImportantText(sec.noteBox)} />
+                    </div>
                   )}
                 </div>
               ))}

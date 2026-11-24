@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import katex from 'katex';
+import { tokenizeMathText } from '../utils/mathTextParser';
 
 interface MathInlineProps {
   latex: string;
@@ -32,103 +33,6 @@ export const KaTeXFormula: React.FC<MathInlineProps> = ({
   return <span ref={containerRef} className={className} />;
 };
 
-interface Segment {
-  type: 'text' | 'inline' | 'display' | 'code' | 'bold' | 'italic';
-  content: string;
-}
-
-function tokenizeMathText(input: string): Segment[] {
-  const segments: Segment[] = [];
-  let i = 0;
-  let textBuf = '';
-
-  const flushText = () => {
-    if (textBuf.length > 0) {
-      segments.push({ type: 'text', content: textBuf });
-      textBuf = '';
-    }
-  };
-
-  while (i < input.length) {
-    // Check inline code `...`
-    if (input[i] === '`') {
-      const end = input.indexOf('`', i + 1);
-      if (end !== -1) {
-        flushText();
-        segments.push({ type: 'code', content: input.slice(i + 1, end) });
-        i = end + 1;
-        continue;
-      }
-    }
-
-    // Check bold **...**
-    if (input[i] === '*' && input[i + 1] === '*') {
-      const end = input.indexOf('**', i + 2);
-      if (end !== -1) {
-        const inner = input.slice(i + 2, end);
-        if (inner.length > 0 && !inner.startsWith(' ') && !inner.endsWith(' ')) {
-          flushText();
-          segments.push({ type: 'bold', content: inner });
-          i = end + 2;
-          continue;
-        }
-      }
-    }
-
-    // Check italic *...*
-    if (input[i] === '*' && input[i + 1] !== '*') {
-      const end = input.indexOf('*', i + 1);
-      if (end !== -1 && input[end + 1] !== '*') {
-        const inner = input.slice(i + 1, end);
-        if (inner.length > 0 && !inner.startsWith(' ') && !inner.endsWith(' ')) {
-          flushText();
-          segments.push({ type: 'italic', content: inner });
-          i = end + 1;
-          continue;
-        }
-      }
-    }
-
-    // Check display math $$...$$
-    if (input[i] === '$' && input[i + 1] === '$') {
-      const end = input.indexOf('$$', i + 2);
-      if (end !== -1) {
-        flushText();
-        segments.push({ type: 'display', content: input.slice(i + 2, end).trim() });
-        i = end + 2;
-        continue;
-      }
-    }
-
-    // Check inline math $...$
-    if (input[i] === '$' && (i === 0 || input[i - 1] !== '\\')) {
-      // Find matching unescaped $
-      let end = -1;
-      for (let j = i + 1; j < input.length; j++) {
-        if (input[j] === '$' && input[j - 1] !== '\\') {
-          end = j;
-          break;
-        }
-      }
-      if (end !== -1) {
-        const inner = input.slice(i + 1, end);
-        if (inner.length > 0 && !inner.startsWith(' ')) {
-          flushText();
-          segments.push({ type: 'inline', content: inner });
-          i = end + 1;
-          continue;
-        }
-      }
-    }
-
-    textBuf += input[i];
-    i++;
-  }
-
-  flushText();
-  return segments;
-}
-
 interface MathTextProps {
   text: string;
   className?: string;
@@ -152,6 +56,16 @@ export const MathText: React.FC<MathTextProps> = ({ text, className = '' }) => {
         }
         if (seg.type === 'inline') {
           return <KaTeXFormula key={idx} latex={seg.content} displayMode={false} />;
+        }
+        if (seg.type === 'underline') {
+          return (
+            <span
+              key={idx}
+              className="underline decoration-[#FF5FA8] decoration-2 underline-offset-[3px] font-semibold text-[#1D1A4A] bg-[#FFF5FA]/80 px-0.5 rounded-sm"
+            >
+              <MathText text={seg.content} />
+            </span>
+          );
         }
         if (seg.type === 'bold') {
           return (
