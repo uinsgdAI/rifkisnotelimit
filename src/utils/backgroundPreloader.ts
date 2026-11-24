@@ -62,6 +62,29 @@ const API_WARM_ENDPOINTS = [
 ];
 
 let warmupStarted = false;
+let warmupPaused = false;
+const warmupResumeResolvers: Array<() => void> = [];
+
+export function setBackgroundWarmupPaused(paused: boolean): void {
+  warmupPaused = paused;
+  if (!paused) {
+    while (warmupResumeResolvers.length > 0) {
+      const resolve = warmupResumeResolvers.shift();
+      resolve?.();
+    }
+  }
+}
+
+export function isBackgroundWarmupPaused(): boolean {
+  return warmupPaused;
+}
+
+function waitWhileBackgroundWarmupPaused(): Promise<void> {
+  if (!warmupPaused) return Promise.resolve();
+  return new Promise((resolve) => {
+    warmupResumeResolvers.push(resolve);
+  });
+}
 
 function scheduleIdleWork(task: () => void, timeoutMs: number): () => void {
   if (typeof window === 'undefined') return () => {};
@@ -124,6 +147,9 @@ export function startBackgroundAppWarmup(options: {
 
     const runWorker = async () => {
       while (!cancelled && cursor < queue.length) {
+        if (warmupPaused) {
+          await waitWhileBackgroundWarmupPaused();
+        }
         if (hasActiveHighPriorityPdfFetch()) {
           await waitForHighPriorityPdfFetches();
         }
@@ -133,7 +159,7 @@ export function startBackgroundAppWarmup(options: {
 
         try {
           const alreadyCached = await hasCachedPdfBytes(item.candidates);
-          if (!alreadyCached && !cancelled) {
+          if (!alreadyCached && !cancelled && !warmupPaused) {
             await fetchPdfBytesWithFallback(item.candidates, {
               priority: 'background',
             });

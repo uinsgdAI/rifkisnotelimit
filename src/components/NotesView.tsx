@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import type { AppRoute, SubtopicNote } from '../types/syllabus';
 import { getAdjacentSubtopics, SYLLABUS_0580 } from '../data/syllabus0580';
-import { evaluateStudentAnswer, parsePaperReference } from '../utils/examLogic';
+import { gradeStudentAnswer, parsePaperReference } from '../utils/examLogic';
 import { findTopicalPapersForTopic } from '../utils/topicalPapers';
 import { KaTeXFormula, MathText } from './MathText';
 import { SyllabusSidebar } from './SyllabusSidebar';
@@ -82,13 +82,16 @@ export const NotesView: React.FC<NotesViewProps> = ({
   const handleQuickSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!quickInput.trim()) return;
-    const ok = evaluateStudentAnswer(quickInput, {
+    const result = gradeStudentAnswer(quickInput, {
       questionType: typeof note.quickCheck.numericAnswer === 'number' ? 'numeric' : 'text',
       correctAnswer: note.quickCheck.answer,
       acceptedAnswers: note.quickCheck.acceptedAnswers,
       numericAnswer: note.quickCheck.numericAnswer,
       tolerance: note.quickCheck.tolerance,
+      marks: note.quickCheck.marks,
+      question: note.quickCheck.prompt,
     });
+    const ok = result.isCorrect || result.isPartial;
     setQuickStatus(ok ? 'correct' : 'incorrect');
     if (ok) {
       const submitBtn = e.currentTarget.querySelector('button[type="submit"]') as HTMLElement | null;

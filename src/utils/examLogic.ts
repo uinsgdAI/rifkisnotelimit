@@ -135,13 +135,20 @@ export function parsePaperReference(rawCode: string): ParsedPaperReference | nul
 }
 
 export function normalizeAnswerString(raw: string): string {
-  return raw
+  const trimmed = raw
     .trim()
     .toLowerCase()
-    .replace(/[$£€¥₹,\s]/g, '')
+    .replace(/[$£€¥₹\s]/g, '')
     .replace(/^(x|y|n|p|k|r)=/i, '')
     .replace(/°|deg|degrees/gi, '')
     .replace(/%$/, '');
+
+  // Support decimal comma for short decimal inputs like "88,2" or "88,25", while stripping thousands commas like "117,000"
+  const withDecimal = /^-?\d+,\d{1,2}$/.test(trimmed)
+    ? trimmed.replace(',', '.')
+    : trimmed.replace(/,/g, '');
+
+  return withDecimal;
 }
 
 export function parseNumericOrFraction(raw: string): number | null {
@@ -163,31 +170,43 @@ export function parseNumericOrFraction(raw: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-export function evaluateStudentAnswer(
+export interface AnswerEvaluation {
+  isCorrect: boolean;
+  isPartial: boolean;
+  marksEarned: number;
+  maxMarks: number;
+  matchReason?: string;
+}
+
+export function gradeStudentAnswer(
   userInput: string,
   question: Pick<
     PracticeQuestion,
     'questionType' | 'correctAnswer' | 'acceptedAnswers' | 'numericAnswer' | 'tolerance'
-  >
-): boolean {
+  > & { marks?: number; question?: string }
+): AnswerEvaluation {
+  const maxMarks = typeof question.marks === 'number' && question.marks > 0 ? question.marks : 1;
   const raw = userInput.trim();
-  if (!raw) return false;
+  if (!raw) {
+    return { isCorrect: false, isPartial: false, marksEarned: 0, maxMarks };
+  }
 
   if (question.questionType === 'mcq') {
-    return raw.toLowerCase() === question.correctAnswer.trim().toLowerCase();
+    const ok = raw.toLowerCase() === question.correctAnswer.trim().toLowerCase();
+    return { isCorrect: ok, isPartial: false, marksEarned: ok ? maxMarks : 0, maxMarks };
   }
 
   const normalizedInput = normalizeAnswerString(raw);
   const normalizedTarget = normalizeAnswerString(question.correctAnswer);
 
   if (normalizedInput === normalizedTarget) {
-    return true;
+    return { isCorrect: true, isPartial: false, marksEarned: maxMarks, maxMarks };
   }
 
   if (question.acceptedAnswers) {
     for (const acc of question.acceptedAnswers) {
       if (normalizedInput === normalizeAnswerString(acc)) {
-        return true;
+        return { isCorrect: true, isPartial: false, marksEarned: maxMarks, maxMarks };
       }
     }
   }
@@ -195,17 +214,87 @@ export function evaluateStudentAnswer(
   if (typeof question.numericAnswer === 'number') {
     const parsed = parseNumericOrFraction(raw);
     if (parsed !== null) {
-      const tol =
+      const target = question.numericAnswer;
+      const diff = Math.abs(parsed - target);
+      const baseTol =
         typeof question.tolerance === 'number'
           ? question.tolerance
-          : Math.max(Math.abs(question.numericAnswer) * 0.005, 1e-4);
-      if (Math.abs(parsed - question.numericAnswer) <= tol) {
-        return true;
+          : Math.max(Math.abs(target) * 0.005, 1e-4);
+
+      if (diff <= baseTol) {
+        return { isCorrect: true, isPartial: false, marksEarned: maxMarks, maxMarks };
+      }
+
+      // Allow Cambridge 3 s.f. / decimal rounding tolerance when question isn't strictly integer-locked (tolerance === 0)
+      if (baseTol > 0) {
+        const strictTwoDpPrompt =
+          /nearest\s+cent|2\s*\$?\s*d\.?p\.?|to\s+\$?2\$?\s*decimal\s+places/i.test(
+            question.question || ''
+          );
+        const sig3 = Number(target.toPrecision(3));
+        const dp1 = Number(target.toFixed(1));
+        const truncDp1 = Math.trunc(target * 10) / 10;
+
+        const roundingBand = Math.max(
+          baseTol,
+          Math.abs(target) * 0.005,
+          !Number.isInteger(target) && Math.abs(target) >= 10 ? 0.1 : 0
+        );
+
+        const matchesRounding =
+          diff <= roundingBand ||
+          Math.abs(parsed - sig3) <= 1e-6 ||
+          (!Number.isInteger(target) &&
+            Math.abs(target) >= 10 &&
+            (Math.abs(parsed - dp1) <= 1e-6 || Math.abs(parsed - truncDp1) <= 1e-6));
+
+        if (matchesRounding) {
+          if (!strictTwoDpPrompt) {
+            return {
+              isCorrect: true,
+              isPartial: false,
+              marksEarned: maxMarks,
+              maxMarks,
+              matchReason: 'Accepted within Cambridge rounding / 3 s.f. tolerance',
+            };
+          }
+          if (maxMarks >= 2) {
+            return {
+              isCorrect: false,
+              isPartial: true,
+              marksEarned: maxMarks - 1,
+              maxMarks,
+              matchReason: `Method & value correct (round to 2 d.p. ${question.correctAnswer} for final accuracy mark)`,
+            };
+          }
+        }
+
+        // Near-miss intermediate rounding band on multi-mark calculations earns partial method credit
+        const partialBand = Math.max(baseTol * 10, Math.abs(target) * 0.015, 0.25);
+        if (maxMarks >= 2 && diff <= partialBand) {
+          return {
+            isCorrect: false,
+            isPartial: true,
+            marksEarned: Math.max(1, maxMarks - 1),
+            maxMarks,
+            matchReason: 'Partial method marks awarded (close numerical approximation)',
+          };
+        }
       }
     }
   }
 
-  return false;
+  return { isCorrect: false, isPartial: false, marksEarned: 0, maxMarks };
+}
+
+export function evaluateStudentAnswer(
+  userInput: string,
+  question: Pick<
+    PracticeQuestion,
+    'questionType' | 'correctAnswer' | 'acceptedAnswers' | 'numericAnswer' | 'tolerance'
+  > & { marks?: number; question?: string }
+): boolean {
+  return gradeStudentAnswer(userInput, question).isCorrect;
 }
 
 export interface GradeEstimate {

@@ -5,11 +5,16 @@ import {
   buildAppRoutePath,
   evaluateStudentAnswer,
   estimateCambridgeGrade,
+  gradeStudentAnswer,
   parsePapaCambridgeFilename,
   parsePaperReference,
   extractWeakTopicsFromResults,
   findMatchingSyllabusTopics,
 } from './examLogic';
+import {
+  isBackgroundWarmupPaused,
+  setBackgroundWarmupPaused,
+} from './backgroundPreloader';
 import {
   buildGoogleDocsViewerUrl,
   FALLBACK_SESSIONS,
@@ -631,6 +636,68 @@ test('Scroll rail, pinch-to-zoom, and straight-edge ruler snap calculations work
   const farFreehand = snapClientPointToRulerEdge(450, 450, ruler, { snapThresholdPx: 30 });
   assert.equal(farFreehand.snapped, false);
   assert.equal(farFreehand.edge, null);
+});
+
+test('gradeStudentAnswer awards Cambridge rounding & partial marks (e.g. 88.2 vs 88.25 never gives 0/3)', () => {
+  // General bounds / decimal calculation: 88.25 -> 88.2 or 88.3 earns full 3/3 marks
+  const boundsQuestion = {
+    questionType: 'numeric' as const,
+    question: 'Calculate the lower bound for its area in cm^2.',
+    correctAnswer: '88.25',
+    numericAnswer: 88.25,
+    tolerance: 0.01,
+    marks: 3,
+  };
+  const g1 = gradeStudentAnswer('88.2', boundsQuestion);
+  assert.equal(g1.isCorrect, true);
+  assert.equal(g1.marksEarned, 3);
+
+  const g1Comma = gradeStudentAnswer('88,2', boundsQuestion);
+  assert.equal(g1Comma.isCorrect, true);
+  assert.equal(g1Comma.marksEarned, 3);
+
+  const g1Sig3 = gradeStudentAnswer('88.3', boundsQuestion);
+  assert.equal(g1Sig3.isCorrect, true);
+  assert.equal(g1Sig3.marksEarned, 3);
+
+  // Explicit 2 d.p. money question: 88.25 exact earns 3/3, 88.2 earns partial 2/3 (not 0/3)
+  const moneyQuestion = {
+    questionType: 'numeric' as const,
+    question: 'How many dollars do they receive to the nearest cent ($2$ d.p.)?',
+    correctAnswer: '88.25',
+    numericAnswer: 88.25,
+    tolerance: 0.02,
+    marks: 3,
+  };
+  assert.equal(gradeStudentAnswer('88.25', moneyQuestion).marksEarned, 3);
+  const gMoney1dp = gradeStudentAnswer('88.2', moneyQuestion);
+  assert.equal(gMoney1dp.isPartial, true);
+  assert.equal(gMoney1dp.marksEarned, 2);
+
+  // Far-off wrong answer still earns 0/3
+  const gWrong = gradeStudentAnswer('42.1', moneyQuestion);
+  assert.equal(gWrong.isCorrect, false);
+  assert.equal(gWrong.isPartial, false);
+  assert.equal(gWrong.marksEarned, 0);
+
+  // Strict integer-locked question (tolerance: 0) requires exact integer
+  const exactInt = {
+    questionType: 'numeric' as const,
+    question: 'How many sides does the polygon have?',
+    correctAnswer: '18',
+    numericAnswer: 18,
+    tolerance: 0,
+    marks: 2,
+  };
+  assert.equal(gradeStudentAnswer('18', exactInt).marksEarned, 2);
+  assert.equal(gradeStudentAnswer('17.9', exactInt).marksEarned, 0);
+});
+
+test('backgroundPreloader pauses cleanly when entering Past Papers and resumes when leaving', () => {
+  setBackgroundWarmupPaused(true);
+  assert.equal(isBackgroundWarmupPaused(), true);
+  setBackgroundWarmupPaused(false);
+  assert.equal(isBackgroundWarmupPaused(), false);
 });
 
 

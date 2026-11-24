@@ -8,7 +8,7 @@ import { UniversalPageScroller } from './components/UniversalPageScroller';
 import { ALL_SUBTOPICS_0580, findSubtopic } from './data/syllabus0580';
 import type { AppRoute } from './types/syllabus';
 import { buildAppRoutePath, parseAppRoute } from './utils/examLogic';
-import { startBackgroundAppWarmup } from './utils/backgroundPreloader';
+import { startBackgroundAppWarmup, setBackgroundWarmupPaused } from './utils/backgroundPreloader';
 import {
   loadFormulaSheetModal,
   loadGraphCalculatorModal,
@@ -48,10 +48,15 @@ export default function App() {
   });
 
   useEffect(() => {
+    setBackgroundWarmupPaused(route.view === 'past-papers');
+  }, [route.view]);
+
+  useEffect(() => {
     const handlePopState = () => {
       setRoute(parseAppRoute(window.location.pathname, window.location.search));
     };
     window.addEventListener('popstate', handlePopState);
+    setBackgroundWarmupPaused(route.view === 'past-papers');
     const stopWarmup = startBackgroundAppWarmup({
       activeTopicId: route.view === 'notes' ? route.topicId : undefined,
       preloadViews: preloadAllAppViews,

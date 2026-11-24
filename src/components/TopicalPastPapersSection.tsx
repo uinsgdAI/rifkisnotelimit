@@ -301,7 +301,7 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
               <label htmlFor="topical-papers-search" className="sr-only">
                 Search topical past paper packs
               </label>
-              <Search className="w-4 h-4 text-[#5E588C] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-4 h-4 text-[#5E588C] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
               <input
                 id="topical-papers-search"
                 type="search"

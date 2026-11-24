@@ -21,10 +21,14 @@ import {
   resolvePdfIframeUrl,
 } from '../utils/papacambridge';
 import { buildPdfByteCandidateUrls, prefetchPdfBytes } from '../utils/pdfAnnotations';
+import { setBackgroundWarmupPaused } from '../utils/backgroundPreloader';
 import { warmSharedPdfWorker } from '../utils/pdfJsCache';
 import { MathText } from './MathText';
 import { PdfAnnotator } from './PdfAnnotator';
 import { triggerSakugaBurst } from '../utils/sakugaVfx';
+
+let cachedSessionsMemory: PastPaperSession[] | null = null;
+const cachedPapersBySessionMemory = new Map<string, PastPaperFile[]>();
 
 interface PastPapersViewProps {
   initialSessionSlug?: string;
@@ -74,31 +78,43 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
   onClearWeakTopic,
   onNavigate,
 }) => {
-  const [sessions, setSessions] = useState<PastPaperSession[]>(FALLBACK_SESSIONS);
+  const [sessions, setSessions] = useState<PastPaperSession[]>(
+    () => cachedSessionsMemory || FALLBACK_SESSIONS
+  );
   const [selectedSession, setSelectedSession] = useState<string>(
     initialSessionSlug || '2024-may-june'
   );
-  const [papers, setPapers] = useState<PastPaperFile[]>(() =>
-    generateSessionPaperFallback(initialSessionSlug || '2024-may-june')
-  );
+  const [papers, setPapers] = useState<PastPaperFile[]>(() => {
+    const slug = initialSessionSlug || '2024-may-june';
+    return cachedPapersBySessionMemory.get(slug) || generateSessionPaperFallback(slug);
+  });
   const [loadingSessions, setLoadingSessions] = useState(false);
-  const [loadingPapers, setLoadingPapers] = useState(true);
-  const [apiProxyAvailable, setApiProxyAvailable] = useState(false);
-  const [viewerMode, setViewerMode] = useState<'annotate' | 'proxy' | 'web'>('annotate');
+  const [loadingPapers, setLoadingPapers] = useState(false);
+  const [apiProxyAvailable, setApiProxyAvailable] = useState(true);
+  const [viewerMode, setViewerMode] = useState<'annotate' | 'proxy' | 'web'>('proxy');
   const [localPdf, setLocalPdf] = useState<{ url: string; filename: string } | null>(null);
   const localFileInputRef = useRef<HTMLInputElement | null>(null);
   const viewerRef = useRef<HTMLElement | null>(null);
   const [eraFilter, setEraFilter] = useState<'all' | '2020-2026' | '2010-2019' | '2002-2009'>('all');
   const [paperFilter, setPaperFilter] = useState<'all' | '1' | '2' | '3' | '4'>('all');
   const [docFilter, setDocFilter] = useState<'all' | 'QP' | 'MS' | 'ER' | 'GT'>('all');
+  const [paperSearchQuery, setPaperSearchQuery] = useState('');
   const [activePrimaryPdf, setActivePrimaryPdf] = useState<PastPaperFile | null>(null);
   const [activeSecondaryPdf, setActiveSecondaryPdf] = useState<PastPaperFile | null>(null);
   const [topicQuery, setTopicQuery] = useState('');
 
   useEffect(() => {
-    const timer = window.setTimeout(() => warmSharedPdfWorker(), 250);
-    return () => window.clearTimeout(timer);
+    setBackgroundWarmupPaused(true);
+    return () => {
+      setBackgroundWarmupPaused(false);
+    };
   }, []);
+
+  useEffect(() => {
+    if (viewerMode !== 'annotate') return;
+    const timer = window.setTimeout(() => warmSharedPdfWorker(), 120);
+    return () => window.clearTimeout(timer);
+  }, [viewerMode]);
 
   useEffect(() => {
     return () => {
@@ -109,18 +125,11 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
   }, [localPdf]);
 
   useEffect(() => {
+    if (cachedSessionsMemory) {
+      setSessions(cachedSessionsMemory);
+      return;
+    }
     let cancelled = false;
-    fetchJsonSafe<{ ok?: boolean }>('/api/health')
-      .then((h) => {
-        if (cancelled) return;
-        if (h?.ok) setApiProxyAvailable(true);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setApiProxyAvailable(false);
-        setViewerMode((prev) => (prev === 'annotate' ? 'web' : prev));
-      });
-
     setLoadingSessions(true);
     fetchJsonSafe<{ sessions?: PastPaperSession[] }>('/api/papacambridge/sessions')
       .then((data) => {
@@ -129,6 +138,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
           Array.isArray(data.sessions) && data.sessions.length > 0
             ? data.sessions
             : FALLBACK_SESSIONS;
+        cachedSessionsMemory = list;
         setSessions(list);
         setApiProxyAvailable(true);
         if (!initialSessionSlug && list.length > 0) {
@@ -140,7 +150,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
       .catch(() => {
         if (cancelled) return;
         setApiProxyAvailable(false);
-        setViewerMode((prev) => (prev === 'annotate' ? 'web' : prev));
+        setViewerMode((prev) => (prev === 'proxy' || prev === 'annotate' ? 'web' : prev));
         setSessions(FALLBACK_SESSIONS);
       })
       .finally(() => {
@@ -153,6 +163,15 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
 
   useEffect(() => {
     if (!selectedSession) return;
+    const cachedList = cachedPapersBySessionMemory.get(selectedSession);
+    if (cachedList) {
+      setPapers(cachedList);
+      setLoadingPapers(false);
+      return;
+    }
+
+    // Show immediate fallback list while refreshing live PapaCambridge listing in the background
+    setPapers(generateSessionPaperFallback(selectedSession));
     let cancelled = false;
     setLoadingPapers(true);
     fetchJsonSafe<{ papers?: PastPaperFile[] }>(
@@ -164,12 +183,14 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
           Array.isArray(data.papers) && data.papers.length > 0
             ? data.papers
             : generateSessionPaperFallback(selectedSession);
+        cachedPapersBySessionMemory.set(selectedSession, list);
         setPapers(list);
         setApiProxyAvailable(true);
       })
       .catch(() => {
         if (cancelled) return;
         setApiProxyAvailable(false);
+        setViewerMode((prev) => (prev === 'proxy' || prev === 'annotate' ? 'web' : prev));
         setPapers(generateSessionPaperFallback(selectedSession));
       })
       .finally(() => {
@@ -237,11 +258,19 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
   };
 
   const filteredPapers = useMemo(() => {
+    const q = paperSearchQuery.trim().toLowerCase();
     return papers
       .filter((p) => {
         const okPaper = paperFilter === 'all' || p.paperNumber === paperFilter;
         const okDoc = docFilter === 'all' || p.docType === docFilter;
-        return okPaper && okDoc;
+        const okSearch =
+          !q ||
+          p.filename.toLowerCase().includes(q) ||
+          p.docTypeLabel.toLowerCase().includes(q) ||
+          p.tier.toLowerCase().includes(q) ||
+          `paper ${p.paperNumber}`.includes(q) ||
+          `variant ${p.variant}`.includes(q);
+        return okPaper && okDoc && okSearch;
       })
       .sort((a, b) => {
         const docDiff = DOC_TYPE_ORDER[a.docType] - DOC_TYPE_ORDER[b.docType];
@@ -254,7 +283,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
         if (varA !== varB) return varA - varB;
         return a.filename.localeCompare(b.filename);
       });
-  }, [papers, paperFilter, docFilter]);
+  }, [papers, paperFilter, docFilter, paperSearchQuery]);
 
   const findMatchingMarkScheme = (qp: PastPaperFile): PastPaperFile | undefined => {
     return papers.find(
@@ -270,9 +299,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
     setActivePrimaryPdf(qp);
     const ms = findMatchingMarkScheme(qp);
     setActiveSecondaryPdf(ms || null);
-    if (apiProxyAvailable) {
-      setViewerMode('annotate');
-    }
+    setViewerMode(apiProxyAvailable ? 'proxy' : 'web');
     window.requestAnimationFrame(() => {
       viewerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
@@ -424,6 +451,21 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          <div className="relative w-full sm:w-56">
+            <label htmlFor="past-papers-search" className="sr-only">
+              Search past paper files
+            </label>
+            <Search className="w-3.5 h-3.5 text-[#5E588C] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
+            <input
+              id="past-papers-search"
+              type="search"
+              value={paperSearchQuery}
+              onChange={(e) => setPaperSearchQuery(e.target.value)}
+              placeholder="Search file (e.g. qp_42, ms)"
+              className="w-full pl-8 pr-3 py-1.5 text-xs sk-input"
+            />
+          </div>
+
           <input
             ref={localFileInputRef}
             type="file"
@@ -441,6 +483,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
           </button>
           <div className="text-xs font-mono font-semibold tabular-nums text-[#5E588C]">
             {filteredPapers.length} files available
+            {loadingPapers ? ' (syncing...)' : ''}
           </div>
         </div>
       </section>
@@ -467,7 +510,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
             <label htmlFor="pastpaper-topic-finder" className="sr-only">
               Find 0580 notes for a past paper question topic
             </label>
-            <Search className="w-4 h-4 text-[#5E588C] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search className="w-4 h-4 text-[#5E588C] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
             <input
               id="pastpaper-topic-finder"
               type="search"
@@ -637,22 +680,22 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                   {apiProxyAvailable && (
                     <button
                       type="button"
+                      data-active={viewerMode === 'proxy'}
+                      onClick={() => setViewerMode('proxy')}
+                      className="px-2.5 py-1 text-xs font-semibold cursor-pointer sk-tab"
+                    >
+                      PapaCambridge API PDF
+                    </button>
+                  )}
+                  {apiProxyAvailable && (
+                    <button
+                      type="button"
                       data-active={viewerMode === 'annotate'}
                       onClick={() => setViewerMode('annotate')}
                       className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold cursor-pointer sk-tab"
                     >
                       <Pen className="w-3 h-3" />
                       Annotate (Draw)
-                    </button>
-                  )}
-                  {apiProxyAvailable && (
-                    <button
-                      type="button"
-                      data-active={viewerMode === 'proxy'}
-                      onClick={() => setViewerMode('proxy')}
-                      className="px-2.5 py-1 text-xs font-semibold cursor-pointer sk-tab"
-                    >
-                      Native PDF
                     </button>
                   )}
                   <button
@@ -735,12 +778,11 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
               ) : activePrimaryPdf && viewerMode === 'annotate' ? (
                 <PdfAnnotator
                   sourceUrl={pdfBytesUrl(activePrimaryPdf)}
-                  externalUrl={activePrimaryPdf.url}
                   paperKey={activePrimaryPdf.filename}
                   paperTitle={activePrimaryPdf.filename}
                   initialTool={activePrimaryPdf.docType === 'MS' ? 'pan' : 'pen'}
                   initialWidthPreset="fine"
-                  onFallbackViewer={() => setViewerMode('web')}
+                  onFallbackViewer={() => setViewerMode('proxy')}
                 />
               ) : activePrimaryPdf ? (
                 <iframe
@@ -767,13 +809,12 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                 {viewerMode === 'annotate' ? (
                   <PdfAnnotator
                     sourceUrl={pdfBytesUrl(activeSecondaryPdf)}
-                    externalUrl={activeSecondaryPdf.url}
                     paperKey={activeSecondaryPdf.filename}
                     paperTitle={activeSecondaryPdf.filename}
                     initialTool="pan"
                     initialPenColorHex="#dc2626"
                     initialWidthPreset="fine"
-                    onFallbackViewer={() => setViewerMode('web')}
+                    onFallbackViewer={() => setViewerMode('proxy')}
                   />
                 ) : (
                   <iframe
@@ -850,14 +891,26 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                         <div className="inline-flex items-center gap-2">
                           <button
                             type="button"
-                            onPointerEnter={() => {
-                              if (apiProxyAvailable) {
-                                prefetchPdfBytes(buildPdfByteCandidateUrls(pdfBytesUrl(file), file.url));
-                              }
+                            onClick={(e) => {
+                              triggerSakugaBurst(e, 'sakura');
+                              setLocalPdf(null);
+                              setActivePrimaryPdf(file);
+                              setActiveSecondaryPdf(null);
+                              setViewerMode(apiProxyAvailable ? 'proxy' : 'web');
+                              window.requestAnimationFrame(() => {
+                                viewerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                              });
                             }}
-                            onFocus={() => {
-                              if (apiProxyAvailable) {
-                                prefetchPdfBytes(buildPdfByteCandidateUrls(pdfBytesUrl(file), file.url));
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold sk-btn-secondary cursor-pointer"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            View PDF
+                          </button>
+                          <button
+                            type="button"
+                            onPointerEnter={() => {
+                              if (apiProxyAvailable && viewerMode === 'annotate') {
+                                prefetchPdfBytes(buildPdfByteCandidateUrls(pdfBytesUrl(file)));
                               }
                             }}
                             onClick={(e) => {
@@ -865,14 +918,12 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                               setLocalPdf(null);
                               setActivePrimaryPdf(file);
                               setActiveSecondaryPdf(null);
-                              if (apiProxyAvailable) {
-                                setViewerMode('annotate');
-                              }
+                              setViewerMode(apiProxyAvailable ? 'annotate' : 'web');
                               window.requestAnimationFrame(() => {
                                 viewerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                               });
                             }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold sk-btn-secondary cursor-pointer"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold sk-btn-subtle cursor-pointer"
                           >
                             <Pen className="w-3.5 h-3.5" />
                             Annotate
@@ -880,14 +931,6 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                           {hasMs && (
                             <button
                               type="button"
-                              onPointerEnter={() => {
-                                if (!apiProxyAvailable) return;
-                                prefetchPdfBytes(buildPdfByteCandidateUrls(pdfBytesUrl(file), file.url));
-                                const ms = findMatchingMarkScheme(file);
-                                if (ms) {
-                                  prefetchPdfBytes(buildPdfByteCandidateUrls(pdfBytesUrl(ms), ms.url));
-                                }
-                              }}
                               onClick={(e) => {
                                 triggerSakugaBurst(e, 'indigo', 'OPEN!');
                                 openSplitView(file);

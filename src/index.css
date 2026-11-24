@@ -154,24 +154,28 @@
   border-radius: 13px;
   box-shadow: 3px 3px 0 var(--sk-soft);
   padding: 3px;
+  gap: 3px;
 }
 
 .sk-tab {
   border-radius: 9px;
   color: var(--sk-dim);
   border: 1.5px solid transparent;
-  transition: background-color 150ms ease, color 150ms ease, transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1),
+  transition: background-color 150ms ease, color 150ms ease,
+    transform 170ms cubic-bezier(0.34, 1.56, 0.64, 1),
     box-shadow 150ms ease, border-color 150ms ease;
 }
 
 .sk-tab:hover:not([data-active="true"]) {
   color: var(--sk-ink);
+  background-color: rgba(255, 255, 255, 0.65);
 }
 
 .sk-tab[data-active="true"] {
   background-color: #ffffff;
   color: var(--sk-ink);
   border-color: var(--sk-ink);
+  transform: translateY(-2px);
   box-shadow: 0 2px 0 var(--sk-soft);
 }
 
@@ -189,25 +193,27 @@
   transition: width 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* Sakuga Inputs */
+/* Sakuga Inputs (white field, ink outline, lavender offset shadow matching <sakuga-input>) */
 .sk-input {
-  background-color: var(--sk-chip);
-  border: 1.5px solid var(--sk-line);
+  background-color: #ffffff;
+  border: 2px solid var(--sk-ink);
   border-radius: 12px;
   color: var(--sk-ink);
-  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+  box-shadow: 3px 3px 0 var(--sk-soft);
+  transition: border-color 150ms ease, background-color 150ms ease,
+    box-shadow 150ms ease, transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .sk-input::placeholder {
   color: var(--sk-dim);
-  opacity: 0.78;
+  opacity: 0.72;
 }
 
 .sk-input:focus {
   outline: none;
   background-color: #ffffff;
   border-color: var(--sk-ink);
-  box-shadow: 0 0 0 3px rgba(184, 179, 255, 0.45);
+  box-shadow: 4px 4px 0 var(--sk-soft), 0 0 0 3px rgba(109, 105, 242, 0.18);
 }
 
 .katex-display {

@@ -309,14 +309,14 @@ export async function fetchUpstreamPdfWithFallback(
   let upstream = await fetchImpl(urlStr, {
     headers: getPdfUpstreamHeaders(parsed, firstVariant),
     redirect: 'follow',
-    signal: AbortSignal.timeout(20000),
+    signal: AbortSignal.timeout(9000),
   });
 
   if (upstream.status === 403 || upstream.status === 406) {
     upstream = await fetchImpl(urlStr, {
       headers: getPdfUpstreamHeaders(parsed, secondVariant),
       redirect: 'follow',
-      signal: AbortSignal.timeout(20000),
+      signal: AbortSignal.timeout(9000),
     });
   }
 

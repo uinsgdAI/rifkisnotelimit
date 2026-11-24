@@ -15,9 +15,9 @@ import { SYLLABUS_0580 } from '../data/syllabus0580';
 import type { AppRoute, PracticeQuestion } from '../types/syllabus';
 import {
   estimateCambridgeGrade,
-  evaluateStudentAnswer,
   extractWeakTopicsFromResults,
   formatCountdown,
+  gradeStudentAnswer,
 } from '../utils/examLogic';
 import {
   generateMockExamQuestions,
@@ -300,7 +300,7 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
   useEffect(() => {
     if (!submitted || !activeExam || !onFlagWeakTopics) return;
     const wrongTopicIds = activeExam.questions
-      .filter((q) => !evaluateStudentAnswer(answers[q.id] || '', q))
+      .filter((q) => !gradeStudentAnswer(answers[q.id] || '', q).isCorrect)
       .map((q) => q.topicId);
     if (wrongTopicIds.length > 0) {
       onFlagWeakTopics(wrongTopicIds);
@@ -467,13 +467,15 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
   const totalMarks = activeExam.questions.reduce((acc, q) => acc + q.marks, 0);
   const scoredResults = activeExam.questions.map((q, qIdx) => {
     const userVal = answers[q.id] || '';
-    const isCorrect = evaluateStudentAnswer(userVal, q);
+    const graded = gradeStudentAnswer(userVal, q);
     return {
       question: q,
       questionNumber: qIdx + 1,
       userVal,
-      isCorrect,
-      marksEarned: isCorrect ? q.marks : 0,
+      isCorrect: graded.isCorrect,
+      isPartial: graded.isPartial,
+      matchReason: graded.matchReason,
+      marksEarned: graded.marksEarned,
     };
   });
   const earnedMarks = scoredResults.reduce((acc, r) => acc + r.marksEarned, 0);
@@ -665,6 +667,11 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
                       <CheckCircle2 className="w-4 h-4" />
                       {res.marksEarned}/{res.question.marks} marks
                     </span>
+                  ) : res.isPartial ? (
+                    <span className="inline-flex items-center gap-1 text-amber-700">
+                      <CheckCircle2 className="w-4 h-4" />
+                      {res.marksEarned}/{res.question.marks} marks (Partial)
+                    </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 text-rose-700">
                       <XCircle className="w-4 h-4" />
@@ -673,6 +680,11 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
                   )}
                 </div>
               </div>
+              {res.matchReason && (
+                <div className="text-[11px] font-medium text-[#5E588C] bg-[#FAF9FF] border border-[#DCDAF0] rounded-lg px-2.5 py-1 inline-block">
+                  {res.matchReason}
+                </div>
+              )}
 
               <p className="text-sm text-[#1D1A4A] leading-relaxed">
                 <MathText text={res.question.question} />
