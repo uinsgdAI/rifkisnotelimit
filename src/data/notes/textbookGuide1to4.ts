@@ -421,7 +421,7 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
     extraStudyNotes: [
       {
         heading: 'Significant-Figure Bounds & Inequality Notation',
-        body: 'When a value $m = 340$ is rounded to $2$ significant figures, the place value of the last significant digit ($4$) is tens ($u = 10$), so $\\frac{u}{2} = 5$, giving $335 \\le m < 345$. Notice the strict `$<$ ` on the upper bound in error intervals, while in formula substitution we always plug in $345$ (never $344.99$).',
+        body: 'When a value $m = 340$ is rounded to $2$ significant figures, the place value of the last significant digit ($4$) is tens ($u = 10$), so $\\frac{u}{2} = 5$, giving $335 \\le m < 345$. Notice the strict $<$ on the upper bound in error intervals, while in formula substitution we always plug in $345$ (never $344.99$).',
       },
     ],
     extraWorkedExamples: [
@@ -1036,7 +1036,7 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
   '2.6': {
     bigIdea: 'Inequalities work almost identically to equations, EXCEPT multiplying or dividing by a negative number reverses the inequality sign; quadratic inequalities use a quick parabola sketch.',
     stepByStepMethod: [
-      'Solve linear inequalities like equations, flipping `$<$ ` $\\leftrightarrow$ `$>` ` whenever multiplying or dividing by a negative number.',
+      'Solve linear inequalities like equations, flipping $<$ $\\leftrightarrow$ $>$ whenever multiplying or dividing by a negative number.',
       'For quadratic inequalities ($x^2 - 9 < 0$), find the roots ($\\pm 3$) first, sketch the $U$-shaped curve, then read the interval where the curve is above or below zero.',
       'For graphical regions ($y \\le mx + c$), plot boundary line (solid for $\\le/\\ge$, dashed for $</>$) and test a point like $(0, 0)$.',
     ],
@@ -1051,7 +1051,7 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
     extraStudyNotes: [
       {
         heading: 'Cambridge Shading Convention for Unwanted Regions',
-        body: 'In Paper 2/4 graphing questions, check carefully whether the question asks you to shade the **wanted** region OR leave the **wanted region $R$ UNSHADED** (Cambridge standard!). Always label the clean wanted region clearly with `$R$` as instructed.',
+        body: 'In Paper 2/4 graphing questions, check carefully whether the question asks you to shade the **wanted** region OR leave the **wanted region $R$ UNSHADED** (Cambridge standard!). Always label the clean wanted region clearly with $R$ as instructed.',
       },
       {
         heading: 'Linear Programming Optimisation (Coursebook Ch. 14.4)',
@@ -1085,7 +1085,7 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
     ],
     rapidSummary: [
       { rule: 'Flip sign on $\\div (-k)$', detail: '$-2x < 10 \\implies x > -5$.' },
-      { rule: 'Sketch before writing quadratic range', detail: 'Never just replace `$=$` with `$<$` on roots.' },
+      { rule: 'Sketch before writing quadratic range', detail: 'Never just replace $=$ with $<$ on roots.' },
     ],
   },
   '2.7': {
@@ -1805,7 +1805,7 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
       },
     ],
     rapidSummary: [
-      { rule: 'North, Clockwise, 3 Digits', detail: 'Stand at the point AFTER "from", turn clockwise from North, pad `$0$` if $<100^\\circ$.' },
+      { rule: 'North, Clockwise, 3 Digits', detail: 'Stand at the point AFTER "from", turn clockwise from North, pad $0$ if $<100^\\circ$.' },
       { rule: 'Reverse bearing = $\\pm 180^\\circ$', detail: 'Switch direction between $A$ and $B$ by adding or subtracting $180^\\circ$ to stay in $[000^\\circ, 360^\\circ)$.' },
     ],
   },

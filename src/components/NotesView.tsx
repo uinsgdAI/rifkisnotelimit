@@ -167,7 +167,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
             <div className="min-w-0">
               <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#1D1A4A] tracking-tight text-balance">
                 <span className="font-mono text-[#5B57E8] mr-2">{note.code}</span>{' '}
-                {note.title}
+                <MathText text={note.title} />
               </h1>
               <p className="mt-2 text-sm sm:text-base text-[#393469] leading-relaxed max-w-3xl">
                 <MathText text={highlightImportantText(note.summary)} />
@@ -194,14 +194,16 @@ export const NotesView: React.FC<NotesViewProps> = ({
                   <span aria-hidden="true">·</span>
                   <span>
                     {note.coursebookRef.unitTitle}, Ch. {note.coursebookRef.chapter}:{' '}
-                    {note.coursebookRef.chapterTitle}
+                    <MathText text={note.coursebookRef.chapterTitle} />
                   </span>
                   <span aria-hidden="true">·</span>
                   <span>Sections {note.coursebookRef.sections}</span>
                 </div>
               )}
               {note.coursebookRef?.editionNote && (
-                <p className="mt-1 text-xs font-medium text-[#C0266B]">{note.coursebookRef.editionNote}</p>
+                <p className="mt-1 text-xs font-medium text-[#C0266B]">
+                  <MathText text={note.coursebookRef.editionNote} />
+                </p>
               )}
             </div>
 
@@ -440,7 +442,9 @@ export const NotesView: React.FC<NotesViewProps> = ({
                 key={f.label}
                 className="p-4 sk-card-soft space-y-2"
               >
-                <div className="text-xs font-semibold text-[#1D1A4A]">{f.label}</div>
+                <div className="text-xs font-semibold text-[#1D1A4A]">
+                  <MathText text={f.label} />
+                </div>
                 <div className="overflow-x-auto text-[#1D1A4A]">
                   <KaTeXFormula latex={f.latex} />
                 </div>
@@ -484,7 +488,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
             <div className="flex items-center gap-2">
               <Table2 className="w-4 h-4 text-[#5B57E8] shrink-0" />
               <h2 className="font-display text-base font-bold text-[#1D1A4A]">
-                {note.comparisonTable.title}
+                <MathText text={note.comparisonTable.title} />
               </h2>
             </div>
             <div className="w-full max-w-full overflow-x-auto border-[1.5px] border-[#DCDAF0] rounded-xl">
@@ -537,7 +541,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
               </h2>
               {note.coursebookRef && (
                 <span className="text-xs text-[#5E588C]">
-                  Aligned with Chapter {note.coursebookRef.chapter}: {note.coursebookRef.chapterTitle}
+                  Aligned with Chapter {note.coursebookRef.chapter}: <MathText text={note.coursebookRef.chapterTitle} />
                 </span>
               )}
             </div>
@@ -545,7 +549,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
               {note.studyNotes.map((sec, idx) => (
                 <div key={idx} className={idx > 0 ? 'pt-6' : ''}>
                   <h3 className="font-display text-sm font-bold text-[#1D1A4A] mb-2">
-                    {sec.heading}
+                    <MathText text={sec.heading} />
                   </h3>
                   <p className="text-sm text-[#393469] leading-relaxed max-w-3xl">
                     <MathText text={highlightImportantText(sec.body)} />
@@ -600,7 +604,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
                 >
                   <div className="flex items-baseline justify-between gap-4">
                     <h3 className="font-display text-sm font-bold text-[#1D1A4A]">
-                      Example {idx + 1}: {ex.title}
+                      Example {idx + 1}: <MathText text={ex.title} />
                     </h3>
                     <span className="font-mono text-xs tabular-nums text-[#5E588C] shrink-0">
                       [{ex.marks} {ex.marks === 1 ? 'mark' : 'marks'}]

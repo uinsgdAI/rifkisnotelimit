@@ -628,7 +628,7 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
       headers: ['Value / Notation', 'Meaning', 'Format Allowed'],
       rows: [
         ['$P(A) = 0$', 'Impossible event', 'Write exact fraction, decimal, or percentage'],
-        ['$P(A) = 1$', 'Certain event', 'NEVER write as a ratio like `$1:4$` or `"1 in 4"`!'],
+        ['$P(A) = 1$', 'Certain event', 'NEVER write as a ratio like $1:4$ or `"1 in 4"`!'],
         ['$P(A\') = 1 - P(A)$', 'Complement (does not happen)', 'Quickest way to find missing table entries'],
       ],
     },
@@ -800,7 +800,7 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
     extraWorkedExamples: [
       {
         title: 'Choosing continuous vs discrete bounds',
-        question: 'A teacher groups students\' masses ($m\\text{ kg}$). Why is writing classes as `$40–50$` and `$50–60$` flawed, and how should it be written?',
+        question: 'A teacher groups students\' masses ($m\\text{ kg}$). Why is writing classes as `40–50` and `50–60` flawed, and how should it be written?',
         marks: 2,
         steps: [
           'Overlap flaw: a mass of exactly $50\\text{ kg}$ falls into BOTH groups.',
