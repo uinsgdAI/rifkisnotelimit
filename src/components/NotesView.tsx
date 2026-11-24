@@ -24,6 +24,7 @@ import { KaTeXFormula, MathText } from './MathText';
 import { SyllabusSidebar } from './SyllabusSidebar';
 import { TopicSandbox } from './TopicSandbox';
 import { TransformationDiagrams } from './TransformationDiagrams';
+import { TopicIllustrations } from './TopicIllustrations';
 import { getKeyFindingsForNote, highlightImportantText } from '../utils/noteKeyFindings';
 import { triggerSakugaBurst } from '../utils/sakugaVfx';
 
@@ -356,6 +357,9 @@ export const NotesView: React.FC<NotesViewProps> = ({
 
         {/* Dedicated Graph-Paper Diagrams for 7.1 Transformations */}
         {note.id === '7.1' && <TransformationDiagrams />}
+
+        {/* Visual Notebook Diagrams for Bearings & Visual Syllabus Topics */}
+        <TopicIllustrations topicId={note.id} />
 
         {/* Coursebook Margin Pedagogy: Tip & Fast Forward (Morrison & Hamshaw) */}
         {(note.coursebookTip || (studyMode === 'detailed' && note.fastForward)) && (
