@@ -428,15 +428,18 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-          <div className="flex flex-wrap gap-1.5">
+          <div
+            role="tablist"
+            aria-label="Filter topical papers by chapter"
+            className="flex flex-wrap gap-1 sk-tabs"
+          >
             <button
               type="button"
+              role="tab"
+              aria-selected={chapterFilter === 'all'}
+              data-active={chapterFilter === 'all'}
               onClick={() => setChapterFilter('all')}
-              className={`px-2.5 py-1.5 text-xs font-semibold rounded-xl border-[1.5px] cursor-pointer transition-colors ${
-                chapterFilter === 'all'
-                  ? 'bg-[#F4F3FC] border-[#1D1A4A] text-[#1D1A4A] shadow-[2px_2px_0_#B8B3FF]'
-                  : 'bg-[#FAF9FF] border-[#DCDAF0] text-[#393469] hover:border-[#1D1A4A]'
-              }`}
+              className="px-2.5 py-1.5 text-xs font-semibold cursor-pointer whitespace-nowrap sk-tab"
             >
               All Topics ({TOPICAL_PAPERS_0580.length})
             </button>
@@ -444,12 +447,11 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
               <button
                 key={ch.id}
                 type="button"
+                role="tab"
+                aria-selected={chapterFilter === ch.id}
+                data-active={chapterFilter === ch.id}
                 onClick={() => setChapterFilter(ch.id)}
-                className={`px-2.5 py-1.5 text-xs font-semibold rounded-xl border-[1.5px] cursor-pointer transition-colors ${
-                  chapterFilter === ch.id
-                    ? 'bg-[#F4F3FC] border-[#1D1A4A] text-[#1D1A4A] shadow-[2px_2px_0_#B8B3FF]'
-                    : 'bg-[#FAF9FF] border-[#DCDAF0] text-[#393469] hover:border-[#1D1A4A]'
-                }`}
+                className="px-2.5 py-1.5 text-xs font-semibold cursor-pointer whitespace-nowrap sk-tab"
               >
                 {ch.id}. {ch.title} ({chapterCounts[ch.id] || 0})
               </button>

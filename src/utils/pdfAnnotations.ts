@@ -8,6 +8,33 @@ export interface NormalizedPoint {
 export type AnnotationTool = 'pen' | 'highlighter' | 'eraser' | 'pan';
 export type StrokeWidthPresetId = 'fine' | 'med' | 'bold';
 
+export const STROKE_SIZE_BOUNDS = {
+  pen: { min: 1, max: 12, step: 0.5, defaultSize: 2 },
+  highlighter: { min: 6, max: 36, step: 1, defaultSize: 12 },
+} as const;
+
+export function clampStrokeSize(tool: 'pen' | 'highlighter', size: number): number {
+  const bounds = STROKE_SIZE_BOUNDS[tool];
+  if (!Number.isFinite(size)) return bounds.defaultSize;
+  const clamped = Math.min(bounds.max, Math.max(bounds.min, size));
+  const stepped = Math.round((clamped - bounds.min) / bounds.step) * bounds.step + bounds.min;
+  return Number(Math.min(bounds.max, Math.max(bounds.min, stepped)).toFixed(2));
+}
+
+export function resolveStrokeSizeFromPreset(
+  tool: 'pen' | 'highlighter',
+  preset: StrokeWidthPresetId
+): number {
+  if (tool === 'highlighter') {
+    if (preset === 'fine') return 12;
+    if (preset === 'bold') return 26;
+    return 18;
+  }
+  if (preset === 'fine') return 2;
+  if (preset === 'bold') return 6;
+  return 3.5;
+}
+
 export function resolveDefaultAnnotatorToolAndWidth(
   docRole: 'qp' | 'questions' | 'ms' | 'answers' | 'general'
 ): { tool: AnnotationTool; widthPreset: StrokeWidthPresetId } {

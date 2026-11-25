@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MathText } from '../MathText';
+import { SakugaSlider } from '../SakugaSlider';
 import {
   bearingPoint,
   computeBackBearing,
@@ -278,27 +279,28 @@ export const BearingsIllustration: React.FC = () => {
                   {formatThreeFigureBearing(bearing)}
                 </span>
               </div>
-              <input
+              <SakugaSlider
                 id="bearing-slider"
-                type="range"
                 min={5}
                 max={355}
                 step={1}
                 value={bearing}
-                onChange={(e) => setBearing(Number(e.target.value))}
-                className="w-full accent-[#5B57E8]"
+                onChange={setBearing}
               />
-              <div className="flex flex-wrap gap-1.5">
+              <div
+                role="tablist"
+                aria-label="Bearing preset angles"
+                className="inline-flex flex-wrap gap-1 sk-tabs"
+              >
                 {PRESETS.map((preset) => (
                   <button
                     key={preset.angle}
                     type="button"
+                    role="tab"
+                    aria-selected={bearing === preset.angle}
+                    data-active={bearing === preset.angle}
                     onClick={() => setBearing(preset.angle)}
-                    className={`px-2 py-1 rounded-lg text-[11px] font-semibold border cursor-pointer transition-colors ${
-                      bearing === preset.angle
-                        ? 'bg-[#5B57E8] text-white border-[#1D1A4A]'
-                        : 'bg-white text-[#393469] border-[#DCDAF0] hover:border-[#5B57E8]'
-                    }`}
+                    className="px-2 py-1 text-[11px] font-semibold cursor-pointer sk-tab"
                   >
                     {preset.label}
                   </button>

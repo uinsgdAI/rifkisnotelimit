@@ -3,6 +3,7 @@ import {
   prefersReducedMotion,
   stepSakugaParticle,
   subscribeSakugaBursts,
+  triggerSakugaBurst,
   type SakugaBurstSpec,
 } from '../utils/sakugaVfx';
 
@@ -185,8 +186,118 @@ export const SakugaCanvasOverlay: React.FC = () => {
       }
     });
 
+    let lastInputBurstAt = 0;
+
+    const animateSpring = (
+      el: HTMLElement,
+      keyframes: Keyframe[],
+      duration = 220
+    ) => {
+      if (prefersReducedMotion() || typeof el.animate !== 'function') return;
+      try {
+        el.animate(keyframes, {
+          duration,
+          easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+        });
+      } catch {
+        // ignore unsupported animation contexts
+      }
+    };
+
+    const handleDocClick = (e: MouseEvent) => {
+      if (prefersReducedMotion()) return;
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+
+      const tabEl = target.closest('.sk-tab') as HTMLElement | null;
+      if (tabEl && !(tabEl as HTMLButtonElement).disabled) {
+        animateSpring(tabEl, [
+          { transform: 'translateY(-1px) scale(0.94, 1.07)' },
+          { transform: 'translateY(-4px) scale(1.04, 0.96)' },
+          { transform: 'translateY(-2px) scale(1, 1)' },
+        ]);
+        triggerSakugaBurst(tabEl, 'indigo', undefined, {
+          intensity: 'subtle',
+          delegated: true,
+        });
+        return;
+      }
+
+      const btnEl = target.closest(
+        '.sk-btn-primary, .sk-btn-secondary, .sk-btn-ink'
+      ) as HTMLButtonElement | null;
+      if (btnEl && !btnEl.disabled) {
+        triggerSakugaBurst(btnEl, 'indigo', undefined, {
+          intensity: 'subtle',
+          delegated: true,
+        });
+      }
+    };
+
+    const handleDocInput = (e: Event) => {
+      if (prefersReducedMotion()) return;
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const inputEl = target.closest('.sk-input, .sk-input-field') as HTMLElement | null;
+      if (!inputEl) return;
+
+      const now = Date.now();
+      if (now - lastInputBurstAt < 140) return;
+      lastInputBurstAt = now;
+
+      const wrap = (inputEl.closest('.sk-input-shell') as HTMLElement | null) ?? inputEl;
+      animateSpring(
+        wrap,
+        [
+          { transform: 'scale(0.992, 1.016)' },
+          { transform: 'scale(1.006, 0.994)' },
+          { transform: 'scale(1, 1)' },
+        ],
+        180
+      );
+
+      const rect = wrap.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        triggerSakugaBurst(null, 'sakura', undefined, {
+          intensity: 'micro',
+          delegated: true,
+          coords: {
+            x: Math.min(window.innerWidth - 16, rect.right - 16),
+            y: rect.top + rect.height / 2,
+          },
+        });
+      }
+    };
+
+    const handleDocFocusIn = (e: FocusEvent) => {
+      if (prefersReducedMotion()) return;
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const inputEl = target.closest('.sk-input, .sk-input-field') as HTMLElement | null;
+      if (!inputEl) return;
+      const wrap = (inputEl.closest('.sk-input-shell') as HTMLElement | null) ?? inputEl;
+      const rect = wrap.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        triggerSakugaBurst(null, 'indigo', undefined, {
+          intensity: 'micro',
+          delegated: true,
+          coords: {
+            x: rect.left + 20,
+            y: rect.top + 4,
+          },
+        });
+      }
+    };
+
+    document.addEventListener('click', handleDocClick);
+    document.addEventListener('input', handleDocInput);
+    document.addEventListener('focusin', handleDocFocusIn);
+
     return () => {
       unsub();
+      document.removeEventListener('click', handleDocClick);
+      document.removeEventListener('input', handleDocInput);
+      document.removeEventListener('focusin', handleDocFocusIn);
       window.removeEventListener('resize', resize);
       if (rafId !== null) window.cancelAnimationFrame(rafId);
     };
@@ -197,7 +308,7 @@ export const SakugaCanvasOverlay: React.FC = () => {
       ref={canvasRef}
       data-testid="sakuga-vfx-canvas"
       aria-hidden="true"
-      className="fixed inset-0 w-full h-full pointer-events-none z-50"
+      className="fixed inset-0 w-full h-full pointer-events-none z-[90]"
     />
   );
 };

@@ -1,4 +1,5 @@
 export type SakugaVfxVariant = 'indigo' | 'sakura' | 'emerald';
+export type SakugaBurstIntensity = 'normal' | 'subtle' | 'micro';
 
 export interface SakugaParticle {
   x: number;
@@ -20,6 +21,7 @@ export interface SakugaBurstSpec {
   originX: number;
   originY: number;
   variant: SakugaVfxVariant;
+  intensity: SakugaBurstIntensity;
   label?: string;
   particles: SakugaParticle[];
   createdAtMs: number;
@@ -40,6 +42,35 @@ export function prefersReducedMotion(): boolean {
 }
 
 /**
+ * Pure normalized slider progress ratio in [0, 1].
+ */
+export function computeSliderRatio(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value) || !Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
+    return 0;
+  }
+  return Math.min(1, Math.max(0, (value - min) / (max - min)));
+}
+
+/**
+ * Pure anime spring squash & velocity tilt calculation for <SakugaSlider>.
+ */
+export function computeSliderVelocityEffects(
+  deltaPx: number,
+  dtMs: number
+): { tiltDeg: number; squashX: number; squashY: number } {
+  if (!Number.isFinite(deltaPx) || !Number.isFinite(dtMs) || dtMs <= 0) {
+    return { tiltDeg: 0, squashX: 1, squashY: 1 };
+  }
+  const velocityPxPerSec = (deltaPx / Math.max(8, dtMs)) * 1000;
+  const clampedV = Math.max(-1400, Math.min(1400, velocityPxPerSec));
+  const absRatio = Math.min(1, Math.abs(clampedV) / 1400);
+  const tiltDeg = Number(((clampedV / 1400) * 16).toFixed(2));
+  const squashX = Number((1 + absRatio * 0.22).toFixed(3));
+  const squashY = Number((1 - absRatio * 0.14).toFixed(3));
+  return { tiltDeg, squashX, squashY };
+}
+
+/**
  * Pure deterministic burst generator for anime-inspired canvas impact VFX
  * (spark stars, radial impact lines, expanding ink ring, and smoke puffs).
  */
@@ -47,11 +78,13 @@ export function createSakugaBurstSpec(params: {
   originX: number;
   originY: number;
   variant?: SakugaVfxVariant;
+  intensity?: SakugaBurstIntensity;
   label?: string;
   seed?: number;
   nowMs?: number;
 }): SakugaBurstSpec {
   const variant = params.variant ?? 'indigo';
+  const intensity = params.intensity ?? 'normal';
   const palette = VARIANT_PALETTES[variant];
   const nowMs = params.nowMs ?? (typeof performance !== 'undefined' ? performance.now() : Date.now());
   const baseSeed = typeof params.seed === 'number' ? params.seed : Math.round((params.originX * 13 + params.originY * 7) % 997);
@@ -63,81 +96,90 @@ export function createSakugaBurstSpec(params: {
 
   const particles: SakugaParticle[] = [];
 
-  // Central impact ring
-  particles.push({
-    x: params.originX,
-    y: params.originY,
-    vx: 0,
-    vy: 0,
-    size: 10,
-    kind: 'ring',
-    color: palette[0],
-    strokeColor: '#1D1A4A',
-    alpha: 1,
-    ageMs: 0,
-    lifeMs: 420,
-    rotation: 0,
-    spin: 0,
-  });
+  const speedScale = intensity === 'micro' ? 0.58 : intensity === 'subtle' ? 0.78 : 1;
+  const sizeScale = intensity === 'micro' ? 0.65 : intensity === 'subtle' ? 0.82 : 1;
+  const lifeScale = intensity === 'micro' ? 0.65 : intensity === 'subtle' ? 0.8 : 1;
+  const sparkCount = intensity === 'micro' ? 4 : intensity === 'subtle' ? 5 : 8;
+  const rayCount = intensity === 'micro' ? 3 : intensity === 'subtle' ? 4 : 6;
+  const puffCount = intensity === 'micro' ? 2 : intensity === 'subtle' ? 3 : 4;
+
+  // Central impact ring (skip ring on micro typing sparks to stay light)
+  if (intensity !== 'micro') {
+    particles.push({
+      x: params.originX,
+      y: params.originY,
+      vx: 0,
+      vy: 0,
+      size: 10 * sizeScale,
+      kind: 'ring',
+      color: palette[0],
+      strokeColor: '#1D1A4A',
+      alpha: intensity === 'subtle' ? 0.85 : 1,
+      ageMs: 0,
+      lifeMs: Math.round(420 * lifeScale),
+      rotation: 0,
+      spin: 0,
+    });
+  }
 
   // Crisp 4-point anime sparks
-  for (let i = 0; i < 8; i++) {
-    const angle = (Math.PI * 2 * i) / 8 + (rand(i + 1) - 0.5) * 0.38;
-    const speed = 135 + rand(i + 20) * 140;
+  for (let i = 0; i < sparkCount; i++) {
+    const angle = (Math.PI * 2 * i) / sparkCount + (rand(i + 1) - 0.5) * 0.38;
+    const speed = (135 + rand(i + 20) * 140) * speedScale;
     particles.push({
       x: params.originX,
       y: params.originY,
       vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed - 24,
-      size: 6 + rand(i + 40) * 6,
+      vy: Math.sin(angle) * speed - 24 * speedScale,
+      size: (6 + rand(i + 40) * 6) * sizeScale,
       kind: 'spark',
       color: palette[i % palette.length],
       strokeColor: '#1D1A4A',
       alpha: 1,
       ageMs: 0,
-      lifeMs: 460 + Math.round(rand(i + 60) * 140),
+      lifeMs: Math.round((460 + rand(i + 60) * 140) * lifeScale),
       rotation: rand(i + 80) * Math.PI,
       spin: (rand(i + 90) - 0.5) * 8,
     });
   }
 
   // Manga impact rays
-  for (let i = 0; i < 6; i++) {
-    const angle = (Math.PI * 2 * i) / 6 + 0.25 + (rand(i + 110) - 0.5) * 0.25;
-    const speed = 180 + rand(i + 130) * 90;
+  for (let i = 0; i < rayCount; i++) {
+    const angle = (Math.PI * 2 * i) / rayCount + 0.25 + (rand(i + 110) - 0.5) * 0.25;
+    const speed = (180 + rand(i + 130) * 90) * speedScale;
     particles.push({
-      x: params.originX + Math.cos(angle) * 10,
-      y: params.originY + Math.sin(angle) * 10,
+      x: params.originX + Math.cos(angle) * (10 * sizeScale),
+      y: params.originY + Math.sin(angle) * (10 * sizeScale),
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
-      size: 12 + rand(i + 150) * 10,
+      size: (12 + rand(i + 150) * 10) * sizeScale,
       kind: 'line',
       color: i % 2 === 0 ? palette[0] : palette[4],
       strokeColor: '#1D1A4A',
-      alpha: 0.95,
+      alpha: intensity === 'micro' ? 0.8 : 0.95,
       ageMs: 0,
-      lifeMs: 320 + Math.round(rand(i + 170) * 90),
+      lifeMs: Math.round((320 + rand(i + 170) * 90) * lifeScale),
       rotation: angle,
       spin: 0,
     });
   }
 
   // Light sakura/lavender smoke puffs
-  for (let i = 0; i < 4; i++) {
-    const angle = (Math.PI * 2 * i) / 4 + 0.5;
-    const speed = 65 + rand(i + 200) * 55;
+  for (let i = 0; i < puffCount; i++) {
+    const angle = (Math.PI * 2 * i) / puffCount + 0.5;
+    const speed = (65 + rand(i + 200) * 55) * speedScale;
     particles.push({
       x: params.originX,
       y: params.originY,
       vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed - 18,
-      size: 7 + rand(i + 220) * 5,
+      vy: Math.sin(angle) * speed - 18 * speedScale,
+      size: (7 + rand(i + 220) * 5) * sizeScale,
       kind: 'puff',
       color: '#FFFFFF',
       strokeColor: '#1D1A4A',
-      alpha: 0.9,
+      alpha: intensity === 'micro' ? 0.72 : 0.9,
       ageMs: 0,
-      lifeMs: 440 + Math.round(rand(i + 240) * 100),
+      lifeMs: Math.round((440 + rand(i + 240) * 100) * lifeScale),
       rotation: 0,
       spin: 0,
     });
@@ -147,10 +189,11 @@ export function createSakugaBurstSpec(params: {
     originX: params.originX,
     originY: params.originY,
     variant,
+    intensity,
     label: params.label,
     particles,
     createdAtMs: nowMs,
-    durationMs: 620,
+    durationMs: Math.round(620 * lifeScale),
   };
 }
 
@@ -175,18 +218,19 @@ export function stepSakugaParticle(p: SakugaParticle, dtSec: number): SakugaPart
 
 type BurstListener = (spec: SakugaBurstSpec) => void;
 const listeners = new Set<BurstListener>();
+let lastExplicitBurstMs = 0;
+
+export interface BurstTargetLike {
+  clientX?: number;
+  clientY?: number;
+  currentTarget?: EventTarget | null;
+}
 
 export function subscribeSakugaBursts(listener: BurstListener): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
   };
-}
-
-export interface BurstTargetLike {
-  clientX?: number;
-  clientY?: number;
-  currentTarget?: EventTarget | null;
 }
 
 export function resolveBurstCoordinates(target?: BurstTargetLike | HTMLElement | null): {
@@ -226,16 +270,27 @@ export function resolveBurstCoordinates(target?: BurstTargetLike | HTMLElement |
 export function triggerSakugaBurst(
   target?: BurstTargetLike | HTMLElement | null,
   variant: SakugaVfxVariant = 'indigo',
-  label?: string
+  label?: string,
+  options?: { intensity?: SakugaBurstIntensity; delegated?: boolean; coords?: { x: number; y: number } }
 ): boolean {
   if (prefersReducedMotion()) return false;
-  const { x, y } = resolveBurstCoordinates(target);
+  const nowMs = Date.now();
+  if (options?.delegated) {
+    if (nowMs - lastExplicitBurstMs < 60) {
+      return false;
+    }
+  } else {
+    lastExplicitBurstMs = nowMs;
+  }
+
+  const coords = options?.coords ?? resolveBurstCoordinates(target);
   const spec = createSakugaBurstSpec({
-    originX: x,
-    originY: y,
+    originX: coords.x,
+    originY: coords.y,
     variant,
+    intensity: options?.intensity ?? 'normal',
     label,
-    seed: Math.round(Date.now() % 10000),
+    seed: Math.round(nowMs % 10000),
   });
   for (const listener of listeners) {
     listener(spec);

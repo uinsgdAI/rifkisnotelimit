@@ -17,6 +17,7 @@ import {
   Trash2,
   TrendingUp,
 } from 'lucide-react';
+import { SakugaSlider } from './SakugaSlider';
 import {
   CALCULATOR_PRESET_OPTIONS,
   getGraphPresetForTopic,
@@ -1271,7 +1272,7 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
               const isValid = compiled.parsed.ok || exp.input.trim() === '';
               return (
                 <div key={exp.id} className="space-y-1">
-                  <div className="flex items-center gap-1.5 bg-white border-[1.5px] border-[#DCDAF0] rounded-[11px] px-2 py-1.5 focus-within:border-[#1D1A4A]">
+                  <div className="sk-input-shell flex items-center gap-1.5 px-2 py-1.5">
                     <button
                       type="button"
                       onClick={() =>
@@ -1303,7 +1304,7 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
                       }
                       aria-label={`Equation ${idx + 1}`}
                       placeholder="e.g. y = x^2 - 4 or 2x + 3y = 12"
-                      className="flex-1 min-w-0 text-xs font-mono text-[#1D1A4A] bg-transparent focus:outline-none"
+                      className="sk-input-field flex-1 min-w-0 text-xs font-mono text-[#1D1A4A] bg-transparent focus:outline-none"
                     />
                     <button
                       type="button"
@@ -1365,22 +1366,20 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
                         type="button"
                         onClick={() => setAnimatingParam(isPlaying ? null : name)}
                         aria-label={`${isPlaying ? 'Pause' : 'Animate'} parameter ${name}`}
-                        className="p-1 rounded border border-[#DCDAF0] bg-white text-[#1D1A4A] hover:bg-[#F4F3FC] cursor-pointer"
+                        className="p-1 sk-btn-subtle cursor-pointer"
                       >
                         {isPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
                       </button>
                     </div>
-                    <input
+                    <SakugaSlider
                       id={`slider-${name}`}
-                      type="range"
                       min={cfg.min}
                       max={cfg.max}
                       step={cfg.step}
                       value={val}
-                      onChange={(e) =>
-                        setParams((prev) => ({ ...prev, [name]: Number(e.target.value) }))
+                      onChange={(nextVal) =>
+                        setParams((prev) => ({ ...prev, [name]: nextVal }))
                       }
-                      className="w-full accent-[#6D69F2]"
                     />
                   </div>
                 );
@@ -1403,15 +1402,14 @@ export const GeoGebraGraphTool: React.FC<GeoGebraGraphToolProps> = ({
                   Hide
                 </button>
               </div>
-              <input
+              <SakugaSlider
                 id="tangent-x0"
-                type="range"
+                variant="sakura"
                 min={angleUnit === 'deg' ? 0 : -5}
                 max={angleUnit === 'deg' ? 360 : 5}
                 step={angleUnit === 'deg' ? 5 : 0.1}
                 value={tangentX}
-                onChange={(e) => setTangentX(Number(e.target.value))}
-                className="w-full accent-[#FF5FA8]"
+                onChange={setTangentX}
               />
               {tangentInfo && (
                 <div className="text-[11px] font-mono text-[#393469] bg-white border border-[#DCDAF0] rounded-lg p-2 space-y-0.5">

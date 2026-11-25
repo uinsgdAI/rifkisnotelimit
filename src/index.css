@@ -153,8 +153,8 @@
   border: 2px solid var(--sk-ink);
   border-radius: 13px;
   box-shadow: 3px 3px 0 var(--sk-soft);
-  padding: 3px;
-  gap: 3px;
+  padding: 4px;
+  gap: 4px;
 }
 
 .sk-tab {
@@ -162,13 +162,13 @@
   color: var(--sk-dim);
   border: 1.5px solid transparent;
   transition: background-color 150ms ease, color 150ms ease,
-    transform 170ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1),
     box-shadow 150ms ease, border-color 150ms ease;
 }
 
 .sk-tab:hover:not([data-active="true"]) {
   color: var(--sk-ink);
-  background-color: rgba(255, 255, 255, 0.65);
+  background-color: rgba(255, 255, 255, 0.72);
 }
 
 .sk-tab[data-active="true"] {
@@ -194,7 +194,8 @@
 }
 
 /* Sakuga Inputs (white field, ink outline, lavender offset shadow matching <sakuga-input>) */
-.sk-input {
+.sk-input,
+.sk-input-shell {
   background-color: #ffffff;
   border: 2px solid var(--sk-ink);
   border-radius: 12px;
@@ -209,7 +210,8 @@
   opacity: 0.72;
 }
 
-.sk-input:focus {
+.sk-input:focus,
+.sk-input-shell:focus-within {
   outline: none;
   background-color: #ffffff;
   border-color: var(--sk-ink);

@@ -423,15 +423,18 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
             </button>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div
+            role="tablist"
+            aria-label="Filter practice drill by chapter"
+            className="flex flex-wrap gap-1.5 sk-tabs"
+          >
             <button
               type="button"
+              role="tab"
+              aria-selected={selectedChapterFilter === 'all'}
+              data-active={selectedChapterFilter === 'all'}
               onClick={() => setSelectedChapterFilter('all')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-xl border-[1.5px] cursor-pointer transition-colors ${
-                selectedChapterFilter === 'all'
-                  ? 'bg-[#F4F3FC] border-[#1D1A4A] text-[#1D1A4A] shadow-[2px_2px_0_#B8B3FF]'
-                  : 'bg-[#FAF9FF] border-[#DCDAF0] text-[#393469] hover:border-[#1D1A4A]'
-              }`}
+              className="px-3 py-1.5 text-xs font-semibold cursor-pointer whitespace-nowrap sk-tab"
             >
               All Chapters
             </button>
@@ -439,12 +442,11 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
               <button
                 key={ch.id}
                 type="button"
+                role="tab"
+                aria-selected={selectedChapterFilter === ch.id}
+                data-active={selectedChapterFilter === ch.id}
                 onClick={() => setSelectedChapterFilter(ch.id)}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-xl border-[1.5px] cursor-pointer transition-colors ${
-                  selectedChapterFilter === ch.id
-                    ? 'bg-[#F4F3FC] border-[#1D1A4A] text-[#1D1A4A] shadow-[2px_2px_0_#B8B3FF]'
-                    : 'bg-[#FAF9FF] border-[#DCDAF0] text-[#393469] hover:border-[#1D1A4A]'
-                }`}
+                className="px-3 py-1.5 text-xs font-semibold cursor-pointer whitespace-nowrap sk-tab"
               >
                 {ch.id}. {ch.title}
               </button>

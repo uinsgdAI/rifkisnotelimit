@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   acquireFullscreenBodyLock,
   capturePdfZoomAnchor,
+  clampStrokeSize,
   computeAnchoredScrollPosition,
   computeFitWidthZoom,
   computePinchZoomScale,
@@ -13,8 +14,10 @@ import {
   evaluateTwoFingerPinchEngagement,
   resolveAnnotatorContainerClasses,
   resolveDefaultAnnotatorToolAndWidth,
+  resolveStrokeSizeFromPreset,
   shouldStartSinglePointerBackgroundPan,
   snapClientPointToRulerEdge,
+  STROKE_SIZE_BOUNDS,
 } from './pdfAnnotations';
 
 test('capturePdfZoomAnchor selects visible page and preserves normalized focal offset', () => {
@@ -399,6 +402,24 @@ test('shouldStartSinglePointerBackgroundPan allows 1-finger scroll outside paper
     }),
     false
   );
+});
+
+test('clampStrokeSize and resolveStrokeSizeFromPreset enforce manual slider bounds for pen and highlighter', () => {
+  assert.equal(clampStrokeSize('pen', 0.2), STROKE_SIZE_BOUNDS.pen.min);
+  assert.equal(clampStrokeSize('pen', 25), STROKE_SIZE_BOUNDS.pen.max);
+  assert.equal(clampStrokeSize('pen', 4.3), 4.5);
+  assert.equal(clampStrokeSize('pen', Number.NaN), STROKE_SIZE_BOUNDS.pen.defaultSize);
+
+  assert.equal(clampStrokeSize('highlighter', 2), STROKE_SIZE_BOUNDS.highlighter.min);
+  assert.equal(clampStrokeSize('highlighter', 50), STROKE_SIZE_BOUNDS.highlighter.max);
+  assert.equal(clampStrokeSize('highlighter', 16.6), 17);
+
+  assert.equal(resolveStrokeSizeFromPreset('pen', 'fine'), 2);
+  assert.equal(resolveStrokeSizeFromPreset('pen', 'med'), 3.5);
+  assert.equal(resolveStrokeSizeFromPreset('pen', 'bold'), 6);
+  assert.equal(resolveStrokeSizeFromPreset('highlighter', 'fine'), 12);
+  assert.equal(resolveStrokeSizeFromPreset('highlighter', 'med'), 18);
+  assert.equal(resolveStrokeSizeFromPreset('highlighter', 'bold'), 26);
 });
 
 

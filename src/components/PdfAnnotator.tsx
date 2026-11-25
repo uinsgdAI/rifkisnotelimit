@@ -24,6 +24,7 @@ import {
   acquireFullscreenBodyLock,
   buildPdfByteCandidateUrls,
   capturePdfZoomAnchor,
+  clampStrokeSize,
   cloneAnnotationsMap,
   computeAnchoredScrollPosition,
   computeFitWidthZoom,
@@ -42,9 +43,11 @@ import {
   redoAnnotationHistory,
   renderStrokesToCanvas,
   resolveAnnotatorContainerClasses,
+  resolveStrokeSizeFromPreset,
   savePaperAnnotations,
   shouldStartSinglePointerBackgroundPan,
   snapClientPointToRulerEdge,
+  STROKE_SIZE_BOUNDS,
   undoAnnotationHistory,
   type AnnotationHistoryState,
   type AnnotationStroke,
@@ -56,6 +59,7 @@ import {
   type StrokeWidthPresetId,
 } from '../utils/pdfAnnotations';
 import { loadPdfDocumentFast } from '../utils/pdfJsCache';
+import { SakugaSlider } from './SakugaSlider';
 
 interface PdfAnnotatorProps {
   sourceUrl: string;
@@ -82,12 +86,6 @@ const HIGHLIGHT_COLORS = [
   { id: 'cyan', label: 'Cyan Highlighter', hex: '#38bdf8' },
   { id: 'pink', label: 'Pink Highlighter', hex: '#f472b6' },
 ];
-
-const STROKE_WIDTHS = [
-  { id: 'fine', label: 'Fine', penSize: 2, hlSize: 12 },
-  { id: 'med', label: 'Medium', penSize: 3.5, hlSize: 18 },
-  { id: 'bold', label: 'Bold', penSize: 6, hlSize: 26 },
-] as const;
 
 interface PageDimension {
   pageNumber: number;
@@ -532,7 +530,12 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
   const [tool, setTool] = useState<AnnotationTool>(initialTool);
   const [penColor, setPenColor] = useState(initialPenColorHex);
   const [hlColor, setHlColor] = useState(HIGHLIGHT_COLORS[0].hex);
-  const [widthPreset, setWidthPreset] = useState<StrokeWidthPresetId>(initialWidthPreset);
+  const [penSize, setPenSize] = useState<number>(() =>
+    resolveStrokeSizeFromPreset('pen', initialWidthPreset)
+  );
+  const [hlSize, setHlSize] = useState<number>(() =>
+    resolveStrokeSizeFromPreset('highlighter', initialWidthPreset)
+  );
   const [activeExportPage, setActiveExportPage] = useState(1);
 
   const [rulerEnabled, setRulerEnabled] = useState(false);
@@ -689,13 +692,14 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     };
   }, [pdfDoc, numPages, zoom, loading, isFullscreen, isParentFullscreen, syncScrollMetrics]);
 
-  // Sync annotations map & default tool/width preset when switching papers
+  // Sync annotations map & default tool/stroke width when switching papers
   useEffect(() => {
     setHistory(createInitialAnnotationHistory(loadPaperAnnotations(paperKey)));
     setActiveExportPage(1);
     setTool(initialTool);
     setPenColor(initialPenColorHex);
-    setWidthPreset(initialWidthPreset);
+    setPenSize(resolveStrokeSizeFromPreset('pen', initialWidthPreset));
+    setHlSize(resolveStrokeSizeFromPreset('highlighter', initialWidthPreset));
   }, [paperKey, initialTool, initialPenColorHex, initialWidthPreset]);
 
   // Persist changes to localStorage
@@ -900,8 +904,13 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
   };
 
   const activeColor = tool === 'highlighter' ? hlColor : penColor;
-  const activePreset = STROKE_WIDTHS.find((w) => w.id === widthPreset) || STROKE_WIDTHS[1];
-  const activeSize = tool === 'highlighter' ? activePreset.hlSize : activePreset.penSize;
+  const activeSize = tool === 'highlighter' ? hlSize : penSize;
+  const strokeBounds =
+    tool === 'highlighter' ? STROKE_SIZE_BOUNDS.highlighter : STROKE_SIZE_BOUNDS.pen;
+  const dotPreviewPx =
+    tool === 'highlighter'
+      ? Math.max(6, Math.min(18, Math.round(hlSize * 0.5)))
+      : Math.max(3, Math.min(15, Math.round(penSize * 1.35)));
   const totalStrokes = useMemo(() => countTotalStrokes(history.present), [history.present]);
 
   const pageNumbers = useMemo(
@@ -1614,7 +1623,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
 
           {/* Colors for Pen or Highlighter */}
           {(tool === 'pen' || tool === 'highlighter') && (
-            <div className="inline-flex items-center gap-1 px-1.5 py-1 bg-[#F4F3FC] border-[1.5px] border-[#DCDAF0] rounded-[11px]">
+            <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-[#F4F3FC] border-2 border-[#1D1A4A] rounded-[12px] shadow-[2px_2px_0_#B8B3FF]">
               {(tool === 'highlighter' ? HIGHLIGHT_COLORS : PEN_COLORS).map((c) => {
                 const selected = activeColor === c.hex;
                 return (
@@ -1626,10 +1635,10 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
                     onClick={() =>
                       tool === 'highlighter' ? setHlColor(c.hex) : setPenColor(c.hex)
                     }
-                    className={`w-5 h-5 rounded-md border transition-transform cursor-pointer ${
+                    className={`w-5 h-5 rounded-md border-2 transition-transform cursor-pointer ${
                       selected
-                        ? 'border-[#1D1A4A] scale-110 ring-1 ring-[#1D1A4A]'
-                        : 'border-[#B8B3FF]'
+                        ? 'border-[#1D1A4A] scale-115 shadow-[1.5px_1.5px_0_#B8B3FF]'
+                        : 'border-[#B8B3FF] hover:scale-105'
                     }`}
                     style={{ backgroundColor: c.hex }}
                   />
@@ -1638,24 +1647,49 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
             </div>
           )}
 
-          {/* Stroke Thickness */}
-          {tool !== 'eraser' && tool !== 'pan' && (
+          {/* Manual Pen / Highlighter Stroke Slider */}
+          {(tool === 'pen' || tool === 'highlighter') && (
             <div
               role="group"
-              aria-label="Stroke size"
-              className="sk-tabs inline-flex items-center"
+              aria-label={tool === 'highlighter' ? 'Highlighter stroke thickness' : 'Pen stroke thickness'}
+              className="inline-flex items-center gap-2 px-2.5 py-1 bg-[#F4F3FC] border-2 border-[#1D1A4A] rounded-[12px] shadow-[2px_2px_0_#B8B3FF]"
             >
-              {STROKE_WIDTHS.map((w) => (
-                <button
-                  key={w.id}
-                  type="button"
-                  onClick={() => setWidthPreset(w.id)}
-                  data-active={widthPreset === w.id}
-                  className="sk-tab px-2 py-1 text-[11px] font-semibold cursor-pointer whitespace-nowrap"
-                >
-                  {w.label}
-                </button>
-              ))}
+              <span
+                aria-hidden="true"
+                className="w-5 h-5 flex items-center justify-center shrink-0"
+              >
+                <span
+                  className="rounded-full block border border-[#1D1A4A]/40 transition-all duration-100"
+                  style={{
+                    width: `${dotPreviewPx}px`,
+                    height: `${dotPreviewPx}px`,
+                    backgroundColor: activeColor,
+                    opacity: tool === 'highlighter' ? 0.55 : 1,
+                  }}
+                />
+              </span>
+              <SakugaSlider
+                testId="annotator-stroke-slider"
+                size="compact"
+                variant={tool === 'highlighter' ? 'sakura' : 'indigo'}
+                min={strokeBounds.min}
+                max={strokeBounds.max}
+                step={strokeBounds.step}
+                value={activeSize}
+                ariaLabel={
+                  tool === 'highlighter' ? 'Highlighter thickness' : 'Pen thickness'
+                }
+                showValuePill={true}
+                formatValue={(v) => `${v}px`}
+                onChange={(next) => {
+                  if (tool === 'highlighter') {
+                    setHlSize(clampStrokeSize('highlighter', next));
+                  } else {
+                    setPenSize(clampStrokeSize('pen', next));
+                  }
+                }}
+                className="w-[126px] sm:w-[140px]"
+              />
             </div>
           )}
 
@@ -1685,7 +1719,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
               {paperTitle}
             </span>
           )}
-          <div className="inline-flex items-center border-[1.5px] border-[#DCDAF0] rounded-[11px] bg-white overflow-hidden">
+          <div className="inline-flex items-center border-2 border-[#1D1A4A] rounded-[12px] bg-white shadow-[2px_2px_0_#B8B3FF] overflow-hidden">
             <button
               type="button"
               onClick={() => applyButtonZoom(-0.15)}

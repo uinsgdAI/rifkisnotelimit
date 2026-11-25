@@ -3,6 +3,7 @@ import { RefreshCw } from 'lucide-react';
 import { getGraphPresetForTopic } from '../data/graphPresets';
 import type { SandboxType } from '../types/syllabus';
 import { GeoGebraGraphTool } from './GeoGebraGraphTool';
+import { SakugaSlider } from './SakugaSlider';
 
 interface TopicSandboxProps {
   type: SandboxType;
@@ -51,15 +52,13 @@ const MoneyConverterSandbox: React.FC = () => {
               {direction === 'home-to-foreign' ? `$${amount}` : `€${amount}`}
             </span>
           </div>
-          <input
+          <SakugaSlider
             id="money-amount"
-            type="range"
             min={50}
             max={2000}
             step={25}
             value={amount}
-            onChange={(e) => setAmount(Number(e.target.value))}
-            className="w-full accent-[#6D69F2]"
+            onChange={setAmount}
           />
         </div>
 
@@ -70,15 +69,13 @@ const MoneyConverterSandbox: React.FC = () => {
             </label>
             <span className="font-mono tabular-nums text-[#1D1A4A] font-bold">{rate.toFixed(2)}</span>
           </div>
-          <input
+          <SakugaSlider
             id="money-rate"
-            type="range"
             min={0.5}
             max={2.5}
             step={0.02}
             value={rate}
-            onChange={(e) => setRate(Number(e.target.value))}
-            className="w-full accent-[#6D69F2]"
+            onChange={setRate}
           />
         </div>
 
@@ -92,16 +89,15 @@ const MoneyConverterSandbox: React.FC = () => {
                 {effectivePct}%
               </span>
             </div>
-            <input
+            <SakugaSlider
               id="money-comm"
-              type="range"
+              variant="sakura"
               min={0}
               max={6}
               step={0.5}
               value={commissionPct}
               disabled={commissionStage === 'none'}
-              onChange={(e) => setCommissionPct(Number(e.target.value))}
-              className="w-full accent-[#FF5FA8]"
+              onChange={setCommissionPct}
             />
           </div>
           <button
@@ -155,15 +151,13 @@ const TrigTriangleSandbox: React.FC = () => {
             <label htmlFor="trig-opp" className="font-semibold text-[#1D1A4A]">Opposite Side (cm)</label>
             <span className="font-mono tabular-nums font-bold text-[#1D1A4A]">{opp} cm</span>
           </div>
-          <input
+          <SakugaSlider
             id="trig-opp"
-            type="range"
             min={2}
             max={15}
             step={1}
             value={opp}
-            onChange={(e) => setOpp(Number(e.target.value))}
-            className="w-full accent-[#6D69F2]"
+            onChange={setOpp}
           />
         </div>
         <div>
@@ -171,15 +165,13 @@ const TrigTriangleSandbox: React.FC = () => {
             <label htmlFor="trig-adj" className="font-semibold text-[#1D1A4A]">Adjacent Side (cm)</label>
             <span className="font-mono tabular-nums font-bold text-[#1D1A4A]">{adj} cm</span>
           </div>
-          <input
+          <SakugaSlider
             id="trig-adj"
-            type="range"
             min={2}
             max={15}
             step={1}
             value={adj}
-            onChange={(e) => setAdj(Number(e.target.value))}
-            className="w-full accent-[#6D69F2]"
+            onChange={setAdj}
           />
         </div>
         <div className="grid grid-cols-2 gap-2 text-xs font-mono sk-card-soft p-3">
@@ -245,15 +237,13 @@ const CircleTheoremSandbox: React.FC = () => {
             </label>
             <span className="font-mono tabular-nums font-bold text-[#5B57E8]">{circumAngle}°</span>
           </div>
-          <input
+          <SakugaSlider
             id="circle-theta"
-            type="range"
             min={20}
             max={75}
             step={1}
             value={circumAngle}
-            onChange={(e) => setCircumAngle(Number(e.target.value))}
-            className="w-full accent-[#6D69F2]"
+            onChange={setCircumAngle}
           />
         </div>
         <div className="space-y-2 text-xs sk-card-soft p-3.5 font-mono">
@@ -329,21 +319,21 @@ const CompoundInterestSandbox: React.FC = () => {
             <label htmlFor="ci-p" className="font-semibold text-[#1D1A4A]">Principal ($)</label>
             <span className="font-mono tabular-nums font-bold">${principal}</span>
           </div>
-          <input id="ci-p" type="range" min={200} max={5000} step={100} value={principal} onChange={(e) => setPrincipal(Number(e.target.value))} className="w-full accent-[#6D69F2]" />
+          <SakugaSlider id="ci-p" min={200} max={5000} step={100} value={principal} onChange={setPrincipal} />
         </div>
         <div>
           <div className="flex justify-between text-xs mb-1">
             <label htmlFor="ci-r" className="font-semibold text-[#1D1A4A]">Annual Rate (%)</label>
             <span className="font-mono tabular-nums font-bold">{rate}%</span>
           </div>
-          <input id="ci-r" type="range" min={1} max={20} step={1} value={rate} onChange={(e) => setRate(Number(e.target.value))} className="w-full accent-[#6D69F2]" />
+          <SakugaSlider id="ci-r" min={1} max={20} step={1} value={rate} onChange={setRate} />
         </div>
         <div>
           <div className="flex justify-between text-xs mb-1">
             <label htmlFor="ci-n" className="font-semibold text-[#1D1A4A]">Years (n)</label>
             <span className="font-mono tabular-nums font-bold">{years} yrs</span>
           </div>
-          <input id="ci-n" type="range" min={1} max={15} step={1} value={years} onChange={(e) => setYears(Number(e.target.value))} className="w-full accent-[#FF5FA8]" />
+          <SakugaSlider id="ci-n" variant="sakura" min={1} max={15} step={1} value={years} onChange={setYears} />
         </div>
       </div>
 
@@ -383,14 +373,14 @@ const ProbabilityTreeSandbox: React.FC = () => {
             <label htmlFor="prob-red" className="font-semibold text-[#1D1A4A]">Red Counters</label>
             <span className="font-mono tabular-nums font-bold">{red}</span>
           </div>
-          <input id="prob-red" type="range" min={1} max={9} step={1} value={red} onChange={(e) => setRed(Number(e.target.value))} className="w-full accent-[#FF5FA8]" />
+          <SakugaSlider id="prob-red" variant="sakura" min={1} max={9} step={1} value={red} onChange={setRed} />
         </div>
         <div>
           <div className="flex justify-between text-xs mb-1">
             <label htmlFor="prob-blue" className="font-semibold text-[#1D1A4A]">Blue Counters</label>
             <span className="font-mono tabular-nums font-bold">{blue}</span>
           </div>
-          <input id="prob-blue" type="range" min={1} max={9} step={1} value={blue} onChange={(e) => setBlue(Number(e.target.value))} className="w-full accent-[#6D69F2]" />
+          <SakugaSlider id="prob-blue" min={1} max={9} step={1} value={blue} onChange={setBlue} />
         </div>
         <button
           type="button"
@@ -433,14 +423,14 @@ const MensurationSandbox: React.FC = () => {
             <label htmlFor="mens-r" className="font-semibold text-[#1D1A4A]">Radius r (cm)</label>
             <span className="font-mono font-bold">{radius} cm</span>
           </div>
-          <input id="mens-r" type="range" min={2} max={15} step={1} value={radius} onChange={(e) => setRadius(Number(e.target.value))} className="w-full accent-[#6D69F2]" />
+          <SakugaSlider id="mens-r" min={2} max={15} step={1} value={radius} onChange={setRadius} />
         </div>
         <div>
           <div className="flex justify-between text-xs mb-1">
             <label htmlFor="mens-h" className="font-semibold text-[#1D1A4A]">Vertical Height h (cm)</label>
             <span className="font-mono font-bold">{height} cm</span>
           </div>
-          <input id="mens-h" type="range" min={3} max={20} step={1} value={height} onChange={(e) => setHeight(Number(e.target.value))} className="w-full accent-[#FF5FA8]" />
+          <SakugaSlider id="mens-h" variant="sakura" min={3} max={20} step={1} value={height} onChange={setHeight} />
         </div>
       </div>
       <div className="p-4 sk-card-soft space-y-2 text-xs font-mono">
@@ -481,14 +471,14 @@ const StandardFormSandbox: React.FC = () => {
             <label htmlFor="sf-c" className="font-semibold text-[#1D1A4A]">Raw Coefficient</label>
             <span className="font-mono font-bold">{coeff}</span>
           </div>
-          <input id="sf-c" type="range" min={0.2} max={50} step={0.2} value={coeff} onChange={(e) => setCoeff(Number(e.target.value))} className="w-full accent-[#6D69F2]" />
+          <SakugaSlider id="sf-c" min={0.2} max={50} step={0.2} value={coeff} onChange={setCoeff} />
         </div>
         <div>
           <div className="flex justify-between text-xs mb-1">
             <label htmlFor="sf-e" className="font-semibold text-[#1D1A4A]">Raw Exponent (n)</label>
             <span className="font-mono font-bold">{exp}</span>
           </div>
-          <input id="sf-e" type="range" min={-4} max={8} step={1} value={exp} onChange={(e) => setExp(Number(e.target.value))} className="w-full accent-[#FF5FA8]" />
+          <SakugaSlider id="sf-e" variant="sakura" min={-4} max={8} step={1} value={exp} onChange={setExp} />
         </div>
       </div>
       <div className="p-4 sk-card-soft space-y-2 text-xs font-mono">
