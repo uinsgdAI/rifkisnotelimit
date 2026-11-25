@@ -6,15 +6,18 @@ import {
   clampStrokeSize,
   computeAnchoredScrollPosition,
   computeFitWidthZoom,
+  computePageJumpScrollTop,
   computePinchZoomScale,
   computeScrollThumbMetrics,
   computeScrollTopFromTrackY,
   computeTwoFingerPanAndZoom,
   eraseStrokesAlongSegment,
   evaluateTwoFingerPinchEngagement,
+  nextScrollRailSide,
   resolveAnnotatorContainerClasses,
   resolveDefaultAnnotatorToolAndWidth,
   resolveStrokeSizeFromPreset,
+  shouldIgnoreSinglePointerForPalmLock,
   shouldStartSinglePointerBackgroundPan,
   snapClientPointToRulerEdge,
   STROKE_SIZE_BOUNDS,
@@ -420,6 +423,102 @@ test('clampStrokeSize and resolveStrokeSizeFromPreset enforce manual slider boun
   assert.equal(resolveStrokeSizeFromPreset('highlighter', 'fine'), 12);
   assert.equal(resolveStrokeSizeFromPreset('highlighter', 'med'), 18);
   assert.equal(resolveStrokeSizeFromPreset('highlighter', 'bold'), 26);
+});
+
+test('Palm Lock blocks accidental single-touch draw/pan while allowing S Pen, mouse, and explicit Scroll tool', () => {
+  assert.equal(
+    shouldIgnoreSinglePointerForPalmLock({
+      palmLockActive: true,
+      activeTool: 'pen',
+      pointerType: 'touch',
+    }),
+    true
+  );
+  assert.equal(
+    shouldIgnoreSinglePointerForPalmLock({
+      palmLockActive: true,
+      activeTool: 'eraser',
+      pointerType: 'touch',
+    }),
+    true
+  );
+  assert.equal(
+    shouldIgnoreSinglePointerForPalmLock({
+      palmLockActive: true,
+      activeTool: 'pen',
+      pointerType: 'pen',
+    }),
+    false
+  );
+  assert.equal(
+    shouldIgnoreSinglePointerForPalmLock({
+      palmLockActive: true,
+      activeTool: 'pen',
+      pointerType: 'mouse',
+    }),
+    false
+  );
+  assert.equal(
+    shouldIgnoreSinglePointerForPalmLock({
+      palmLockActive: true,
+      activeTool: 'pan',
+      pointerType: 'touch',
+    }),
+    false
+  );
+
+  // Margin touch cannot trigger single-finger scroll when Palm Lock is ON
+  assert.equal(
+    shouldStartSinglePointerBackgroundPan({
+      activeTool: 'pen',
+      hasDocument: true,
+      isInteractiveControl: false,
+      isInsidePaperPage: false,
+      activeTouchCount: 1,
+      isMultiTouchActive: false,
+      pointerType: 'touch',
+      button: 0,
+      palmLockActive: true,
+    }),
+    false
+  );
+});
+
+test('nextScrollRailSide cycles left -> right -> off and computePageJumpScrollTop resolves clean page positions', () => {
+  assert.equal(nextScrollRailSide('left'), 'right');
+  assert.equal(nextScrollRailSide('right'), 'off');
+  assert.equal(nextScrollRailSide('off'), 'left');
+
+  assert.equal(
+    computePageJumpScrollTop({
+      targetPage: 1,
+      numPages: 10,
+      pageTopOffsets: [20, 900, 1780],
+      scrollHeight: 9000,
+      clientHeight: 700,
+    }),
+    0
+  );
+  assert.equal(
+    computePageJumpScrollTop({
+      targetPage: 3,
+      numPages: 10,
+      pageTopOffsets: [20, 900, 1780],
+      scrollHeight: 9000,
+      clientHeight: 700,
+      topPaddingPx: 12,
+    }),
+    1768
+  );
+  assert.equal(
+    computePageJumpScrollTop({
+      targetPage: 12,
+      numPages: 5,
+      scrollHeight: 4000,
+      clientHeight: 700,
+    }),
+    3200
+  );
 });
 
 

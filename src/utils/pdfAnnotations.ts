@@ -1252,6 +1252,59 @@ export function acquireFullscreenBodyLock(): () => void {
   };
 }
 
+export type ScrollRailSide = 'left' | 'right' | 'off';
+
+export const SCROLL_RAIL_SIDE_STORAGE_KEY = 'cambridge_0580_annotator_rail_side_v1';
+export const PALM_LOCK_STORAGE_KEY = 'cambridge_0580_annotator_palm_lock_v1';
+
+export function nextScrollRailSide(current: ScrollRailSide): ScrollRailSide {
+  if (current === 'left') return 'right';
+  if (current === 'right') return 'off';
+  return 'left';
+}
+
+export function shouldIgnoreSinglePointerForPalmLock(params: {
+  palmLockActive: boolean;
+  activeTool: AnnotationTool;
+  pointerType: string;
+}): boolean {
+  const { palmLockActive, activeTool, pointerType } = params;
+  if (!palmLockActive) return false;
+  if (pointerType !== 'touch') return false;
+  return activeTool !== 'pan';
+}
+
+export function computePageJumpScrollTop(params: {
+  targetPage: number;
+  numPages: number;
+  pageTopOffsets?: number[];
+  scrollHeight: number;
+  clientHeight: number;
+  topPaddingPx?: number;
+}): number {
+  const {
+    targetPage,
+    numPages,
+    pageTopOffsets,
+    scrollHeight,
+    clientHeight,
+    topPaddingPx = 12,
+  } = params;
+  const maxScroll = Math.max(0, scrollHeight - clientHeight);
+  if (maxScroll <= 0 || numPages <= 1) return 0;
+
+  const clampedPage = Math.max(1, Math.min(numPages, Math.round(targetPage)));
+  if (clampedPage === 1) return 0;
+
+  if (pageTopOffsets && Number.isFinite(pageTopOffsets[clampedPage - 1])) {
+    const raw = pageTopOffsets[clampedPage - 1] - topPaddingPx;
+    return Math.min(maxScroll, Math.max(0, Math.round(raw)));
+  }
+
+  const ratio = (clampedPage - 1) / numPages;
+  return Math.min(maxScroll, Math.max(0, Math.round(ratio * scrollHeight)));
+}
+
 export function shouldStartSinglePointerBackgroundPan(params: {
   activeTool: AnnotationTool;
   hasDocument: boolean;
@@ -1261,6 +1314,7 @@ export function shouldStartSinglePointerBackgroundPan(params: {
   isMultiTouchActive: boolean;
   pointerType: string;
   button: number;
+  palmLockActive?: boolean;
 }): boolean {
   const {
     activeTool,
@@ -1271,11 +1325,15 @@ export function shouldStartSinglePointerBackgroundPan(params: {
     isMultiTouchActive,
     pointerType,
     button,
+    palmLockActive = false,
   } = params;
 
   if (!hasDocument || isInteractiveControl) return false;
   if (isMultiTouchActive || activeTouchCount >= 2) return false;
   if (pointerType === 'mouse' && button !== 0) return false;
+  if (palmLockActive && pointerType === 'touch' && activeTool !== 'pan') {
+    return false;
+  }
 
   if (activeTool === 'pan') return true;
   return !isInsidePaperPage;

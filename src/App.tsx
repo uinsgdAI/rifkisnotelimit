@@ -157,7 +157,7 @@ export default function App() {
         onToggleMobileMenu={() => setMobileMenuOpen((o) => !o)}
       />
 
-      <div className="flex-1 w-full min-w-0 pr-11 sm:pr-12">
+      <div className="flex-1 w-full min-w-0">
         {route.view === 'notes' && (
           <NotesView
             chapterId={activeNote.chapterId}
@@ -194,7 +194,7 @@ export default function App() {
         )}
       </div>
 
-      <footer className="border-t-[1.5px] border-[#DCDAF0] bg-white mt-12 pr-11 sm:pr-12">
+      <footer className="border-t-[1.5px] border-[#DCDAF0] bg-white mt-12">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-5 flex flex-wrap items-center justify-between gap-4 text-xs text-[#5E588C]">
           <div>
             Cambridge IGCSE Mathematics (0580) · 2025–2027 Syllabus · Free Study Notes &amp; Practice

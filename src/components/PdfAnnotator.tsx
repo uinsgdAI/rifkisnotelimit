@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import {
   Camera,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
   Eraser,
   Hand,
@@ -9,10 +11,12 @@ import {
   Loader2,
   Maximize2,
   Minimize2,
+  PanelLeft,
   Pen,
   Redo2,
   RotateCw,
   Ruler,
+  Shield,
   Trash2,
   Undo2,
   X,
@@ -28,6 +32,7 @@ import {
   cloneAnnotationsMap,
   computeAnchoredScrollPosition,
   computeFitWidthZoom,
+  computePageJumpScrollTop,
   computeScrollThumbMetrics,
   computeScrollTopFromTrackY,
   computeTwoFingerPanAndZoom,
@@ -38,13 +43,17 @@ import {
   evaluateTwoFingerPinchEngagement,
   fetchPdfBytesWithFallback,
   loadPaperAnnotations,
+  nextScrollRailSide,
   normalizePointerToPage,
+  PALM_LOCK_STORAGE_KEY,
   pushAnnotationHistory,
   redoAnnotationHistory,
   renderStrokesToCanvas,
   resolveAnnotatorContainerClasses,
   resolveStrokeSizeFromPreset,
   savePaperAnnotations,
+  SCROLL_RAIL_SIDE_STORAGE_KEY,
+  shouldIgnoreSinglePointerForPalmLock,
   shouldStartSinglePointerBackgroundPan,
   snapClientPointToRulerEdge,
   STROKE_SIZE_BOUNDS,
@@ -56,6 +65,7 @@ import {
   type PaperAnnotationsMap,
   type PdfZoomAnchor,
   type RulerClientGeometry,
+  type ScrollRailSide,
   type StrokeWidthPresetId,
 } from '../utils/pdfAnnotations';
 import { loadPdfDocumentFast } from '../utils/pdfJsCache';
@@ -106,6 +116,8 @@ interface PdfPageCanvasProps {
   scrollRootRef: React.RefObject<HTMLDivElement | null>;
   isMultiTouchActiveRef: React.MutableRefObject<boolean>;
   multiTouchSignal: number;
+  palmLock: boolean;
+  onDetectStylus?: () => void;
   getRulerGeometry: () => RulerClientGeometry | null;
   onCommitStroke: (pageNumber: number, stroke: AnnotationStroke) => void;
   onEraseSegment: (
@@ -135,6 +147,8 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
   scrollRootRef,
   isMultiTouchActiveRef,
   multiTouchSignal,
+  palmLock,
+  onDetectStylus,
   getRulerGeometry,
   onCommitStroke,
   onEraseSegment,
@@ -298,6 +312,18 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (activeTool === 'pan') return;
+    if (e.pointerType === 'pen') {
+      onDetectStylus?.();
+    }
+    if (
+      shouldIgnoreSinglePointerForPalmLock({
+        palmLockActive: palmLock,
+        activeTool,
+        pointerType: e.pointerType,
+      })
+    ) {
+      return;
+    }
     const isHardwarePenEraser =
       e.pointerType === 'pen' && (e.button === 5 || (e.buttons & 32) !== 0);
     if (e.button !== 0 && e.pointerType === 'mouse') return;
@@ -547,6 +573,27 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     thicknessPx: 42,
   });
 
+  // Right-handed ergonomic defaults: Left-edge auto-hide scroll rail + S Pen Palm Lock
+  const [railSide, setRailSide] = useState<ScrollRailSide>(() => {
+    if (typeof window === 'undefined') return 'left';
+    try {
+      const saved = window.localStorage.getItem(SCROLL_RAIL_SIDE_STORAGE_KEY);
+      if (saved === 'left' || saved === 'right' || saved === 'off') return saved;
+    } catch {
+      // ignore storage errors
+    }
+    return 'left';
+  });
+  const [palmLock, setPalmLock] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return window.localStorage.getItem(PALM_LOCK_STORAGE_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const manualPalmOverrideRef = useRef(false);
+
   const [history, setHistory] = useState<AnnotationHistoryState>(() =>
     createInitialAnnotationHistory(loadPaperAnnotations(paperKey))
   );
@@ -577,6 +624,10 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     active: false,
     grabOffsetRatio: 0.5,
   });
+  const railHideTimerRef = useRef<number | null>(null);
+  const isRailMouseHoverRef = useRef(false);
+  const lastPdfScrollTopRef = useRef(0);
+  const [isRailVisible, setIsRailVisible] = useState(false);
   const [scrollState, setScrollState] = useState({
     scrollTop: 0,
     scrollHeight: 0,
@@ -646,6 +697,29 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
 
   const scrollRafRef = useRef<number | null>(null);
 
+  const clearRailHideTimer = useCallback(() => {
+    if (railHideTimerRef.current !== null) {
+      window.clearTimeout(railHideTimerRef.current);
+      railHideTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleRailHide = useCallback(() => {
+    clearRailHideTimer();
+    railHideTimerRef.current = window.setTimeout(() => {
+      if (!draggingRailRef.current.active && !isRailMouseHoverRef.current) {
+        setIsRailVisible(false);
+      }
+      railHideTimerRef.current = null;
+    }, 1400);
+  }, [clearRailHideTimer]);
+
+  const revealRailTemporarily = useCallback(() => {
+    if (railSide === 'off') return;
+    setIsRailVisible(true);
+    scheduleRailHide();
+  }, [railSide, scheduleRailHide]);
+
   const syncScrollMetrics = useCallback(() => {
     if (scrollRafRef.current !== null) return;
     scrollRafRef.current = window.requestAnimationFrame(() => {
@@ -659,6 +733,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
         clientHeight: Math.round(el.clientHeight),
         trackHeight: track ? Math.round(track.clientHeight) : 400,
       };
+      lastPdfScrollTopRef.current = next.scrollTop;
       setScrollState((prev) =>
         prev.scrollTop === next.scrollTop &&
         prev.scrollHeight === next.scrollHeight &&
@@ -684,13 +759,59 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     return () => {
       window.cancelAnimationFrame(raf);
       window.clearTimeout(timer);
+      clearRailHideTimer();
       if (scrollRafRef.current !== null) {
         window.cancelAnimationFrame(scrollRafRef.current);
         scrollRafRef.current = null;
       }
       observer?.disconnect();
     };
-  }, [pdfDoc, numPages, zoom, loading, isFullscreen, isParentFullscreen, syncScrollMetrics]);
+  }, [pdfDoc, numPages, zoom, loading, isFullscreen, isParentFullscreen, railSide, syncScrollMetrics, clearRailHideTimer]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SCROLL_RAIL_SIDE_STORAGE_KEY, railSide);
+    } catch {
+      // ignore
+    }
+    if (railSide === 'off') {
+      setIsRailVisible(false);
+      clearRailHideTimer();
+    }
+  }, [railSide, clearRailHideTimer]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(PALM_LOCK_STORAGE_KEY, String(palmLock));
+    } catch {
+      // ignore
+    }
+  }, [palmLock]);
+
+  const handleDetectStylus = useCallback(() => {
+    if (!manualPalmOverrideRef.current) {
+      setPalmLock((prev) => (prev ? prev : true));
+    }
+  }, []);
+
+  const handleTogglePalmLock = useCallback(() => {
+    setPalmLock((prev) => {
+      const next = !prev;
+      manualPalmOverrideRef.current = !next;
+      return next;
+    });
+  }, []);
+
+  const handleCycleRailSide = useCallback(() => {
+    setRailSide((prev) => {
+      const next = nextScrollRailSide(prev);
+      if (next !== 'off') {
+        setIsRailVisible(true);
+        scheduleRailHide();
+      }
+      return next;
+    });
+  }, [scheduleRailHide]);
 
   // Sync annotations map & default tool/stroke width when switching papers
   useEffect(() => {
@@ -979,7 +1100,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
   );
 
   const handleTrackPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!thumbMetrics.canScroll) return;
+    if (!thumbMetrics.canScroll || !isRailVisible) return;
     e.preventDefault();
     const track = trackRef.current;
     if (!track) return;
@@ -999,6 +1120,8 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
       : 0.5;
 
     draggingRailRef.current = { active: true, grabOffsetRatio: grabRatio };
+    clearRailHideTimer();
+    setIsRailVisible(true);
     applyRailPointerY(e.clientY, grabRatio);
   };
 
@@ -1011,6 +1134,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
   const handleTrackPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!draggingRailRef.current.active) return;
     draggingRailRef.current.active = false;
+    scheduleRailHide();
     const track = trackRef.current;
     if (track && track.hasPointerCapture(e.pointerId)) {
       try {
@@ -1026,6 +1150,55 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     if (!container) return;
     const delta = Math.max(180, Math.round(container.clientHeight * 0.72));
     container.scrollBy({ top: direction * delta, behavior: 'smooth' });
+    revealRailTemporarily();
+  };
+
+  const jumpToPage = useCallback(
+    (targetPage: number) => {
+      const container = containerRef.current;
+      if (!container || numPages <= 0) return;
+      const pageEls = Array.from(
+        container.querySelectorAll<HTMLElement>('[data-pdf-page]')
+      );
+      const cRect = container.getBoundingClientRect();
+      const pageTopOffsets = pageEls.map(
+        (el) => el.getBoundingClientRect().top - cRect.top + container.scrollTop
+      );
+      const nextTop = computePageJumpScrollTop({
+        targetPage,
+        numPages,
+        pageTopOffsets,
+        scrollHeight: container.scrollHeight,
+        clientHeight: container.clientHeight,
+        topPaddingPx: 14,
+      });
+      container.scrollTo({ top: nextTop, behavior: 'smooth' });
+      revealRailTemporarily();
+    },
+    [numPages, revealRailTemporarily]
+  );
+
+  const handleContainerScroll = useCallback(() => {
+    const container = containerRef.current;
+    if (container) {
+      const moved = Math.abs(container.scrollTop - lastPdfScrollTopRef.current) >= 2;
+      if (moved) {
+        revealRailTemporarily();
+      }
+    }
+    syncScrollMetrics();
+  }, [revealRailTemporarily, syncScrollMetrics]);
+
+  const handleRailMouseEnter = (e: React.PointerEvent<HTMLElement>) => {
+    if (e.pointerType !== 'mouse') return;
+    isRailMouseHoverRef.current = true;
+    revealRailTemporarily();
+  };
+
+  const handleRailMouseLeave = (e: React.PointerEvent<HTMLElement>) => {
+    if (e.pointerType !== 'mouse') return;
+    isRailMouseHoverRef.current = false;
+    scheduleRailHide();
   };
 
   const captureAnchorAt = useCallback(
@@ -1165,7 +1338,15 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
   }, [isFullscreen, exitFullscreen, captureAnchorAt]);
 
   useEffect(() => {
-    if (!isFullscreen) return;
+    if (!isFullscreen) {
+      if (typeof document !== 'undefined' && document.body) {
+        delete document.body.dataset.annotatorFullscreen;
+      }
+      return;
+    }
+    if (typeof document !== 'undefined' && document.body) {
+      document.body.dataset.annotatorFullscreen = 'true';
+    }
     const releaseLock = acquireFullscreenBodyLock();
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -1188,6 +1369,9 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     document.addEventListener('fullscreenchange', onFsChange);
     return () => {
       releaseLock();
+      if (typeof document !== 'undefined' && document.body) {
+        delete document.body.dataset.annotatorFullscreen;
+      }
       window.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('fullscreenchange', onFsChange);
     };
@@ -1397,6 +1581,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
         isMultiTouchActive: isMultiTouchActiveRef.current,
         pointerType: e.pointerType,
         button: e.button,
+        palmLockActive: palmLock,
       })
     ) {
       return;
@@ -1707,17 +1892,79 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
             <Ruler className="w-3.5 h-3.5" />
             Ruler
           </button>
+
+          {/* S Pen Palm Rejection Lock (ignores accidental single-finger/palm touches while writing) */}
+          <button
+            type="button"
+            data-testid="pdf-palm-lock-btn"
+            onClick={handleTogglePalmLock}
+            aria-pressed={palmLock}
+            title={
+              palmLock
+                ? 'Palm Lock ON: S Pen & mouse draw; 1-finger/palm touch blocked (2-finger scroll/zoom still works)'
+                : 'Enable Palm Lock when writing with S Pen so your right palm cannot scroll or draw dots'
+            }
+            className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-[11px] cursor-pointer whitespace-nowrap ${
+              palmLock
+                ? 'bg-[#FFF5FA] border-2 border-[#1D1A4A] text-[#1D1A4A] shadow-[2px_2px_0_#FF5FA8]'
+                : 'sk-btn-subtle'
+            }`}
+          >
+            <Shield className="w-3.5 h-3.5" />
+            Palm Lock
+          </button>
+
+          {/* Scroll Rail Placement (Left default for right-handed users, Right, or Off) */}
+          <button
+            type="button"
+            data-testid="pdf-rail-mode-btn"
+            onClick={handleCycleRailSide}
+            title="Switch auto-hide scroll rail side (Left is best for right-handed S Pen writers)"
+            className="sk-btn-subtle inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold cursor-pointer whitespace-nowrap"
+          >
+            <PanelLeft className="w-3.5 h-3.5" />
+            {railSide === 'left' ? 'Rail: Left' : railSide === 'right' ? 'Rail: Right' : 'Rail: Off'}
+          </button>
         </div>
 
-        {/* History, Zoom, Export, and Fullscreen Controls */}
+        {/* Page Stepper, History, Zoom, Export, and Fullscreen Controls */}
         <div className="flex flex-wrap items-center gap-1.5">
           {isFullscreen && (
             <span
               title={paperTitle}
-              className="hidden sm:inline-block max-w-[190px] truncate px-2 py-0.5 text-[11px] font-mono font-semibold text-[#5E588C] bg-[#F4F3FC] border border-[#DCDAF0] rounded-lg"
+              className="hidden lg:inline-block max-w-[190px] truncate px-2 py-0.5 text-[11px] font-mono font-semibold text-[#5E588C] bg-[#F4F3FC] border border-[#DCDAF0] rounded-lg"
             >
               {paperTitle}
             </span>
+          )}
+          {numPages > 1 && (
+            <div className="inline-flex items-center border-2 border-[#1D1A4A] rounded-[12px] bg-white shadow-[2px_2px_0_#B8B3FF] overflow-hidden">
+              <button
+                type="button"
+                data-testid="pdf-prev-page-btn"
+                onClick={() => jumpToPage(visiblePage - 1)}
+                disabled={visiblePage <= 1}
+                aria-label="Previous PDF page"
+                title="Previous page (one-tap jump without edge scrollbar)"
+                className="p-1.5 text-[#1D1A4A] hover:bg-[#F4F3FC] disabled:opacity-35 cursor-pointer disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <span className="px-1.5 text-[11px] font-mono tabular-nums font-bold text-[#1D1A4A] border-x border-[#DCDAF0]">
+                {visiblePage}/{numPages}
+              </span>
+              <button
+                type="button"
+                data-testid="pdf-next-page-btn"
+                onClick={() => jumpToPage(visiblePage + 1)}
+                disabled={visiblePage >= numPages}
+                aria-label="Next PDF page"
+                title="Next page (one-tap jump without edge scrollbar)"
+                className="p-1.5 text-[#1D1A4A] hover:bg-[#F4F3FC] disabled:opacity-35 cursor-pointer disabled:cursor-not-allowed"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
           )}
           <div className="inline-flex items-center border-2 border-[#1D1A4A] rounded-[12px] bg-white shadow-[2px_2px_0_#B8B3FF] overflow-hidden">
             <button
@@ -1787,7 +2034,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
             className="sk-btn-subtle inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold disabled:opacity-40 cursor-pointer whitespace-nowrap"
           >
             <Camera className="w-3.5 h-3.5" />
-            Save Page PNG
+            Save PNG
           </button>
           <button
             type="button"
@@ -1802,7 +2049,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
             {isFullscreen ? (
               <>
                 <Minimize2 className="w-3.5 h-3.5" />
-                Exit Fullscreen
+                Exit FS
               </>
             ) : (
               <>
@@ -1827,7 +2074,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
           <div
             ref={containerRef}
             data-testid="pdf-scroll-container"
-            onScroll={syncScrollMetrics}
+            onScroll={handleContainerScroll}
             onPointerDown={handleContainerPointerDown}
             onPointerMove={handleContainerPointerMove}
             onPointerUp={handleContainerPointerEnd}
@@ -1838,7 +2085,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
               WebkitTouchCallout: 'none',
             }}
             className={`w-full ${layout.scrollContainerClass} overflow-auto bg-[#EBE9F9]/75 pdf-annotator-scroll ${
-              layout.isImmersive ? 'px-2 sm:px-6 py-4' : 'px-5 sm:px-8 py-5'
+              layout.isImmersive ? 'px-2 sm:px-6 py-4' : 'px-4 sm:px-7 py-5'
             } ${
               pdfDoc && !errorMsg ? 'cursor-grab active:cursor-grabbing' : ''
             }`}
@@ -1928,6 +2175,8 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
                     scrollRootRef={containerRef}
                     isMultiTouchActiveRef={isMultiTouchActiveRef}
                     multiTouchSignal={multiTouchSignal}
+                    palmLock={palmLock}
+                    onDetectStylus={handleDetectStylus}
                     getRulerGeometry={getRulerGeometry}
                     onCommitStroke={handleCommitStroke}
                     onEraseSegment={handleEraseSegment}
@@ -2041,77 +2290,99 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
               </div>
             </div>
           )}
-        </div>
 
-        {/* Dedicated 44px-wide Touch/Mouse PDF Scroll Rail — prevents long-press context menu */}
-        <div
-          data-testid="pdf-scroll-rail"
-          aria-label="PDF page scroll bar"
-          onContextMenu={preventContextMenu}
-          style={{
-            touchAction: 'none',
-            WebkitTouchCallout: 'none',
-            WebkitUserSelect: 'none',
-            userSelect: 'none',
-          }}
-          className="w-11 shrink-0 bg-[#FAF9FF] border-l-[1.5px] border-[#DCDAF0] flex flex-col items-center select-none"
-        >
-          <button
-            type="button"
-            onClick={() => stepScroll(-1)}
-            onContextMenu={preventContextMenu}
-            disabled={!thumbMetrics.canScroll}
-            aria-label="Scroll PDF up"
-            className="w-full h-11 flex items-center justify-center text-[#1D1A4A] hover:bg-[#F4F3FC] active:bg-[#E7E5FA] border-b-[1.5px] border-[#DCDAF0] disabled:opacity-40 cursor-pointer disabled:cursor-default"
-          >
-            <ChevronUp className="w-5 h-5" />
-          </button>
-
-          <div
-            ref={trackRef}
-            onPointerDown={handleTrackPointerDown}
-            onPointerMove={handleTrackPointerMove}
-            onPointerUp={handleTrackPointerUp}
-            onPointerCancel={handleTrackPointerUp}
-            onContextMenu={preventContextMenu}
-            style={{
-              touchAction: 'none',
-              WebkitTouchCallout: 'none',
-              WebkitUserSelect: 'none',
-              userSelect: 'none',
-            }}
-            className="relative flex-1 w-full bg-[#F4F3FC] cursor-pointer"
-          >
-            {thumbMetrics.canScroll ? (
+          {/* Auto-Hiding Floating PDF Scroll Rail Overlay (Left-side default for right-handed writers) */}
+          {railSide !== 'off' && thumbMetrics.canScroll && (
+            <>
               <div
-                data-testid="pdf-scroll-thumb"
+                aria-hidden="true"
+                onPointerEnter={handleRailMouseEnter}
+                className={`hidden md:block absolute top-3 bottom-3 w-3 z-10 ${
+                  railSide === 'left' ? 'left-0' : 'right-0'
+                }`}
+              />
+              <div
+                data-testid="pdf-scroll-rail"
+                data-visible={isRailVisible ? 'true' : 'false'}
+                data-rail-side={railSide}
+                aria-label="PDF page scroll bar"
+                aria-hidden={!isRailVisible}
+                onPointerEnter={handleRailMouseEnter}
+                onPointerLeave={handleRailMouseLeave}
+                onContextMenu={preventContextMenu}
                 style={{
-                  height: `${thumbMetrics.thumbHeight}px`,
-                  transform: `translateY(${thumbMetrics.thumbTop}px)`,
+                  touchAction: 'none',
+                  WebkitTouchCallout: 'none',
+                  WebkitUserSelect: 'none',
+                  userSelect: 'none',
                 }}
-                className="absolute inset-x-1.5 top-0 rounded-lg bg-[#6D69F2] hover:bg-[#5B57E8] border-[1.5px] border-[#1D1A4A] shadow-[2px_2px_0_#B8B3FF] flex flex-col items-center justify-center gap-1 pointer-events-none transition-colors"
+                className={`absolute top-3 bottom-3 z-20 w-9 sm:w-10 rounded-[14px] border-2 border-[#1D1A4A] bg-white/95 backdrop-blur-xs shadow-[3px_3px_0_#B8B3FF] flex flex-col items-center overflow-hidden select-none transition-all duration-200 ${
+                  railSide === 'left' ? 'left-2' : 'right-2'
+                } ${
+                  isRailVisible
+                    ? 'opacity-100 translate-x-0 pointer-events-auto'
+                    : railSide === 'left'
+                      ? 'opacity-0 -translate-x-2 pointer-events-none'
+                      : 'opacity-0 translate-x-2 pointer-events-none'
+                }`}
               >
-                <span className="w-4 h-0.5 rounded-full bg-white/85" />
-                <span className="text-[9px] font-mono font-semibold text-white leading-none tabular-nums">
-                  P{visiblePage}
-                </span>
-                <span className="w-4 h-0.5 rounded-full bg-white/85" />
-              </div>
-            ) : (
-              <div className="absolute inset-x-2 inset-y-2 rounded-lg bg-[#DCDAF0]/70" />
-            )}
-          </div>
+                <button
+                  type="button"
+                  tabIndex={isRailVisible ? 0 : -1}
+                  onClick={() => stepScroll(-1)}
+                  onContextMenu={preventContextMenu}
+                  disabled={!thumbMetrics.canScroll}
+                  aria-label="Scroll PDF up"
+                  className="w-full h-10 flex items-center justify-center text-[#1D1A4A] hover:bg-[#F4F3FC] active:bg-[#E7E5FA] border-b-[1.5px] border-[#DCDAF0] disabled:opacity-40 cursor-pointer disabled:cursor-default"
+                >
+                  <ChevronUp className="w-4 h-4" />
+                </button>
 
-          <button
-            type="button"
-            onClick={() => stepScroll(1)}
-            onContextMenu={preventContextMenu}
-            disabled={!thumbMetrics.canScroll}
-            aria-label="Scroll PDF down"
-            className="w-full h-11 flex items-center justify-center text-[#1D1A4A] hover:bg-[#F4F3FC] active:bg-[#E7E5FA] border-t-[1.5px] border-[#DCDAF0] disabled:opacity-40 cursor-pointer disabled:cursor-default"
-          >
-            <ChevronDown className="w-5 h-5" />
-          </button>
+                <div
+                  ref={trackRef}
+                  onPointerDown={handleTrackPointerDown}
+                  onPointerMove={handleTrackPointerMove}
+                  onPointerUp={handleTrackPointerUp}
+                  onPointerCancel={handleTrackPointerUp}
+                  onContextMenu={preventContextMenu}
+                  style={{
+                    touchAction: 'none',
+                    WebkitTouchCallout: 'none',
+                    WebkitUserSelect: 'none',
+                    userSelect: 'none',
+                  }}
+                  className="relative flex-1 w-full bg-[#F4F3FC] cursor-pointer"
+                >
+                  <div
+                    data-testid="pdf-scroll-thumb"
+                    style={{
+                      height: `${thumbMetrics.thumbHeight}px`,
+                      transform: `translateY(${thumbMetrics.thumbTop}px)`,
+                    }}
+                    className="absolute inset-x-1 top-0 rounded-lg bg-[#6D69F2] hover:bg-[#5B57E8] border-[1.5px] border-[#1D1A4A] shadow-[2px_2px_0_#B8B3FF] flex flex-col items-center justify-center gap-1 pointer-events-none transition-colors"
+                  >
+                    <span className="w-3.5 h-0.5 rounded-full bg-white/85" />
+                    <span className="text-[9px] font-mono font-semibold text-white leading-none tabular-nums">
+                      P{visiblePage}
+                    </span>
+                    <span className="w-3.5 h-0.5 rounded-full bg-white/85" />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  tabIndex={isRailVisible ? 0 : -1}
+                  onClick={() => stepScroll(1)}
+                  onContextMenu={preventContextMenu}
+                  disabled={!thumbMetrics.canScroll}
+                  aria-label="Scroll PDF down"
+                  className="w-full h-10 flex items-center justify-center text-[#1D1A4A] hover:bg-[#F4F3FC] active:bg-[#E7E5FA] border-t-[1.5px] border-[#DCDAF0] disabled:opacity-40 cursor-pointer disabled:cursor-default"
+                >
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -2123,7 +2394,11 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
       >
         <span>
           {numPages > 0
-            ? `Page ${visiblePage}/${numPages} · 1-finger outside paper (2-finger inside) to scroll · Slide Eraser`
+            ? palmLock
+              ? `Page ${visiblePage}/${numPages} · Palm Lock ON (S Pen draws · 2-finger scroll/zoom · ‹ › to jump pages)`
+              : `Page ${visiblePage}/${numPages} · 2-finger scroll/zoom · Use ‹ › page buttons or auto-hide ${
+                  railSide === 'off' ? 'off' : `${railSide}`
+                } rail`
             : 'Preparing PDF canvas'}
         </span>
         <span className="font-mono tabular-nums">
