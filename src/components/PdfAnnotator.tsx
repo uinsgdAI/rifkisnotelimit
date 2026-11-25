@@ -32,7 +32,7 @@ import {
   computeTwoFingerPanAndZoom,
   countTotalStrokes,
   createInitialAnnotationHistory,
-  eraseStrokesNearPoint,
+  eraseStrokesAlongSegment,
   estimateVisiblePage,
   evaluateTwoFingerPinchEngagement,
   fetchPdfBytesWithFallback,
@@ -43,11 +43,14 @@ import {
   renderStrokesToCanvas,
   resolveAnnotatorContainerClasses,
   savePaperAnnotations,
+  shouldStartSinglePointerBackgroundPan,
   snapClientPointToRulerEdge,
   undoAnnotationHistory,
   type AnnotationHistoryState,
   type AnnotationStroke,
   type AnnotationTool,
+  type NormalizedPoint,
+  type PaperAnnotationsMap,
   type PdfZoomAnchor,
   type RulerClientGeometry,
   type StrokeWidthPresetId,
@@ -107,7 +110,12 @@ interface PdfPageCanvasProps {
   multiTouchSignal: number;
   getRulerGeometry: () => RulerClientGeometry | null;
   onCommitStroke: (pageNumber: number, stroke: AnnotationStroke) => void;
-  onEraseAtPoint: (pageNumber: number, point: { x: number; y: number }) => void;
+  onEraseSegment: (
+    pageNumber: number,
+    fromPoint: NormalizedPoint,
+    toPoint: NormalizedPoint,
+    beginSession: boolean
+  ) => void;
   registerCanvases: (
     pageNumber: number,
     refs: { pdfCanvas: HTMLCanvasElement | null; drawCanvas: HTMLCanvasElement | null }
@@ -131,7 +139,7 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
   multiTouchSignal,
   getRulerGeometry,
   onCommitStroke,
-  onEraseAtPoint,
+  onEraseSegment,
   registerCanvases,
 }) => {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -140,6 +148,9 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
   const liveStrokeRef = useRef<AnnotationStroke | null>(null);
   const snappedEdgeRef = useRef<'top' | 'bottom' | null>(null);
   const isDrawingRef = useRef(false);
+  const activeEraseModeRef = useRef(false);
+  const lastErasePointRef = useRef<NormalizedPoint | null>(null);
+  const liveEraseCursorRef = useRef<NormalizedPoint | null>(null);
   const [renderedDims, setRenderedDims] = useState<{ width: number; height: number } | null>(null);
   const [isNearViewport, setIsNearViewport] = useState<boolean>(pageNumber <= 2);
 
@@ -253,6 +264,21 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
 
     const all = liveStrokeRef.current ? [...strokes, liveStrokeRef.current] : strokes;
     renderStrokesToCanvas(ctx, all, cssWidth, cssHeight, scale);
+
+    if (liveEraseCursorRef.current) {
+      const ex = liveEraseCursorRef.current.x * cssWidth;
+      const ey = liveEraseCursorRef.current.y * cssHeight;
+      const radiusPx = Math.max(10, Math.round(cssWidth * 0.024));
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(ex, ey, radiusPx, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 95, 168, 0.14)';
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = 'rgba(192, 38, 107, 0.85)';
+      ctx.stroke();
+      ctx.restore();
+    }
   }, [strokes, scale, isNearViewport]);
 
   useEffect(() => {
@@ -261,8 +287,11 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
 
   useEffect(() => {
     if (multiTouchSignal === 0) return;
-    if (isDrawingRef.current || liveStrokeRef.current) {
+    if (isDrawingRef.current || liveStrokeRef.current || activeEraseModeRef.current) {
       isDrawingRef.current = false;
+      activeEraseModeRef.current = false;
+      lastErasePointRef.current = null;
+      liveEraseCursorRef.current = null;
       liveStrokeRef.current = null;
       snappedEdgeRef.current = null;
       redrawOverlay();
@@ -271,10 +300,15 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (activeTool === 'pan') return;
+    const isHardwarePenEraser =
+      e.pointerType === 'pen' && (e.button === 5 || (e.buttons & 32) !== 0);
     if (e.button !== 0 && e.pointerType === 'mouse') return;
 
     if (isMultiTouchActiveRef.current) {
       isDrawingRef.current = false;
+      activeEraseModeRef.current = false;
+      lastErasePointRef.current = null;
+      liveEraseCursorRef.current = null;
       liveStrokeRef.current = null;
       snappedEdgeRef.current = null;
       redrawOverlay();
@@ -291,10 +325,14 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
 
     const rect = canvas.getBoundingClientRect();
 
-    if (activeTool === 'eraser') {
+    if (activeTool === 'eraser' || isHardwarePenEraser) {
       const point = normalizePointerToPage(e.clientX, e.clientY, rect);
       isDrawingRef.current = true;
-      onEraseAtPoint(pageNumber, point);
+      activeEraseModeRef.current = true;
+      lastErasePointRef.current = point;
+      liveEraseCursorRef.current = point;
+      onEraseSegment(pageNumber, point, point, true);
+      redrawOverlay();
       return;
     }
 
@@ -311,6 +349,7 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
     );
 
     isDrawingRef.current = true;
+    activeEraseModeRef.current = false;
     liveStrokeRef.current = {
       id: `s-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       tool: activeTool,
@@ -323,8 +362,11 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (isMultiTouchActiveRef.current) {
-      if (isDrawingRef.current) {
+      if (isDrawingRef.current || activeEraseModeRef.current) {
         isDrawingRef.current = false;
+        activeEraseModeRef.current = false;
+        lastErasePointRef.current = null;
+        liveEraseCursorRef.current = null;
         liveStrokeRef.current = null;
         snappedEdgeRef.current = null;
         redrawOverlay();
@@ -338,9 +380,21 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
 
     const rect = canvas.getBoundingClientRect();
 
-    if (activeTool === 'eraser') {
-      const point = normalizePointerToPage(e.clientX, e.clientY, rect);
-      onEraseAtPoint(pageNumber, point);
+    if (activeEraseModeRef.current || activeTool === 'eraser') {
+      const nativeEv = e.nativeEvent as PointerEvent;
+      const coalesced =
+        typeof nativeEv.getCoalescedEvents === 'function' ? nativeEv.getCoalescedEvents() : null;
+      const samples = coalesced && coalesced.length > 0 ? coalesced : [nativeEv];
+      let prevPt =
+        lastErasePointRef.current ?? normalizePointerToPage(e.clientX, e.clientY, rect);
+      for (const sample of samples) {
+        const pt = normalizePointerToPage(sample.clientX, sample.clientY, rect);
+        onEraseSegment(pageNumber, prevPt, pt, false);
+        prevPt = pt;
+      }
+      lastErasePointRef.current = prevPt;
+      liveEraseCursorRef.current = prevPt;
+      redrawOverlay();
       return;
     }
 
@@ -383,8 +437,19 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
     }
 
     if (isMultiTouchActiveRef.current) {
+      activeEraseModeRef.current = false;
+      lastErasePointRef.current = null;
+      liveEraseCursorRef.current = null;
       liveStrokeRef.current = null;
       snappedEdgeRef.current = null;
+      redrawOverlay();
+      return;
+    }
+
+    if (activeEraseModeRef.current) {
+      activeEraseModeRef.current = false;
+      lastErasePointRef.current = null;
+      liveEraseCursorRef.current = null;
       redrawOverlay();
       return;
     }
@@ -740,36 +805,65 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     []
   );
 
+  const liveAnnotationsRef = useRef<PaperAnnotationsMap>(history.present);
+  useEffect(() => {
+    liveAnnotationsRef.current = history.present;
+  }, [history.present]);
+  const eraseGestureHasPushedRef = useRef(false);
+
   const handleCommitStroke = useCallback((pageNumber: number, stroke: AnnotationStroke) => {
     setActiveExportPage(pageNumber);
-    setHistory((prev) => {
-      const nextMap = cloneAnnotationsMap(prev.present);
-      nextMap[pageNumber] = [...(nextMap[pageNumber] || []), stroke];
-      return pushAnnotationHistory(prev, nextMap);
-    });
+    const nextMap = cloneAnnotationsMap(liveAnnotationsRef.current);
+    nextMap[pageNumber] = [...(nextMap[pageNumber] || []), stroke];
+    liveAnnotationsRef.current = nextMap;
+    setHistory((prev) => pushAnnotationHistory(prev, nextMap));
   }, []);
 
-  const handleEraseAtPoint = useCallback(
-    (pageNumber: number, point: { x: number; y: number }) => {
-      setHistory((prev) => {
-        const currentList = prev.present[pageNumber] || [];
-        if (currentList.length === 0) return prev;
-        const { remaining, removedAny } = eraseStrokesNearPoint(currentList, point, 0.022);
-        if (!removedAny) return prev;
-        const nextMap = cloneAnnotationsMap(prev.present);
-        if (remaining.length === 0) {
-          delete nextMap[pageNumber];
-        } else {
-          nextMap[pageNumber] = remaining;
-        }
-        return pushAnnotationHistory(prev, nextMap);
-      });
+  const handleEraseSegment = useCallback(
+    (
+      pageNumber: number,
+      fromPoint: NormalizedPoint,
+      toPoint: NormalizedPoint,
+      beginSession: boolean
+    ) => {
+      if (beginSession) {
+        eraseGestureHasPushedRef.current = false;
+      }
+      const currentList = liveAnnotationsRef.current[pageNumber] || [];
+      if (currentList.length === 0) return;
+
+      const { remaining, removedAny } = eraseStrokesAlongSegment(
+        currentList,
+        fromPoint,
+        toPoint,
+        0.024
+      );
+      if (!removedAny) return;
+
+      const nextMap = cloneAnnotationsMap(liveAnnotationsRef.current);
+      if (remaining.length === 0) {
+        delete nextMap[pageNumber];
+      } else {
+        nextMap[pageNumber] = remaining;
+      }
+      liveAnnotationsRef.current = nextMap;
+
+      if (!eraseGestureHasPushedRef.current) {
+        eraseGestureHasPushedRef.current = true;
+        setHistory((prev) => pushAnnotationHistory(prev, nextMap));
+      } else {
+        setHistory((prev) => ({
+          ...prev,
+          present: cloneAnnotationsMap(nextMap),
+        }));
+      }
     },
     []
   );
 
   const handleClearAll = () => {
     if (countTotalStrokes(history.present) === 0) return;
+    liveAnnotationsRef.current = {};
     setHistory((prev) => pushAnnotationHistory(prev, {}));
   };
 
@@ -1237,45 +1331,67 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     }
   };
 
+  const releaseTouchPointer = useCallback(
+    (pointerId: number) => {
+      if (!activeTouchPointersRef.current.has(pointerId)) return;
+      activeTouchPointersRef.current.delete(pointerId);
+
+      if (activeTouchPointersRef.current.size < 2) {
+        const session = twoFingerSessionRef.current;
+        if (session.active) {
+          if (session.pinchEngaged) {
+            const anchor = captureAnchorAt(session.lastMidX, session.lastMidY);
+            if (anchor) {
+              pendingScrollAnchorRef.current = anchor;
+            }
+            const committedZoom = Number(session.targetZoom.toFixed(2));
+            setPinchPreview({ scale: 1, tx: 0, ty: 0 });
+            setZoom(committedZoom);
+            setZoomCommitSeq((s) => s + 1);
+          }
+          session.active = false;
+          session.pinchEngaged = false;
+          session.movedPointerIds.clear();
+          session.pendingPinchSinceMs = null;
+        }
+        if (activeTouchPointersRef.current.size === 0) {
+          window.setTimeout(() => {
+            if (activeTouchPointersRef.current.size === 0) {
+              isMultiTouchActiveRef.current = false;
+            }
+          }, 0);
+        }
+      }
+    },
+    [captureAnchorAt]
+  );
+
   const handleViewportPointerEndCapture = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.pointerType !== 'touch') return;
-    activeTouchPointersRef.current.delete(e.pointerId);
-
-    if (activeTouchPointersRef.current.size < 2) {
-      const session = twoFingerSessionRef.current;
-      if (session.active) {
-        if (session.pinchEngaged) {
-          const anchor = captureAnchorAt(session.lastMidX, session.lastMidY);
-          if (anchor) {
-            pendingScrollAnchorRef.current = anchor;
-          }
-          const committedZoom = Number(session.targetZoom.toFixed(2));
-          setPinchPreview({ scale: 1, tx: 0, ty: 0 });
-          setZoom(committedZoom);
-          setZoomCommitSeq((s) => s + 1);
-        }
-        session.active = false;
-        session.pinchEngaged = false;
-        session.movedPointerIds.clear();
-        session.pendingPinchSinceMs = null;
-      }
-      if (activeTouchPointersRef.current.size === 0) {
-        window.setTimeout(() => {
-          if (activeTouchPointersRef.current.size === 0) {
-            isMultiTouchActiveRef.current = false;
-          }
-        }, 0);
-      }
-    }
+    releaseTouchPointer(e.pointerId);
   };
 
-  // Single-finger / mouse drag 2D pan inside container when Scroll ('pan') tool is active
+  // Single-finger / mouse drag 2D pan: always allowed outside the paper (background/margins),
+  // and inside the paper when Scroll ('pan') tool is active; inside paper with drawing tools requires 2 fingers.
   const handleContainerPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (tool !== 'pan' || !pdfDoc || errorMsg) return;
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    if (activeTouchPointersRef.current.size >= 2 || isMultiTouchActiveRef.current) return;
     const target = e.target as HTMLElement | null;
-    if (target?.closest('button, a, input, select')) return;
+    const isInteractiveControl = Boolean(target?.closest('button, a, input, select'));
+    const isInsidePaperPage = Boolean(target?.closest('[data-pdf-page]'));
+
+    if (
+      !shouldStartSinglePointerBackgroundPan({
+        activeTool: tool,
+        hasDocument: Boolean(pdfDoc && !errorMsg),
+        isInteractiveControl,
+        isInsidePaperPage,
+        activeTouchCount: activeTouchPointersRef.current.size,
+        isMultiTouchActive: isMultiTouchActiveRef.current,
+        pointerType: e.pointerType,
+        button: e.button,
+      })
+    ) {
+      return;
+    }
 
     const container = containerRef.current;
     if (!container) return;
@@ -1308,6 +1424,38 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
       singlePanRef.current.active = false;
     }
   };
+
+  useEffect(() => {
+    const onWindowPointerMove = (e: PointerEvent) => {
+      const pan = singlePanRef.current;
+      if (!pan.active || pan.pointerId !== e.pointerId) return;
+      if (isMultiTouchActiveRef.current || activeTouchPointersRef.current.size >= 2) {
+        pan.active = false;
+        return;
+      }
+      const container = containerRef.current;
+      if (!container) return;
+      container.scrollLeft = pan.startScrollLeft - (e.clientX - pan.startX);
+      container.scrollTop = pan.startScrollTop - (e.clientY - pan.startY);
+      syncScrollMetrics();
+    };
+    const onWindowPointerUp = (e: PointerEvent) => {
+      if (singlePanRef.current.pointerId === e.pointerId) {
+        singlePanRef.current.active = false;
+      }
+      if (e.pointerType === 'touch') {
+        releaseTouchPointer(e.pointerId);
+      }
+    };
+    window.addEventListener('pointermove', onWindowPointerMove);
+    window.addEventListener('pointerup', onWindowPointerUp);
+    window.addEventListener('pointercancel', onWindowPointerUp);
+    return () => {
+      window.removeEventListener('pointermove', onWindowPointerMove);
+      window.removeEventListener('pointerup', onWindowPointerUp);
+      window.removeEventListener('pointercancel', onWindowPointerUp);
+    };
+  }, [syncScrollMetrics, releaseTouchPointer]);
 
   // Ruler drag & rotate handlers
   const handleRulerBodyPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -1658,7 +1806,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
             className={`w-full ${layout.scrollContainerClass} overflow-auto bg-[#EBE9F9]/75 pdf-annotator-scroll ${
               layout.isImmersive ? 'px-2 sm:px-6 py-4' : 'px-5 sm:px-8 py-5'
             } ${
-              tool === 'pan' && pdfDoc && !errorMsg ? 'cursor-grab active:cursor-grabbing' : ''
+              pdfDoc && !errorMsg ? 'cursor-grab active:cursor-grabbing' : ''
             }`}
           >
             {loading && (
@@ -1748,7 +1896,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
                     multiTouchSignal={multiTouchSignal}
                     getRulerGeometry={getRulerGeometry}
                     onCommitStroke={handleCommitStroke}
-                    onEraseAtPoint={handleEraseAtPoint}
+                    onEraseSegment={handleEraseSegment}
                     registerCanvases={registerCanvases}
                   />
                 ))}
@@ -1941,7 +2089,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
       >
         <span>
           {numPages > 0
-            ? `Page ${visiblePage} of ${numPages} · 2 fingers to pan/scroll or pinch-zoom · Use right PDF rail or Ruler`
+            ? `Page ${visiblePage}/${numPages} · 1-finger outside paper (2-finger inside) to scroll · Slide Eraser`
             : 'Preparing PDF canvas'}
         </span>
         <span className="font-mono tabular-nums">

@@ -9,9 +9,11 @@ import {
   computeScrollThumbMetrics,
   computeScrollTopFromTrackY,
   computeTwoFingerPanAndZoom,
+  eraseStrokesAlongSegment,
   evaluateTwoFingerPinchEngagement,
   resolveAnnotatorContainerClasses,
   resolveDefaultAnnotatorToolAndWidth,
+  shouldStartSinglePointerBackgroundPan,
   snapClientPointToRulerEdge,
 } from './pdfAnnotations';
 
@@ -273,5 +275,131 @@ test('resolveAnnotatorContainerClasses switches cleanly between inline, parent s
   release();
   release();
 });
+
+test('eraseStrokesAlongSegment erases strokes crossed by fast slide gestures without requiring endpoint proximity', () => {
+  const strokes = [
+    {
+      id: 'vertical-stroke',
+      tool: 'pen' as const,
+      color: '#1d4ed8',
+      size: 2,
+      points: [
+        { x: 0.5, y: 0.2 },
+        { x: 0.5, y: 0.8 },
+      ],
+    },
+    {
+      id: 'untouched-stroke',
+      tool: 'pen' as const,
+      color: '#0f172a',
+      size: 2,
+      points: [
+        { x: 0.1, y: 0.1 },
+        { x: 0.2, y: 0.15 },
+      ],
+    },
+    {
+      id: 'thick-highlighter',
+      tool: 'highlighter' as const,
+      color: '#facc15',
+      size: 26,
+      points: [
+        { x: 0.3, y: 0.9 },
+        { x: 0.7, y: 0.9 },
+      ],
+    },
+  ];
+
+  // Fast swipe jumps across x=0.5 from x=0.2 to x=0.8 (neither endpoint is within 0.024 of x=0.5)
+  const fastSwipe = eraseStrokesAlongSegment(
+    strokes,
+    { x: 0.2, y: 0.45 },
+    { x: 0.8, y: 0.55 },
+    0.024
+  );
+  assert.equal(fastSwipe.removedAny, true);
+  assert.deepEqual(
+    fastSwipe.remaining.map((s) => s.id),
+    ['untouched-stroke', 'thick-highlighter']
+  );
+
+  // Sliding along edge of bold highlighter also erases it cleanly
+  const hlSwipe = eraseStrokesAlongSegment(
+    fastSwipe.remaining,
+    { x: 0.45, y: 0.865 },
+    { x: 0.55, y: 0.865 },
+    0.024
+  );
+  assert.equal(hlSwipe.removedAny, true);
+  assert.deepEqual(
+    hlSwipe.remaining.map((s) => s.id),
+    ['untouched-stroke']
+  );
+});
+
+test('shouldStartSinglePointerBackgroundPan allows 1-finger scroll outside paper while requiring 2 fingers inside paper during draw/erase', () => {
+  // Outside paper (background / margin / inter-page gap): 1 finger scrolls even when Pen/Eraser is active
+  for (const activeTool of ['pen', 'highlighter', 'eraser', 'pan'] as const) {
+    assert.equal(
+      shouldStartSinglePointerBackgroundPan({
+        activeTool,
+        hasDocument: true,
+        isInteractiveControl: false,
+        isInsidePaperPage: false,
+        activeTouchCount: 1,
+        isMultiTouchActive: false,
+        pointerType: 'touch',
+        button: 0,
+      }),
+      true
+    );
+  }
+
+  // Inside paper: 1 finger draws/erases (does NOT pan) unless Scroll ('pan') tool is active
+  for (const activeTool of ['pen', 'highlighter', 'eraser'] as const) {
+    assert.equal(
+      shouldStartSinglePointerBackgroundPan({
+        activeTool,
+        hasDocument: true,
+        isInteractiveControl: false,
+        isInsidePaperPage: true,
+        activeTouchCount: 1,
+        isMultiTouchActive: false,
+        pointerType: 'touch',
+        button: 0,
+      }),
+      false
+    );
+  }
+  assert.equal(
+    shouldStartSinglePointerBackgroundPan({
+      activeTool: 'pan',
+      hasDocument: true,
+      isInteractiveControl: false,
+      isInsidePaperPage: true,
+      activeTouchCount: 1,
+      isMultiTouchActive: false,
+      pointerType: 'touch',
+      button: 0,
+    }),
+    true
+  );
+
+  // When 2nd finger is down, single-pointer pan yields immediately to two-finger pan/pinch
+  assert.equal(
+    shouldStartSinglePointerBackgroundPan({
+      activeTool: 'pen',
+      hasDocument: true,
+      isInteractiveControl: false,
+      isInsidePaperPage: false,
+      activeTouchCount: 2,
+      isMultiTouchActive: true,
+      pointerType: 'touch',
+      button: 0,
+    }),
+    false
+  );
+});
+
 
 

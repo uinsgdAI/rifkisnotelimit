@@ -73,38 +73,123 @@ function pointToSegmentDistance(
   return Math.hypot(px - projX, py - projY);
 }
 
+function cross2d(
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  cx: number,
+  cy: number
+): number {
+  return (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+}
+
+function onSegmentBoundingBox(
+  px: number,
+  py: number,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number
+): boolean {
+  return (
+    px <= Math.max(ax, bx) + 1e-9 &&
+    px >= Math.min(ax, bx) - 1e-9 &&
+    py <= Math.max(ay, by) + 1e-9 &&
+    py >= Math.min(ay, by) - 1e-9
+  );
+}
+
+function segmentsIntersect(
+  a1: NormalizedPoint,
+  a2: NormalizedPoint,
+  b1: NormalizedPoint,
+  b2: NormalizedPoint
+): boolean {
+  const d1 = cross2d(b1.x, b1.y, b2.x, b2.y, a1.x, a1.y);
+  const d2 = cross2d(b1.x, b1.y, b2.x, b2.y, a2.x, a2.y);
+  const d3 = cross2d(a1.x, a1.y, a2.x, a2.y, b1.x, b1.y);
+  const d4 = cross2d(a1.x, a1.y, a2.x, a2.y, b2.x, b2.y);
+
+  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+    return true;
+  }
+  if (Math.abs(d1) <= 1e-9 && onSegmentBoundingBox(a1.x, a1.y, b1.x, b1.y, b2.x, b2.y)) return true;
+  if (Math.abs(d2) <= 1e-9 && onSegmentBoundingBox(a2.x, a2.y, b1.x, b1.y, b2.x, b2.y)) return true;
+  if (Math.abs(d3) <= 1e-9 && onSegmentBoundingBox(b1.x, b1.y, a1.x, a1.y, a2.x, a2.y)) return true;
+  if (Math.abs(d4) <= 1e-9 && onSegmentBoundingBox(b2.x, b2.y, a1.x, a1.y, a2.x, a2.y)) return true;
+  return false;
+}
+
+export function segmentToSegmentDistance(
+  a1: NormalizedPoint,
+  a2: NormalizedPoint,
+  b1: NormalizedPoint,
+  b2: NormalizedPoint
+): number {
+  if (segmentsIntersect(a1, a2, b1, b2)) return 0;
+  return Math.min(
+    pointToSegmentDistance(a1.x, a1.y, b1.x, b1.y, b2.x, b2.y),
+    pointToSegmentDistance(a2.x, a2.y, b1.x, b1.y, b2.x, b2.y),
+    pointToSegmentDistance(b1.x, b1.y, a1.x, a1.y, a2.x, a2.y),
+    pointToSegmentDistance(b2.x, b2.y, a1.x, a1.y, a2.x, a2.y)
+  );
+}
+
 export function isPointNearStroke(
   point: NormalizedPoint,
   stroke: AnnotationStroke,
   normalizedRadius: number
 ): boolean {
+  return isSegmentNearStroke(point, point, stroke, normalizedRadius);
+}
+
+export function isSegmentNearStroke(
+  fromPoint: NormalizedPoint,
+  toPoint: NormalizedPoint,
+  stroke: AnnotationStroke,
+  normalizedRadius: number
+): boolean {
   if (stroke.points.length === 0) return false;
+  const effectiveRadius = normalizedRadius + (stroke.size * 0.5) / 720;
   if (stroke.points.length === 1) {
     const p = stroke.points[0];
-    return Math.hypot(point.x - p.x, point.y - p.y) <= normalizedRadius;
+    return (
+      pointToSegmentDistance(p.x, p.y, fromPoint.x, fromPoint.y, toPoint.x, toPoint.y) <=
+      effectiveRadius
+    );
   }
   for (let i = 0; i < stroke.points.length - 1; i++) {
     const a = stroke.points[i];
     const b = stroke.points[i + 1];
-    if (pointToSegmentDistance(point.x, point.y, a.x, a.y, b.x, b.y) <= normalizedRadius) {
+    if (segmentToSegmentDistance(fromPoint, toPoint, a, b) <= effectiveRadius) {
       return true;
     }
   }
   return false;
 }
 
-export function eraseStrokesNearPoint(
+export function eraseStrokesAlongSegment(
   strokes: AnnotationStroke[],
-  point: NormalizedPoint,
-  normalizedRadius = 0.02
+  fromPoint: NormalizedPoint,
+  toPoint: NormalizedPoint,
+  normalizedRadius = 0.024
 ): { remaining: AnnotationStroke[]; removedAny: boolean } {
   let removedAny = false;
   const remaining = strokes.filter((stroke) => {
-    const hit = isPointNearStroke(point, stroke, normalizedRadius);
+    const hit = isSegmentNearStroke(fromPoint, toPoint, stroke, normalizedRadius);
     if (hit) removedAny = true;
     return !hit;
   });
   return { remaining, removedAny };
+}
+
+export function eraseStrokesNearPoint(
+  strokes: AnnotationStroke[],
+  point: NormalizedPoint,
+  normalizedRadius = 0.024
+): { remaining: AnnotationStroke[]; removedAny: boolean } {
+  return eraseStrokesAlongSegment(strokes, point, point, normalizedRadius);
 }
 
 export function cloneAnnotationsMap(map: PaperAnnotationsMap): PaperAnnotationsMap {
@@ -1139,3 +1224,33 @@ export function acquireFullscreenBodyLock(): () => void {
     }
   };
 }
+
+export function shouldStartSinglePointerBackgroundPan(params: {
+  activeTool: AnnotationTool;
+  hasDocument: boolean;
+  isInteractiveControl: boolean;
+  isInsidePaperPage: boolean;
+  activeTouchCount: number;
+  isMultiTouchActive: boolean;
+  pointerType: string;
+  button: number;
+}): boolean {
+  const {
+    activeTool,
+    hasDocument,
+    isInteractiveControl,
+    isInsidePaperPage,
+    activeTouchCount,
+    isMultiTouchActive,
+    pointerType,
+    button,
+  } = params;
+
+  if (!hasDocument || isInteractiveControl) return false;
+  if (isMultiTouchActive || activeTouchCount >= 2) return false;
+  if (pointerType === 'mouse' && button !== 0) return false;
+
+  if (activeTool === 'pan') return true;
+  return !isInsidePaperPage;
+}
+
