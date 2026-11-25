@@ -36,6 +36,7 @@ export type SandboxType =
   | 'probability-tree'
   | 'mensuration-3d'
   | 'standard-form'
+  | 'sequence-explorer'
   | 'none';
 
 export interface CoursebookRef {

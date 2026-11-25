@@ -104,6 +104,10 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
         heading: 'Area of a Circular Segment (Sector minus Triangle)',
         body: 'In Extended Paper 4, the minor segment cut off by chord $AB$ equals $\\text{Sector } OAB - \\triangle OAB$. Use $\\frac{\\theta}{360}\\pi r^2 - \\frac{1}{2} r^2 \\sin\\theta$!',
       },
+      {
+        heading: 'Rolling a Sector into a Hollow Cone (Extended)',
+        body: 'When a sector of radius $R$ and angle $\\theta$ is rolled so its straight edges meet to form a cone, the sector radius $R$ becomes the cone **slant height** $l$, and the sector arc length $\\frac{\\theta}{360}(2\\pi R)$ equals the cone base circumference $2\\pi r_{\\text{cone}}$, giving $r_{\\text{cone}} = \\frac{\\theta}{360}R$ and vertical height $h = \\sqrt{R^2 - r_{\\text{cone}}^2}$.',
+      },
     ],
     extraWorkedExamples: [
       {
@@ -116,6 +120,18 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
         ],
         answer: '$18 + 4\\pi\\text{ cm}$',
         markSchemeNotes: 'M1 for $\\frac{80}{360}\\times 2\\pi\\times 9 = 4\\pi$, A1 for $18 + 4\\pi$.',
+      },
+      {
+        title: 'Segment area & rolling a sector into a cone (Paper 4 Extended)',
+        question: 'A sector has radius $12\\text{ cm}$ and central angle $120^\\circ$. (a) Find the exact area of the minor segment in the form $a\\pi - b\\sqrt{3}$. (b) The sector is rolled into an open cone; find its base radius $r$ and exact vertical height $h$.',
+        marks: 5,
+        steps: [
+          '(a) Sector area $= \\frac{120}{360}\\pi(12^2) = 48\\pi\\text{ cm}^2$; triangle area $= \\frac{1}{2}(12)(12)\\sin 120^\\circ = 72 \\times \\frac{\\sqrt{3}}{2} = 36\\sqrt{3}\\text{ cm}^2$, so segment $= 48\\pi - 36\\sqrt{3}\\text{ cm}^2$.',
+          '(b) Arc length $=$ cone circumference $\\implies r = \\frac{120}{360}(12) = 4\\text{ cm}$, with slant height $l = 12\\text{ cm}$.',
+          'Vertical height $h = \\sqrt{12^2 - 4^2} = \\sqrt{128} = 8\\sqrt{2}\\text{ cm}$.',
+        ],
+        answer: '(a) $48\\pi - 36\\sqrt{3}\\text{ cm}^2$, (b) $r = 4\\text{ cm}$, $h = 8\\sqrt{2}\\text{ cm}$',
+        markSchemeNotes: 'M1 sector, M1 $\\frac{1}{2}r^2\\sin\\theta$, A1 $48\\pi - 36\\sqrt{3}$; B1 $r=4$, A1 $8\\sqrt{2}$.',
       },
     ],
     rapidSummary: [
@@ -193,6 +209,10 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
         heading: 'Finding Similar Heights in Frustums (Extended)',
         body: 'Never subtract slant heights naively without finding the apex height via similar triangles: if top radius is $4\\text{ cm}$ and bottom radius is $10\\text{ cm}$, the removed top cone is linearly $0.4$ of the entire full cone.',
       },
+      {
+        heading: 'Liquid Displacement & Frustum Curved Surface Area',
+        body: 'When a solid of volume $V_{\\text{solid}}$ is fully submerged in a cylinder of radius $R$, water rises by $\\Delta h$ where $\\pi R^2 \\Delta h = V_{\\text{solid}}$ (cancel $\\pi$ first!). For a frustum of slant length $s$, find the tip slant height $l$ by $\\frac{l}{l+s} = \\frac{r}{R}$, then subtract curved surface areas $\\pi R L - \\pi r l$.',
+      },
     ],
     extraWorkedExamples: [
       {
@@ -205,6 +225,18 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
         ],
         answer: '$\\frac{416}{3}\\pi\\text{ cm}^3$',
         markSchemeNotes: 'B1 tip radius $2\\text{ cm}$, M1 subtracting two cone volumes, A1 $\\frac{416}{3}\\pi$.',
+      },
+      {
+        title: 'Water displacement & frustum curved surface area (Paper 4 Extended)',
+        question: '(a) A solid sphere of radius $6\\text{ cm}$ is fully submerged in a cylindrical tank of radius $10\\text{ cm}$ partially filled with water. Find the exact rise in water level $\\Delta h$. (b) A cone frustum has top radius $3\\text{ cm}$, bottom radius $9\\text{ cm}$, and frustum slant side $8\\text{ cm}$; find its curved surface area in terms of $\\pi$.',
+        marks: 5,
+        steps: [
+          '(a) $V_{\\text{sphere}} = \\frac{4}{3}\\pi(6^3) = 288\\pi\\text{ cm}^3$. Equate to displaced cylinder: $\\pi(10^2)\\Delta h = 288\\pi \\implies \\Delta h = \\frac{288}{100} = 2.88\\text{ cm}$.',
+          '(b) Let removed tip slant height be $l$: $\\frac{l}{l + 8} = \\frac{3}{9} = \\frac{1}{3} \\implies 3l = l + 8 \\implies l = 4\\text{ cm}$ and full $L = 12\\text{ cm}$.',
+          'Curved SA $= \\pi(9)(12) - \\pi(3)(4) = 108\\pi - 12\\pi = 96\\pi\\text{ cm}^2$.',
+        ],
+        answer: '(a) $2.88\\text{ cm}$, (b) $96\\pi\\text{ cm}^2$',
+        markSchemeNotes: 'M1 $288\\pi = 100\\pi\\Delta h$, A1 $2.88$; B1 $l=4$, M1 $\\pi RL - \\pi rl$, A1 $96\\pi$.',
       },
     ],
     rapidSummary: [
@@ -313,8 +345,8 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
     },
     extraStudyNotes: [
       {
-        heading: 'Combining Exact Trig Values with Surds',
-        body: 'In Paper 2 non-calculator questions, expect exact right triangles with angles $30^\\circ, 45^\\circ$, or $60^\\circ$ where final lengths must stay in simplified surd form such as $6\\sqrt{3}$ or $4\\sqrt{2}$.',
+        heading: 'Combining Exact Trig Values with Surd Rationalisation',
+        body: 'In Paper 2 non-calculator questions, expect exact right triangles with $30^\\circ, 45^\\circ$, or $60^\\circ$ AND compound exact trig fractions whose denominators must be rationalised with conjugates (such as multiplying top and bottom by $\\sqrt{3}+1$).',
       },
     ],
     extraWorkedExamples: [
@@ -328,6 +360,17 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
         ],
         answer: '$15 + 5\\sqrt{3}\\text{ cm}$',
         markSchemeNotes: 'B1 adj $5$, B1 opp $5\\sqrt{3}$, A1 $15 + 5\\sqrt{3}$.',
+      },
+      {
+        title: 'Compound exact trig quotient with rationalisation (Paper 2)',
+        question: 'Without using a calculator, express $\\frac{1 + \\tan 30^\\circ}{1 - \\tan 30^\\circ}$ in the form $a + b\\sqrt{3}$ where $a$ and $b$ are integers.',
+        marks: 4,
+        steps: [
+          'Substitute $\\tan 30^\\circ = \\frac{1}{\\sqrt{3}}$ and clear inner fractions by multiplying numerator and denominator by $\\sqrt{3}$: $\\frac{\\sqrt{3} + 1}{\\sqrt{3} - 1}$.',
+          'Multiply by the conjugate $\\frac{\\sqrt{3} + 1}{\\sqrt{3} + 1}$: $\\frac{(\\sqrt{3}+1)^2}{(\\sqrt{3})^2 - 1^2} = \\frac{3 + 2\\sqrt{3} + 1}{3 - 1} = \\frac{4 + 2\\sqrt{3}}{2} = 2 + \\sqrt{3}$.',
+        ],
+        answer: '$2 + \\sqrt{3}$',
+        markSchemeNotes: 'B1 $\\tan 30^\\circ = 1/\\sqrt{3}$, M1 conjugate $\\sqrt{3}+1$, M1 numerator $4+2\\sqrt{3}$, A1 $2+\\sqrt{3}$.',
       },
     ],
     rapidSummary: [
@@ -353,8 +396,8 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
     },
     extraStudyNotes: [
       {
-        heading: 'Asymptotes of $y = \\tan x$',
-        body: 'Because $\\tan x = \\frac{\\sin x}{\\cos x}$, wherever $\\cos x = 0$ (at $90^\\circ$ and $270^\\circ$), $\\tan x$ shoots to $\\pm\\infty$ along vertical asymptotes.',
+        heading: 'Asymptotes of $y = \\tan x$ & Linear-Trig Rearrangements',
+        body: 'Because $\\tan x = \\frac{\\sin x}{\\cos x}$, wherever $\\cos x = 0$ (at $90^\\circ$ and $270^\\circ$), $\\tan x$ shoots to $\\pm\\infty$ along vertical asymptotes. For equations like $2\\sin x + \\sqrt{3} = 0$, isolate $\\sin x = -\\frac{\\sqrt{3}}{2}$ first, find the acute reference angle $\\alpha$, then map into the negative quadrants ($180^\\circ + \\alpha$ and $360^\\circ - \\alpha$).',
       },
     ],
     extraWorkedExamples: [
@@ -368,6 +411,18 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
         ],
         answer: '$120^\\circ$ and $240^\\circ$',
         markSchemeNotes: 'B1 $120^\\circ$, B1 $240^\\circ$.',
+      },
+      {
+        title: 'Linear sine & tangent equations on $[0^\\circ, 360^\\circ]$',
+        question: 'Solve (a) $2\\sin x + \\sqrt{3} = 0$ and (b) $\\tan x = \\sqrt{3}$ for $0^\\circ \\le x \\le 360^\\circ$.',
+        marks: 4,
+        steps: [
+          '(a) Rearrange: $\\sin x = -\\frac{\\sqrt{3}}{2}$. Acute reference angle $\\alpha = \\sin^{-1}(\\frac{\\sqrt{3}}{2}) = 60^\\circ$.',
+          'Sine is negative in Quadrants $3$ and $4$: $x = 180^\\circ + 60^\\circ = 240^\\circ$ and $x = 360^\\circ - 60^\\circ = 300^\\circ$.',
+          '(b) Principal angle $\\tan^{-1}(\\sqrt{3}) = 60^\\circ$; add the $180^\\circ$ period for the second solution: $x = 60^\\circ + 180^\\circ = 240^\\circ$.',
+        ],
+        answer: '(a) $240^\\circ, 300^\\circ$; (b) $60^\\circ, 240^\\circ$',
+        markSchemeNotes: 'B1 $240^\\circ$, B1 $300^\\circ$; B1 $60^\\circ$, B1 $240^\\circ$.',
       },
     ],
     rapidSummary: [
@@ -410,6 +465,18 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
         answer: '$111.8^\\circ$',
         markSchemeNotes: 'M1 Cosine Rule with $10^2$ subtracted, A1 $-26/70$, A1 $111.8^\\circ$.',
       },
+      {
+        title: 'Ambiguous case of the Sine Rule (two valid triangles)',
+        question: 'In $\\triangle ABC$, $AB = 9\\text{ cm}$, $BC = 6\\text{ cm}$, and $\\angle BAC = 35^\\circ$. Calculate the two possible values of $\\angle ACB$ to $1$ decimal place.',
+        marks: 4,
+        steps: [
+          'Apply the Sine Rule using opposite pairs: $\\frac{\\sin C}{9} = \\frac{\\sin 35^\\circ}{6} \\implies \\sin C = \\frac{9\\sin 35^\\circ}{6} = 0.86036\\dots$',
+          'Acute value: $C_1 = \\sin^{-1}(0.86036\\dots) = 59.357\\dots^\\circ \\approx 59.4^\\circ$.',
+          'Obtuse value via $\\sin(180^\\circ - \\theta) = \\sin\\theta$: $C_2 = 180^\\circ - 59.357\\dots^\\circ = 120.642\\dots^\\circ \\approx 120.6^\\circ$ (valid since $35^\\circ + 120.6^\\circ < 180^\\circ$).',
+        ],
+        answer: '$59.4^\\circ$ and $120.6^\\circ$',
+        markSchemeNotes: 'M1 Sine Rule, A1 $0.860\\dots$, A1 $59.4^\\circ$, B1 $180^\\circ - C_1 = 120.6^\\circ$.',
+      },
     ],
     rapidSummary: [
       { rule: 'BIDMAS on Cosine Rule', detail: 'NEVER calculate $(a^2 + b^2 - 2ab)$ before multiplying by $\\cos C$!' },
@@ -448,6 +515,18 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
         ],
         answer: '$26.6^\\circ$',
         markSchemeNotes: 'B1 base diagonal $10$, M1 $\\tan\\theta = 5/10$, A1 $26.6^\\circ$.',
+      },
+      {
+        title: '3D Pyramid: slanted edge vs slanted face angle (Paper 4 Extended)',
+        question: '$VABCD$ is a square-based right pyramid of base side $10\\text{ cm}$ and vertical height $VM = 12\\text{ cm}$ above the base centre $M$. Find to $1$ d.p. (a) the angle between slanted edge $VA$ and the base $ABCD$, and (b) the angle between triangular face $VBC$ and the base $ABCD$.',
+        marks: 5,
+        steps: [
+          '(a) Base diagonal $AC = \\sqrt{10^2 + 10^2} = 10\\sqrt{2}\\text{ cm}$, so $AM = 5\\sqrt{2}\\text{ cm}$ ($7.071\\dots\\text{ cm}$).',
+          'In right $\\triangle VMA$: $\\tan(\\angle VAM) = \\frac{12}{5\\sqrt{2}} \\implies \\angle VAM = 59.5^\\circ$.',
+          '(b) Let $N$ be the midpoint of edge $BC$; then $MN = \\frac{10}{2} = 5\\text{ cm}$ is perpendicular to $BC$. In right $\\triangle VMN$: $\\tan(\\angle VNM) = \\frac{12}{5} = 2.4 \\implies \\angle VNM = 67.4^\\circ$.',
+        ],
+        answer: '(a) $59.5^\\circ$, (b) $67.4^\\circ$',
+        markSchemeNotes: 'B1 $AM = 5\\sqrt{2}$, M1 $\\tan(12/5\\sqrt{2})$, A1 $59.5^\\circ$; M1 $\\tan(12/5)$, A1 $67.4^\\circ$.',
       },
     ],
     rapidSummary: [
@@ -597,6 +676,10 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
         heading: 'Ratio of Triangle Areas Sharing Vectors',
         body: 'In Paper 4 extensions, if two triangles share the same height and base ratio $k : 1$, their areas are in ratio $k : 1$; if they are mathematically similar triangles formed by parallel bases ($\\overrightarrow{DE} = k\\overrightarrow{BC}$), their area ratio is $k^2 : 1$.',
       },
+      {
+        heading: 'Vector Intersection & Equating Coefficients (5-Mark Paper 4 Proof)',
+        body: 'When two lines cross at an unknown point $P$, write $\\overrightarrow{OP}$ along **two independent routes** using scalars $\\lambda$ and $\\mu$ (e.g. $\\overrightarrow{OP} = \\lambda\\overrightarrow{OM}$ and $\\overrightarrow{OP} = \\overrightarrow{OA} + \\mu\\overrightarrow{AN}$). Because non-parallel base vectors $\\mathbf{a}$ and $\\mathbf{b}$ cannot cancel each other, equate the coefficient of $\\mathbf{a}$ on both sides AND the coefficient of $\\mathbf{b}$ on both sides to solve for $\\lambda$ and $\\mu$ simultaneously.',
+      },
     ],
     extraWorkedExamples: [
       {
@@ -609,6 +692,18 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
         ],
         answer: '$\\frac{1}{3}\\mathbf{b} - \\frac{1}{2}\\mathbf{a}$',
         markSchemeNotes: 'M1 valid route $MO + ON$, A1 simplified expression.',
+      },
+      {
+        title: 'Finding intersection ratio by equating vector coefficients (Paper 4)',
+        question: 'In $\\triangle OAB$, $\\overrightarrow{OA} = \\mathbf{a}$ and $\\overrightarrow{OB} = \\mathbf{b}$. $M$ is the midpoint of $AB$, and $N$ lies on $OB$ with $ON = \\frac{1}{3}OB$. Lines $OM$ and $AN$ intersect at $P$, where $\\overrightarrow{OP} = \\lambda\\overrightarrow{OM}$ and $\\overrightarrow{AP} = \\mu\\overrightarrow{AN}$. Find $\\lambda$ and $\\mu$.',
+        marks: 5,
+        steps: [
+          'Route 1: $\\overrightarrow{OM} = \\mathbf{a} + \\frac{1}{2}(\\mathbf{b} - \\mathbf{a}) = \\frac{1}{2}\\mathbf{a} + \\frac{1}{2}\\mathbf{b}$, so $\\overrightarrow{OP} = \\frac{\\lambda}{2}\\mathbf{a} + \\frac{\\lambda}{2}\\mathbf{b}$.',
+          'Route 2: $\\overrightarrow{AN} = -\\mathbf{a} + \\frac{1}{3}\\mathbf{b}$, so $\\overrightarrow{OP} = \\overrightarrow{OA} + \\mu\\overrightarrow{AN} = (1 - \\mu)\\mathbf{a} + \\frac{\\mu}{3}\\mathbf{b}$.',
+          'Equate $\\mathbf{a}$ and $\\mathbf{b}$ coefficients: $\\frac{\\lambda}{2} = 1 - \\mu$ and $\\frac{\\lambda}{2} = \\frac{\\mu}{3} \\implies 1 - \\mu = \\frac{\\mu}{3} \\implies \\frac{4}{3}\\mu = 1 \\implies \\mu = \\frac{3}{4}$ and $\\lambda = \\frac{1}{2}$.',
+        ],
+        answer: '$\\lambda = \\frac{1}{2},\\ \\mu = \\frac{3}{4}$',
+        markSchemeNotes: 'B1 $\\overrightarrow{OM}$, M1 second route $(1-\\mu)\\mathbf{a}+\\frac{\\mu}{3}\\mathbf{b}$, M1 equating coefficients, A1 $\\mu=3/4$, A1 $\\lambda=1/2$.',
       },
     ],
     rapidSummary: [
@@ -717,6 +812,10 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
         heading: 'Sample Space Grids for Dice & Spinners',
         body: 'When rolling two dice or spinning two spinners, draw a $6 \\times 6$ two-way possibility diagram rather than a giant $36$-branch tree; counting diagonals makes sums like "total $= 7$" effortless ($\\frac{6}{36} = \\frac{1}{6}$).',
       },
+      {
+        heading: 'Algebraic Probability Forming a Quadratic (Paper 4 Classic)',
+        body: 'When a bag contains $n$ counters and $k$ are red, taking two without replacement gives $P(RR) = \\frac{k}{n} \\cdot \\frac{k - 1}{n - 1}$. Equating this to a given fraction and cross-multiplying forms a quadratic in $n$ — solve it and **reject the negative root** because counts must be positive integers!',
+      },
     ],
     extraWorkedExamples: [
       {
@@ -729,6 +828,18 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
         ],
         answer: '$\\frac{2}{3}$',
         markSchemeNotes: 'M1 for $\\frac{6}{10} \\times \\frac{5}{9}$, M1 $1 - P(L,L)$, A1 $\\frac{2}{3}$.',
+      },
+      {
+        title: 'Algebraic tree diagram forming a quadratic equation (Paper 4)',
+        question: 'A bag contains $n$ counters in total, of which $4$ are red and the rest are blue. Two counters are picked at random without replacement. Given that the probability both counters are red is $\\frac{2}{15}$, find the value of $n$.',
+        marks: 5,
+        steps: [
+          'Multiply along the Red–Red branch: $\\frac{4}{n} \\times \\frac{3}{n - 1} = \\frac{2}{15} \\implies \\frac{12}{n(n - 1)} = \\frac{2}{15}$.',
+          'Cross-multiply: $2n(n - 1) = 180 \\implies n^2 - n - 90 = 0$.',
+          'Factorise: $(n - 10)(n + 9) = 0 \\implies n = 10$ (reject $n = -9$ since $n > 0$).',
+        ],
+        answer: '$n = 10$',
+        markSchemeNotes: 'M1 $\\frac{4}{n}\\cdot\\frac{3}{n-1} = \\frac{2}{15}$, M1 quadratic $n^2-n-90=0$, M1 factorise, A1 $10$ (rejecting $-9$).',
       },
     ],
     rapidSummary: [
@@ -768,6 +879,18 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
         ],
         answer: '$\\frac{4}{9}$',
         markSchemeNotes: 'M1 denominator $18$, A1 $\\frac{4}{9}$.',
+      },
+      {
+        title: 'Reverse conditional probability from a tree diagram (Paper 4)',
+        question: 'On any morning, the probability it rains ($R$) is $0.3$. When it rains, the probability Mia is late ($L$) is $0.4$; when it does not rain ($R\'$), the probability she is late is $0.1$. Given that Mia was late today, find the exact probability that it rained.',
+        marks: 4,
+        steps: [
+          'Find both late branches: $P(R \\cap L) = 0.3 \\times 0.4 = 0.12$ and $P(R\' \\cap L) = 0.7 \\times 0.1 = 0.07$.',
+          'Total $P(L) = 0.12 + 0.07 = 0.19$.',
+          'Apply conditional denominator: $P(R \\mid L) = \\frac{P(R \\cap L)}{P(L)} = \\frac{0.12}{0.19} = \\frac{12}{19}$.',
+        ],
+        answer: '$\\frac{12}{19}$',
+        markSchemeNotes: 'B1 $0.12$, M1 adding $0.12 + 0.07 = 0.19$, M1 $0.12 / 0.19$, A1 $12/19$.',
       },
     ],
     rapidSummary: [
@@ -888,6 +1011,17 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
         ],
         answer: '$4$',
         markSchemeNotes: 'M1 for position $\\frac{25+1}{2} = 13$ or cumulative counts, A1 for $4$.',
+      },
+      {
+        title: 'Combined mean of two unequal groups',
+        question: 'In a mathematics test, $12$ boys achieve a mean score of $78$ and $18$ girls achieve a mean score of $63$. Calculate the overall mean score of all $30$ students.',
+        marks: 3,
+        steps: [
+          'Boys total $= 12 \\times 78 = 936$; girls total $= 18 \\times 63 = 1134$.',
+          'Combined total $= 936 + 1134 = 2070$, divided by total count $30$: $\\text{Mean} = \\frac{2070}{30} = 69$.',
+        ],
+        answer: '$69$',
+        markSchemeNotes: 'M1 $12\\times 78 + 18\\times 63$, M1 $\\div 30$, A1 $69$.',
       },
     ],
     rapidSummary: [
@@ -1013,6 +1147,17 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
         answer: '(a) $13\\text{ min}$, (b) $16$ runners',
         markSchemeNotes: 'B1 $13$; M1 $0.10\\times 160$, A1 $16$.',
       },
+      {
+        title: 'Comparing two datasets via box-and-whisker summaries (Paper 4)',
+        question: 'Club A has box-plot markers $\\text{Min}=18, Q_1=26, Q_2=35, Q_3=44, \\text{Max}=56$. Club B has $\\text{Min}=22, Q_1=27, Q_2=31, Q_3=36, \\text{Max}=48$. Give two statistical comparisons in context.',
+        marks: 3,
+        steps: [
+          'Compare average (Median): Club A median $35 >$ Club B median $31$, so Club A scored higher on average.',
+          'Compare spread (IQR): Club A $\\text{IQR} = 44 - 26 = 18$, while Club B $\\text{IQR} = 36 - 27 = 9$. Since $9 < 18$, Club B\'s scores are more consistent.',
+        ],
+        answer: 'Club A has higher average ($35 > 31$); Club B is more consistent (IQR $9 < 18$)',
+        markSchemeNotes: 'B1 both medians compared in context, M1 both IQRs calculated, A1 valid consistency statement.',
+      },
     ],
     rapidSummary: [
       { rule: 'Upper endpoints, NOT midpoints!', detail: 'Plot cumulative frequency at the right-hand boundary of every interval.' },
@@ -1055,6 +1200,18 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
         ],
         answer: '(a) $6\\text{ cm}$, (b) $45$',
         markSchemeNotes: 'B1 ref FD $= 2.0$, M1 scale $\\times 2$ + FD $3.0$, A1 $6\\text{ cm}$; M1 $3.0\\times 15$, A1 $45$.',
+      },
+      {
+        title: 'Estimating frequency in a partial interval (Histogram Interpolation)',
+        question: 'In a frequency table, $20 < t \\le 40$ has frequency $30$ and $40 < t \\le 50$ has frequency $24$. Estimate how many values lie in the range $32 < t \\le 45$.',
+        marks: 3,
+        steps: [
+          'Assuming uniform distribution inside each bar: in $20 < t \\le 40$, $\\text{FD} = \\frac{30}{20} = 1.5$, so the sub-width $32 < t \\le 40$ (width $8$) contributes $8 \\times 1.5 = 12$.',
+          'In $40 < t \\le 50$, $\\text{FD} = \\frac{24}{10} = 2.4$, so the sub-width $40 < t \\le 45$ (width $5$) contributes $5 \\times 2.4 = 12$.',
+          'Total estimated count $= 12 + 12 = 24$.',
+        ],
+        answer: '$24$',
+        markSchemeNotes: 'M1 $\\frac{8}{20}\\times 30 = 12$, M1 $\\frac{5}{10}\\times 24 = 12$, A1 $24$.',
       },
     ],
     rapidSummary: [

@@ -633,7 +633,7 @@ const TEMPLATES: TemplateDef[] = [
     },
   },
 
-  // 2.7 Quadratic sequences (Numeric - Extended Non-Calc)
+  // 2.7 Quadratic sequences (Numeric - Extended Non-Calc, fast a+b+c method)
   {
     key: 'ch2-quad-seq',
     chapterId: 2,
@@ -642,14 +642,16 @@ const TEMPLATES: TemplateDef[] = [
     paperType: 'Non-Calculator',
     build: (rng, idSuffix) => {
       const a = pick(rng, [1, 2, 3]);
-      const c = randInt(rng, 1, 7);
-      const b = pick(rng, [0, 1, 2]);
+      const b = pick(rng, [-3, -2, -1, 1, 2, 3, 4]);
+      const c = randInt(rng, -3, 7);
       const term = (n: number) => a * n * n + b * n + c;
       const first4 = [term(1), term(2), term(3), term(4)].join(', ');
       const targetN = pick(rng, [8, 9, 10, 11, 12]);
       const ans = term(targetN);
       const aLabel = a === 1 ? '' : String(a);
-      const bLabel = b === 0 ? '' : b === 1 ? ' + n' : ` + ${b}n`;
+      const bLabel = b === 0 ? '' : b === 1 ? ' + n' : b === -1 ? ' - n' : b > 0 ? ` + ${b}n` : ` - ${Math.abs(b)}n`;
+      const cLabel = c === 0 ? '' : c > 0 ? ` + ${c}` : ` - ${Math.abs(c)}`;
+      const d1 = term(2) - term(1);
       return {
         signature: `2.7-seq:${a}:${b}:${c}:${targetN}`,
         question: {
@@ -661,17 +663,67 @@ const TEMPLATES: TemplateDef[] = [
           paperType: 'Non-Calculator',
           marks: 3,
           sourceRef: 'Paper 2 Non-Calc · Topic 2.7',
-          question: `A quadratic sequence begins $${first4}, \\dots$. Calculate the $${targetN}$th term of this sequence.`,
+          question: `A quadratic sequence begins $${first4}, \\dots$. Find its $n$-th term and calculate the $${targetN}$th term.`,
           questionType: 'numeric',
           correctAnswer: String(ans),
           numericAnswer: ans,
           tolerance: 0,
           markScheme: [
-            { code: 'M1', detail: `Second difference $= ${2 * a} \\implies ${aLabel}n^2$ term` },
-            { code: 'A1', detail: `$u_n = ${aLabel}n^2${bLabel} + ${c}$` },
+            { code: 'M1', detail: `$2a = ${2 * a} \\implies a = ${a}$; $3a + b = ${d1} \\implies b = ${b}$` },
+            { code: 'A1', detail: `$a + b + c = ${term(1)} \\implies c = ${c}$, so $u_n = ${aLabel}n^2${bLabel}${cLabel}$` },
             { code: 'A1', detail: `$u_{${targetN}} = ${ans}$` },
           ],
-          fullSolution: `The constant second difference is $${2 * a}$, so the coefficient of $n^2$ is $${a}$. Subtracting $${aLabel}n^2$ leaves linear part $${b === 0 ? c : `${b === 1 ? 'n' : `${b}n`} + ${c}`}$. Evaluating at $n = ${targetN}$ gives $${ans}$.`,
+          fullSolution: `Using the fast leading-column method: $2a = ${2 * a} \\implies a = ${a}$; $3(${a}) + b = ${d1} \\implies b = ${b}$; ${a} + (${b}) + c = ${term(1)} \\implies c = ${c}$. Thus $u_n = ${aLabel}n^2${bLabel}${cLabel}$, giving $u_{${targetN}} = ${ans}$.`,
+        },
+      };
+    },
+  },
+
+  // 2.7 Cubic sequences (Numeric - Extended Non-Calc, fast 6a/12a+2b/7a+3b+c/a+b+c+d method)
+  {
+    key: 'ch2-cubic-seq',
+    chapterId: 2,
+    topicId: '2.7',
+    tier: 'Extended',
+    paperType: 'Non-Calculator',
+    build: (rng, idSuffix) => {
+      const a = pick(rng, [1, 2]);
+      const b = pick(rng, [-2, -1, 0, 1, 2, 3]);
+      const c = pick(rng, [-2, 0, 1, 2, 3]);
+      const d = randInt(rng, -4, 5);
+      const term = (n: number) => a * n * n * n + b * n * n + c * n + d;
+      const first5 = [term(1), term(2), term(3), term(4), term(5)].join(', ');
+      const targetN = pick(rng, [6, 7]);
+      const ans = term(targetN);
+      const aLabel = a === 1 ? '' : String(a);
+      const bLabel = b === 0 ? '' : b === 1 ? ' + n^2' : b === -1 ? ' - n^2' : b > 0 ? ` + ${b}n^2` : ` - ${Math.abs(b)}n^2`;
+      const cLabel = c === 0 ? '' : c === 1 ? ' + n' : c === -1 ? ' - n' : c > 0 ? ` + ${c}n` : ` - ${Math.abs(c)}n`;
+      const dLabel = d === 0 ? '' : d > 0 ? ` + ${d}` : ` - ${Math.abs(d)}`;
+      const d1 = term(2) - term(1);
+      const d2 = term(3) - 2 * term(2) + term(1);
+      return {
+        signature: `2.7-cubic:${a}:${b}:${c}:${d}:${targetN}`,
+        question: {
+          id: `gen-2.7c-${idSuffix}`,
+          chapterId: 2,
+          topicId: '2.7',
+          topicTitle: 'Sequences',
+          tier: 'Extended',
+          paperType: 'Non-Calculator',
+          marks: 4,
+          sourceRef: 'Paper 2 Non-Calc · Topic 2.7',
+          question: `A cubic sequence begins $${first5}, \\dots$. Find the $n$-th term formula and calculate the $${targetN}$th term.`,
+          questionType: 'numeric',
+          correctAnswer: String(ans),
+          numericAnswer: ans,
+          tolerance: 0,
+          markScheme: [
+            { code: 'B1', detail: `Constant 3rd difference $D_3 = ${6 * a} \\implies 6a = ${6 * a} \\implies a = ${a}$` },
+            { code: 'M1', detail: `$12a + 2b = ${d2} \\implies b = ${b}$; $7a + 3b + c = ${d1} \\implies c = ${c}$` },
+            { code: 'A1', detail: `$a+b+c+d = ${term(1)} \\implies d = ${d}$, so $u_n = ${aLabel}n^3${bLabel}${cLabel}${dLabel}$` },
+            { code: 'A1', detail: `$u_{${targetN}} = ${ans}$` },
+          ],
+          fullSolution: `Constant 3rd difference is $${6 * a}$, so $a = ${a}$. Next $12(${a}) + 2b = ${d2} \\implies b = ${b}$; $7(${a}) + 3(${b}) + c = ${d1} \\implies c = ${c}$; and ${a} + (${b}) + (${c}) + d = ${term(1)} \\implies d = ${d}$. Evaluating $u_{${targetN}}$ gives $${ans}$.`,
         },
       };
     },

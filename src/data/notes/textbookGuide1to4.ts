@@ -423,6 +423,10 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         heading: 'Significant-Figure Bounds & Inequality Notation',
         body: 'When a value $m = 340$ is rounded to $2$ significant figures, the place value of the last significant digit ($4$) is tens ($u = 10$), so $\\frac{u}{2} = 5$, giving $335 \\le m < 345$. Notice the strict $<$ on the upper bound in error intervals, while in formula substitution we always plug in $345$ (never $344.99$).',
       },
+      {
+        heading: '"Suitable Degree of Accuracy" Agreement Rule & Trig Bounds (Paper 4)',
+        body: 'To prove a value to a "suitable degree of accuracy", compute BOTH the Upper Bound ($U$) and Lower Bound ($L$) of your compound formula to $4+$ decimal places, then round BOTH $U$ and $L$ step-by-step ($1$ s.f., $2$ s.f., $3$ s.f.): your answer is the **highest precision where $U$ and $L$ agree identically**! Watch trigonometry bounds carefully: on $0^\\circ < \\theta < 90^\\circ$, $\\sin\\theta$ and $\\tan\\theta$ INCREASE with $\\theta$, whereas $\\cos\\theta$ DECREASES as $\\theta$ increases (so $\\text{UB}(\\cos\\theta) = \\cos(\\theta_{\\text{LB}})$)!',
+      },
     ],
     extraWorkedExamples: [
       {
@@ -435,6 +439,18 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         ],
         answer: '$83.1\\text{ km/h}$ ($3$ s.f.)',
         markSchemeNotes: 'B1 for $245$ and $2.95$, M1 for $245 \\div 2.95$, A1 for $83.1$.',
+      },
+      {
+        title: 'Suitable degree of accuracy from compound bounds (Paper 4)',
+        question: 'In $V = \\frac{M}{D}$, $M = 84.0\\text{ g}$ (nearest $0.1\\text{ g}$) and $D = 2.5\\text{ g/cm}^3$ (nearest $0.1\\text{ g/cm}^3$). Find $V$ to a suitable degree of accuracy, giving a clear reason.',
+        marks: 4,
+        steps: [
+          'Bounds: $83.95 \\le M < 84.05$ and $2.45 \\le D < 2.55$.',
+          '$V_{\\text{UB}} = \\frac{84.05}{2.45} = 34.3061\\dots$ and $V_{\\text{LB}} = \\frac{83.95}{2.55} = 32.9215\\dots$',
+          'Compare roundings: to $2$ s.f. they give $34$ vs $33$ (disagree); to $1$ s.f. BOTH round to $30$.',
+        ],
+        answer: '$30\\text{ cm}^3$ (since both $34.31$ and $32.92$ agree to $30$ at $1$ s.f.)',
+        markSchemeNotes: 'B1 bounds, M1 UB & LB division, A1 $34.31$ and $32.92$, B1 $30$ with matching agreement reason.',
       },
     ],
     rapidSummary: [
@@ -781,6 +797,10 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         heading: 'Expanding Brackets with Surds (Non-Calculator Paper 2)',
         body: 'Use FOIL carefully just like algebra: $(3 + \\sqrt{5})(2 - \\sqrt{5}) = 6 - 3\\sqrt{5} + 2\\sqrt{5} - 5 = 1 - \\sqrt{5}$. Remember that $(\\sqrt{a} + \\sqrt{b})(\\sqrt{a} - \\sqrt{b}) = a - b$ is why conjugates always eliminate radicals from denominators!',
       },
+      {
+        heading: 'Compound Surd Fractions & Exact Geometry (Paper 2 Extended)',
+        body: 'When rationalising $\\frac{a + b\\sqrt{k}}{c + d\\sqrt{k}}$, multiply BOTH numerator and denominator by the conjugate $(c - d\\sqrt{k})$, expand numerator cleanly via FOIL, simplify denominator to integer $c^2 - d^2 k$, and divide every numerator term by common factors. Watch for exact triangle/rectangle area or Pythagoras problems giving $(\\sqrt{12} + \\sqrt{3})^2 = (3\\sqrt{3})^2 = 27$.',
+      },
     ],
     extraWorkedExamples: [
       {
@@ -794,6 +814,19 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         ],
         answer: '$4 + \\sqrt{6}$',
         markSchemeNotes: 'M1 for $\\times \\frac{4+\\sqrt{6}}{4+\\sqrt{6}}$, A1 denominator $10$, A1 $4 + \\sqrt{6}$.',
+      },
+      {
+        title: 'Compound conjugate rationalisation + exact simplification',
+        question: 'Express $\\frac{6 + \\sqrt{8}}{2 - \\sqrt{2}}$ in the form $p + q\\sqrt{2}$, where $p$ and $q$ are integers.',
+        marks: 4,
+        steps: [
+          'Simplify $\\sqrt{8} = 2\\sqrt{2}$, so fraction is $\\frac{6 + 2\\sqrt{2}}{2 - \\sqrt{2}}$.',
+          'Multiply top and bottom by conjugate $(2 + \\sqrt{2})$: denominator $= 2^2 - (\\sqrt{2})^2 = 4 - 2 = 2$.',
+          'Numerator: $(6 + 2\\sqrt{2})(2 + \\sqrt{2}) = 12 + 6\\sqrt{2} + 4\\sqrt{2} + 4 = 16 + 10\\sqrt{2}$.',
+          'Divide by $2$: $8 + 5\\sqrt{2}$.',
+        ],
+        answer: '$8 + 5\\sqrt{2}$',
+        markSchemeNotes: 'B1 $\\sqrt{8}=2\\sqrt{2}$, M1 conjugate $\\times(2+\\sqrt{2})$, A1 denominator $2$ & numerator $16+10\\sqrt{2}$, A1 $8+5\\sqrt{2}$.',
       },
     ],
     rapidSummary: [
@@ -1002,6 +1035,10 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         heading: 'Completing the Square (Including $a > 1$) & Turning Point (Extended)',
         body: 'For monic quadratics, write $x^2 + bx + c = \\left(x + \\frac{b}{2}\\right)^2 - \\left(\\frac{b}{2}\\right)^2 + c$. When the $x^2$ coefficient $a \\neq 1$ (e.g. $2x^2 + 8x + 3$), factor $a$ out of the first two terms ONLY before completing the square inside brackets: $2[x^2 + 4x] + 3 = 2[(x + 2)^2 - 4] + 3 = 2(x + 2)^2 - 5$. This reveals the vertex at $(-2, -5)$ AND solves $2(x+2)^2 - 5 = 0$ immediately via square roots.',
       },
+      {
+        heading: 'Word Problems Forming Quadratics & Disguised Quadratics (Paper 4)',
+        body: 'In Paper 4 rate/journey problems ("a train travels $120\\text{ km}$ at $x\\text{ km/h}$; increasing speed by $10\\text{ km/h}$ saves $1$ hour"), write time difference as $\\frac{120}{x} - \\frac{120}{x+10} = 1$, clear denominators, and solve the resulting quadratic (rejecting negative speed!). For disguised quadratics like $x^4 - 13x^2 + 36 = 0$, substitute $u = x^2$ to factor $(u - 9)(u - 4) = 0 \\implies x = \\pm 3, \\pm 2$.',
+      },
     ],
     extraWorkedExamples: [
       {
@@ -1026,6 +1063,18 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         ],
         answer: '$3(x - 2)^2 - 7$; vertex $(2, -7)$',
         markSchemeNotes: 'B1 for $a = 3$, M1 for $(x - 2)^2 - 4$, A1 for $-7$ and vertex $(2, -7)$.',
+      },
+      {
+        title: 'Speed-time difference forming a quadratic (Paper 4 Classic)',
+        question: 'A cyclist rides $60\\text{ km}$ at $v\\text{ km/h}$. On the return journey, his speed is $(v + 5)\\text{ km/h}$ and he takes $1\\text{ hour}$ less. Form an equation and find $v$.',
+        marks: 5,
+        steps: [
+          'Outward time $\\frac{60}{v}$, return time $\\frac{60}{v + 5}$. Difference is $1\\text{ h}$: $\\frac{60}{v} - \\frac{60}{v + 5} = 1$.',
+          'Multiply by $v(v + 5)$: $60(v + 5) - 60v = v(v + 5) \\implies 300 = v^2 + 5v \\implies v^2 + 5v - 300 = 0$.',
+          'Factorise: $(v - 15)(v + 20) = 0$. Since speed $v > 0$, $v = 15\\text{ km/h}$.',
+        ],
+        answer: '$v = 15\\text{ km/h}$',
+        markSchemeNotes: 'M1 setting difference $= 1$, M1 clearing denominator to $v^2 + 5v - 300 = 0$, M1 factorising/formula, A1 $15$ (with $-20$ rejected).',
       },
     ],
     rapidSummary: [
@@ -1089,57 +1138,64 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
     ],
   },
   '2.7': {
-    bigIdea: 'Every sequence follows a hidden $n$-th term formula $u_n$. Constant first differences give linear $dn + c$, constant second differences give quadratic $an^2 + bn + c$, and constant ratios give geometric $ar^{n-1}$.',
+    bigIdea: 'Every polynomial or geometric sequence leaves a fingerprint in its difference pyramid or term ratios: constant 1st difference = linear ($dn+c$), constant 2nd difference = quadratic ($an^2+bn+c$ via $2a, 3a+b, a+b+c$), constant 3rd difference = cubic ($an^3+bn^2+cn+d$ via $6a, 12a+2b, 7a+3b+c, a+b+c+d$), and constant ratio = geometric ($ar^{n-1}$).',
     stepByStepMethod: [
-      'Compute first differences between consecutive terms. If constant ($d$), write $u_n = dn + c$ where $c = u_1 - d$.',
-      'If first differences vary, compute SECOND differences ($D_2$). If constant, $a = \\frac{D_2}{2}$; subtract $an^2$ from each term and find linear $bn + c$ of the remainder.',
-      'If consecutive terms multiply by a constant ratio $r$, write $u_n = a r^{n-1}$.',
+      'Always build the difference pyramid first: 1st differences ($d_1$), then 2nd differences ($d_2$), and if needed 3rd differences ($d_3$).',
+      'Quadratic Fast Method: solve top-down along the Term-1 column using $2a = D_2$, then $3a + b = d_1(1)$, then $a + b + c = u_1$ (cross-check with $u_0 = c$ or $u_4$).',
+      'Cubic Fast Method: solve $6a = D_3$, then $12a + 2b = d_2(1)$, then $7a + 3b + c = d_1(1)$, then $a + b + c + d = u_1$ (cross-check with $u_5$!).',
+      'If differences grow by multiplication instead of polynomial steps, check ratio $r = \\frac{u_2}{u_1}$ for geometric $u_n = a r^{n-1}$, or inspect numerator & denominator separately for fraction sequences.',
     ],
     comparisonTable: {
-      title: 'Three Sequence Types in IGCSE 0580',
-      headers: ['Sequence Type', 'Signature Test', '$n$-th Term Formula'],
+      title: 'IGCSE 0580 Sequence Types & Fast Coefficient Formulas',
+      headers: ['Sequence Type', 'Difference / Ratio Signature', 'Fast Leading-Column Equations ($n=1$)'],
       rows: [
-        ['Linear (Arithmetic)', 'Constant 1st difference $d$', '$u_n = u_1 + (n - 1)d$'],
-        ['Quadratic', 'Constant 2nd difference $D_2$', '$u_n = an^2 + bn + c,\\ a = \\frac{D_2}{2}$'],
-        ['Geometric (Exponential)', 'Constant multiplier ratio $r = \\frac{u_2}{u_1}$', '$u_n = a r^{n-1}$'],
+        ['Linear ($dn + c$)', 'Constant 1st diff $d$', '$d = u_2 - u_1$, then $d + c = u_1$ (or $c = u_0$)'],
+        ['Quadratic ($an^2 + bn + c$)', 'Constant 2nd diff $D_2$', '$2a = D_2$; $3a + b = d_1(1)$; $a + b + c = u_1$'],
+        ['Cubic ($an^3 + bn^2 + cn + d$)', 'Constant 3rd diff $D_3$', '$6a = D_3$; $12a+2b = d_2(1)$; $7a+3b+c = d_1(1)$; $a+b+c+d = u_1$'],
+        ['Geometric ($a r^{n-1}$)', 'Constant ratio $r = \\frac{u_{n+1}}{u_n}$', '$a = u_1$, $r^{q-p} = \\frac{u_q}{u_p}$'],
+        ['Fraction ($\\frac{P_n}{Q_n}$)', 'Separate top & bottom patterns', 'Solve numerator $P_n$ and denominator $Q_n$ independently'],
       ],
     },
     extraStudyNotes: [
       {
-        heading: 'Testing If a Number Belongs to a Sequence',
-        body: 'To test whether $185$ is in $u_n = 4n - 3$, set $4n - 3 = 185 \\implies 4n = 188 \\implies n = 47$. Since $n = 47$ is a positive integer, YES, $185$ is the $47$th term! If $n$ comes out fractional or negative, it is NOT in the sequence.',
+        heading: 'The 0th-Term Trick & $n$th Term Verification',
+        body: 'In BOTH linear and polynomial sequences, stepping the difference table backwards by ONE column to $n = 0$ immediately gives the constant term ($c$ in $an^2+bn+c$, or $d$ in $an^3+bn^2+cn+d$)! For quadratic $u_n$: $d_0 = d_1(1) - D_2$ and $c = u_1 - d_0$. Even better, if $u_1$ is messy, double-check $u_4$ and $u_5$ by direct substitution — a single arithmetic slip in $b$ or $c$ shows up immediately.',
       },
       {
-        heading: 'Cubic ($n^3$) & Fraction Sequences ("Other Sequences")',
-        body: 'Compare sequences whose differences grow rapidly against the benchmark cube sequence $n^3 = 1, 8, 27, 64, 125, \\dots$ (or compute 3rd differences $D_3$, where the $n^3$ coefficient is $\\frac{D_3}{6}$). For fraction sequences like $\\frac{2}{5}, \\frac{5}{8}, \\frac{8}{11}, \\dots$, find separate $n$-th term rules for the numerator and denominator independently!',
+        heading: 'Cubic ($n^3$), Recurrence & Fraction Sequences ("Other Sequences")',
+        body: 'For general **cubic** sequences $an^3 + bn^2 + cn + d$ where $a \\neq 1$ or $b, c \\neq 0$, use the $6a, 12a+2b, 7a+3b+c, a+b+c+d$ fast system (or subtract $an^3$ from $n^3 = 1, 8, 27, 64, 125$ to drop to a quadratic). For **fraction sequences** like $\\frac{2}{5}, \\frac{5}{8}, \\frac{8}{11}, \\dots$, treat numerator and denominator as two independent sequences (even when one is quadratic and the other is linear or exponential!). For **recurrence / Fibonacci-type** rules like $u_{n+1} = 2u_n - 1$, work forward term-by-term or solve backward carefully.',
       },
     ],
     extraWorkedExamples: [
       {
-        title: 'Geometric sequence recognition',
-        question: 'Find the $n$-th term of the geometric sequence $3, 6, 12, 24, \\dots$.',
-        marks: 2,
+        title: 'Geometric sequence from non-consecutive terms & alternating signs',
+        question: 'In a geometric sequence, the $2$nd term is $12$ and the $5$th term is $-324$. Find the $n$-th term formula $u_n$.',
+        marks: 3,
         steps: [
-          'First term $a = 3$, common ratio $r = 6 \\div 3 = 2$.',
-          'Apply $u_n = a r^{n-1} = 3 \\times 2^{n-1}$.',
+          'Relate $u_5$ and $u_2$: $\\frac{u_5}{u_2} = r^{5-2} = r^3 = \\frac{-324}{12} = -27$.',
+          'Take cube root: $r = \\sqrt[3]{-27} = -3$.',
+          'Find $u_1 = a$: $u_2 = a r \\implies 12 = a(-3) \\implies a = -4$.',
+          'Formula: $u_n = -4 \\times (-3)^{n-1}$. (Check $n=2$: $-4(-3)^1 = 12$; $n=5$: $-4(-3)^4 = -324$ ✓.)',
         ],
-        answer: '$3 \\times 2^{n-1}$',
-        markSchemeNotes: 'B1 for $2^{n-1}$, A1 for $3 \\times 2^{n-1}$.',
+        answer: '$-4 \\times (-3)^{n-1}$',
+        markSchemeNotes: 'M1 for $r^3 = -27$, A1 for $r = -3$ and $a = -4$, A1 for $-4(-3)^{n-1}$.',
       },
       {
         title: 'Cubic & fraction sequence $n$-th term (Extended)',
-        question: 'Find the $n$-th term of (a) $2, 9, 28, 65, 126, \\dots$ and (b) $\\frac{3}{4}, \\frac{5}{7}, \\frac{7}{10}, \\frac{9}{13}, \\dots$.',
-        marks: 4,
+        question: 'Find the $n$-th term of (a) $2, 9, 28, 65, 126, \\dots$, (b) $3, 14, 39, 84, 155, \\dots$ using $6a, 12a+2b, 7a+3b+c, a+b+c+d$, and (c) $\\frac{3}{4}, \\frac{5}{7}, \\frac{7}{10}, \\frac{9}{13}, \\dots$.',
+        marks: 6,
         steps: [
           '(a) Compare against $n^3 = 1, 8, 27, 64, 125$: every term is $1$ higher, so $u_n = n^3 + 1$.',
-          '(b) Numerators $3, 5, 7, 9 \\to 2n + 1$; denominators $4, 7, 10, 13 \\to 3n + 1$, giving $\\frac{2n + 1}{3n + 1}$.',
+          '(b) 1st diffs: $11, 25, 45, 71$; 2nd diffs: $14, 20, 26$; 3rd diff: constant $6$. So $6a = 6 \\implies a = 1$; $12(1) + 2b = 14 \\implies b = 1$; $7(1) + 3(1) + c = 11 \\implies c = 1$; $1 + 1 + 1 + d = 3 \\implies d = 0$. Hence $u_n = n^3 + n^2 + n$.',
+          '(c) Numerators $3, 5, 7, 9 \\to 2n + 1$; denominators $4, 7, 10, 13 \\to 3n + 1$, giving $\\frac{2n + 1}{3n + 1}$.',
         ],
-        answer: '(a) $n^3 + 1$; (b) $\\frac{2n + 1}{3n + 1}$',
-        markSchemeNotes: 'M1 for comparing with $n^3$, A1 $n^3 + 1$; B1 numerator $2n+1$, B1 denominator $3n+1$.',
+        answer: '(a) $n^3 + 1$; (b) $n^3 + n^2 + n$; (c) $\\frac{2n + 1}{3n + 1}$',
+        markSchemeNotes: 'M1 for comparing with $n^3$, A1 $n^3 + 1$; M1 for 3rd diff $6$ & $a=1,b=1$, A1 $n^3+n^2+n$; B1 numerator $2n+1$, B1 denominator $3n+1$.',
       },
     ],
     rapidSummary: [
-      { rule: 'Half the second difference', detail: 'In a quadratic sequence, $a = \\frac{\\text{2nd difference}}{2}$.' },
+      { rule: 'Quadratic $a+b+c$ column', detail: '$2a = D_2$, $3a + b = d_1(1)$, $a + b + c = u_1$ (and $u_0 = c$).' },
+      { rule: 'Cubic $a+b+c+d$ column', detail: '$6a = D_3$, $12a+2b = d_2(1)$, $7a+3b+c = d_1(1)$, $a+b+c+d = u_1$.' },
       { rule: '$n$ must be a positive integer', detail: 'Only positive whole numbers ($1, 2, 3, \\dots$) count as valid term positions.' },
     ],
   },
@@ -1163,7 +1219,11 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
     extraStudyNotes: [
       {
         heading: 'Percentage Effect Questions Without Knowing $k$',
-        body: 'If $y \\propto \\frac{1}{x^2}$ and $x$ is doubled ($2x$), then $y_{\\text{new}} = \\frac{k}{(2x)^2} = \\frac{1}{4}\\left(\\frac{k}{x^2}\\right) = \\frac{1}{4}y$, meaning $y$ becomes a quarter of its original value ($75\\%$ decrease).',
+        body: 'If $y \\propto \\frac{1}{x^2}$ and $x$ is doubled ($2x$), then $y_{\\text{new}} = \\frac{k}{(2x)^2} = \\frac{1}{4}\\left(\\frac{k}{x^2}\\right) = \\frac{1}{4}y$, meaning $y$ becomes a quarter of its original value ($75\\%$ decrease). If $x$ increases by $25\\%$, replace $x$ by $1.25x$ and evaluate the multiplier directly!',
+      },
+      {
+        heading: 'Chained Variation (Three Linked Variables — Paper 4)',
+        body: 'If $y$ is directly proportional to $x^2$ and $x$ is inversely proportional to $z$, combine both laws by substituting the formula for $x$ into $y$: $y = k_1 x^2$ and $x = \\frac{k_2}{z} \\implies y = k_1\\left(\\frac{k_2}{z}\\right)^2 = \\frac{C}{z^2}$, proving $y \\propto \\frac{1}{z^2}$!',
       },
     ],
     extraWorkedExamples: [
@@ -1177,6 +1237,18 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         ],
         answer: '$q = 49$',
         markSchemeNotes: 'M1 for $P = k\\sqrt{q}$, A1 for $k = 5$, A1 for $q = 49$.',
+      },
+      {
+        title: 'Chained variation & percentage scaling (Extended)',
+        question: '$y$ is directly proportional to $x^2$ and $x$ is inversely proportional to $z$. Given $y = 18$ when $z = 2$, find $y$ when $z = 6$.',
+        marks: 3,
+        steps: [
+          'Combine variations: $y = k_1 x^2 = k_1\\left(\\frac{k_2}{z}\\right)^2 = \\frac{C}{z^2}$.',
+          'Substitute $y = 18, z = 2$: $18 = \\frac{C}{2^2} = \\frac{C}{4} \\implies C = 72$.',
+          'When $z = 6$: $y = \\frac{72}{6^2} = \\frac{72}{36} = 2$.',
+        ],
+        answer: '$y = 2$',
+        markSchemeNotes: 'M1 for $y = \\frac{C}{z^2}$, A1 for $C = 72$, A1 for $y = 2$.',
       },
     ],
     rapidSummary: [
@@ -1344,6 +1416,10 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         heading: 'Important Scope Note for 0580 (Integer Exponents $\\ge 0$)',
         body: 'In IGCSE 0580 Extended, differentiation focuses on polynomials of the form $ax^n$ where $n$ is a positive integer or zero (including expanding products like $x(x-4)^2$ before differentiating). Always expand brackets first!',
       },
+      {
+        heading: 'Tangents, Normals & Mensuration Optimisation (Paper 4)',
+        body: 'To find the **tangent equation** at $x = a$, evaluate $y_1$ from the curve, evaluate $m = \\frac{\\mathrm{d}y}{\\mathrm{d}x}\\big|_{x=a}$, and use $y - y_1 = m(x - a)$ (for the **normal**, replace $m$ with $-\\frac{1}{m}$). For **optimisation** problems ("maximise the enclosed area $A(x)$"), express the quantity in terms of ONE variable $x$, differentiate $\\frac{\\mathrm{d}A}{\\mathrm{d}x} = 0$, solve for $x$, and verify maximum via $\\frac{\\mathrm{d}^2A}{\\mathrm{d}x^2} < 0$.',
+      },
     ],
     extraWorkedExamples: [
       {
@@ -1356,6 +1432,17 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         ],
         answer: '$(3, 9)$, Maximum',
         markSchemeNotes: 'M1 for $6 - 2x = 0$, A1 $(3, 9)$, B1 Maximum with valid reason.',
+      },
+      {
+        title: 'Tangent equation & area optimisation (Paper 4)',
+        question: '(a) Find the equation of the tangent to $y = x^3 - 4x + 1$ at $x = 2$. (b) A rectangular pen using a straight wall on one side has $40\\text{ m}$ of fencing for the other three sides (two widths $x$, one length $40 - 2x$). Find $x$ that maximises the area.',
+        marks: 6,
+        steps: [
+          '(a) At $x = 2$: $y = 8 - 8 + 1 = 1$, point $(2, 1)$. Gradient $\\frac{\\mathrm{d}y}{\\mathrm{d}x} = 3x^2 - 4 = 3(4) - 4 = 8$. Tangent: $y - 1 = 8(x - 2) \\implies y = 8x - 15$.',
+          '(b) Area $A(x) = x(40 - 2x) = 40x - 2x^2$. Differentiate: $\\frac{\\mathrm{d}A}{\\mathrm{d}x} = 40 - 4x = 0 \\implies x = 10\\text{ m}$ (with $\\frac{\\mathrm{d}^2A}{\\mathrm{d}x^2} = -4 < 0$, confirmed maximum).',
+        ],
+        answer: '(a) $y = 8x - 15$; (b) $x = 10\\text{ m}$ (max area $200\\text{ m}^2$)',
+        markSchemeNotes: 'B1 $(2,1)$, M1 $\\frac{\\mathrm{d}y}{\\mathrm{d}x}=8$, A1 $y=8x-15$; M1 $A=40x-2x^2$, M1A1 $\\frac{\\mathrm{d}A}{\\mathrm{d}x}=0 \\implies x=10$.',
       },
     ],
     rapidSummary: [
@@ -1384,6 +1471,10 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         heading: 'Values Excluded from a Function\'s Domain',
         body: 'In $\\mathrm{h}(x) = \\frac{5}{2x - 6}$, you cannot divide by zero, so set $2x - 6 = 0 \\implies x = 3$ must be excluded from the domain ($x \\neq 3$). Geometrically, $y = \\mathrm{f}^{-1}(x)$ is always the reflection of $y = \\mathrm{f}(x)$ across the line $y = x$.',
       },
+      {
+        heading: 'Algebraic Composite Equations & Self-Inverse Functions (Paper 4)',
+        body: 'To solve $\\mathrm{fg}(x) = k$, you can EITHER build the full algebraic expression $\\mathrm{f}(\\mathrm{g}(x))$ and solve, OR peel off $\\mathrm{f}$ faster using its inverse: $\\mathrm{g}(x) = \\mathrm{f}^{-1}(k)$! Also check self-inverse functions where $\\mathrm{ff}(x) = x$ (for example $\\mathrm{f}(x) = \\frac{4}{x}$ or $\\mathrm{f}(x) = 7 - x$).',
+      },
     ],
     extraWorkedExamples: [
       {
@@ -1396,6 +1487,19 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         ],
         answer: '$\\mathrm{f}^{-1}(x) = \\frac{3x + 1}{x - 2}$',
         markSchemeNotes: 'M1 for clearing denominator after swapping, M1 grouping $y$ terms, A1 final.',
+      },
+      {
+        title: 'Solving $\\mathrm{fg}(x) = \\mathrm{gf}(x)$ (Paper 4 Extended)',
+        question: 'Given $\\mathrm{f}(x) = 2x + 3$ and $\\mathrm{g}(x) = x^2 - 1$, solve $\\mathrm{fg}(x) = \\mathrm{gf}(x)$, giving solutions to $2$ d.p.',
+        marks: 5,
+        steps: [
+          '$\\mathrm{fg}(x) = 2(x^2 - 1) + 3 = 2x^2 + 1$.',
+          '$\\mathrm{gf}(x) = (2x + 3)^2 - 1 = 4x^2 + 12x + 8$.',
+          'Equate: $2x^2 + 1 = 4x^2 + 12x + 8 \\implies 2x^2 + 12x + 7 = 0$.',
+          'Quadratic formula: $x = \\frac{-12 \\pm \\sqrt{144 - 56}}{4} = \\frac{-12 \\pm \\sqrt{88}}{4} \\approx -0.65$ or $-5.35$.',
+        ],
+        answer: '$x = -0.65$ or $x = -5.35$',
+        markSchemeNotes: 'B1 $\\mathrm{fg}(x)$, B1 $\\mathrm{gf}(x)$, M1 quadratic $=0$, M1 formula, A1 both roots.',
       },
     ],
     rapidSummary: [
@@ -1663,6 +1767,10 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         heading: 'Four-Step Perpendicular Bisector Recipe (High-Yield Exam Question)',
         body: 'Perpendicular bisector questions appear in almost every Extended session: (1) Midpoint $M$ of $AB$, (2) Gradient $m_{AB}$, (3) Negative reciprocal $m_\\perp$, (4) Plug $M$ into $y = m_\\perp x + c$. NEVER plug $A$ or $B$ into Step 4 — only the midpoint $M$ lies on the bisector!',
       },
+      {
+        heading: 'Rhombus, Kite & Shortest Distance from Point to Line (Paper 4)',
+        body: 'In a rhombus or kite, diagonals intersect perpendicularly at the midpoint of at least one diagonal! And the **shortest distance** from a point $P$ to line $L$ is along the **perpendicular** line from $P$ meeting $L$ at $Q$: find the perpendicular line equation, solve simultaneously with $L$ to locate $Q$, then calculate $|PQ| = \\sqrt{(x_Q - x_P)^2 + (y_Q - y_P)^2}$.',
+      },
     ],
     extraWorkedExamples: [
       {
@@ -1676,6 +1784,19 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         ],
         answer: '$y = -\\frac{1}{2}x + 7.5$',
         markSchemeNotes: 'B1 midpoint $(3,6)$, B1 $m_{AB}=2$, M1 $m_\\perp = -\\frac{1}{2}$ + sub $(3,6)$, A1 final.',
+      },
+      {
+        title: 'Vertices of a rhombus via perpendicular bisector (Paper 4)',
+        question: 'A rhombus $ABCD$ has opposite vertices $A(1, 1)$ and $C(7, 5)$. Vertex $B$ has $x$-coordinate $2$. Find the coordinates of $B$ and $D$.',
+        marks: 5,
+        steps: [
+          'Diagonals of a rhombus bisect at $90^\\circ$: midpoint $M = (\\frac{1+7}{2}, \\frac{1+5}{2}) = (4, 3)$.',
+          'Gradient $m_{AC} = \\frac{5-1}{7-1} = \\frac{2}{3} \\implies m_{BD} = -\\frac{3}{2}$.',
+          'Equation of $BD$ through $(4, 3)$: $3 = -\\frac{3}{2}(4) + c \\implies c = 9$, so $y = -\\frac{3}{2}x + 9$.',
+          'At $x_B = 2$: $y_B = -3 + 9 = 6 \\implies B(2, 6)$. Since $M(4,3)$ is midpoint of $BD$, $D = (2(4)-2, 2(3)-6) = (6, 0)$.',
+        ],
+        answer: '$B(2, 6)$ and $D(6, 0)$',
+        markSchemeNotes: 'B1 midpoint $(4,3)$, M1 $m_{BD} = -\\frac{3}{2}$, A1 $y = -\\frac{3}{2}x + 9$, B1 $B(2,6)$, B1 $D(6,0)$.',
       },
     ],
     rapidSummary: [
@@ -1802,6 +1923,19 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         ],
         answer: '(a) $17\\text{ km}$, (b) $035^\\circ$',
         markSchemeNotes: 'B1 $17\\text{ km}$, B1 $035^\\circ$.',
+      },
+      {
+        title: 'Two-leg bearing with Cosine Rule & final bearing (Paper 4)',
+        question: 'A ship sails $12\\text{ km}$ from port $A$ on a bearing of $060^\\circ$ to $B$, then sails $15\\text{ km}$ due South ($180^\\circ$) to $C$. Find (a) distance $AC$ and (b) the bearing of $C$ from $A$ to $1$ d.p.',
+        marks: 6,
+        steps: [
+          'North lines at $A$ and $B$ are parallel. Alternate angle $\\angle ABN = 60^\\circ$, and $BC$ goes due South ($180^\\circ$ from North), so $\\angle ABC = 60^\\circ$.',
+          '(a) Cosine Rule in $\\triangle ABC$: $AC^2 = 12^2 + 15^2 - 2(12)(15)\\cos 60^\\circ = 144 + 225 - 180 = 189 \\implies AC = \\sqrt{189} = 13.748\\dots \\approx 13.7\\text{ km}$.',
+          '(b) Sine Rule for $\\angle BAC$: $\\frac{\\sin(\\angle BAC)}{15} = \\frac{\\sin 60^\\circ}{\\sqrt{189}} \\implies \\sin(\\angle BAC) = 0.9449\\dots \\implies \\angle BAC = 70.89^\\circ$.',
+          'Bearing of $C$ from $A = 060^\\circ + 70.89^\\circ = 130.9^\\circ$.',
+        ],
+        answer: '(a) $13.7\\text{ km}$, (b) $130.9^\\circ$',
+        markSchemeNotes: 'B1 $\\angle ABC=60^\\circ$, M1A1 Cosine Rule $13.7$, M1 Sine Rule $\\angle BAC$, A1 $130.9^\\circ$.',
       },
     ],
     rapidSummary: [
@@ -2003,6 +2137,10 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         heading: 'Exterior Angle of a Cyclic Quadrilateral',
         body: 'Extending side $AB$ of cyclic quadrilateral $ABCD$ past $B$ to $E$ forms exterior angle $\\angle CBE$. Since $\\angle CBE + \\angle ABC = 180^\\circ$ and $\\angle ADC + \\angle ABC = 180^\\circ$, the exterior angle equals the interior opposite angle: $\\angle CBE = \\angle ADC$!',
       },
+      {
+        heading: 'Algebraic Angle Chasing Across Multiple Theorems (Paper 4)',
+        body: 'Extended Paper 4 questions ask you to "find angle $PQR$ in terms of $x$". Chain theorems systematically: mark radii (isosceles triangles), look for cyclic quads ($180^\\circ - x$), double/halve via centre angle ($2x$ or $\\frac{x}{2}$), and apply the alternate segment theorem wherever a tangent touches a vertex.',
+      },
     ],
     extraWorkedExamples: [
       {
@@ -2015,6 +2153,17 @@ export const TEXTBOOK_GUIDE_1_TO_4: Record<string, TextbookEnrichment> = {
         ],
         answer: '$75^\\circ$',
         markSchemeNotes: 'M1 for $180 - (58 + 47)$, A1 for $75^\\circ$.',
+      },
+      {
+        title: 'Algebraic circle theorem proof in terms of $x$ (Paper 4)',
+        question: 'Points $A, B, C, D$ lie on a circle, centre $O$. Tangent $TA$ touches the circle at $A$ with $\\angle TAB = x$. $BD$ is a diameter and $\\angle CBD = 24^\\circ$. Find $\\angle ADB$ and $\\angle ACD$ in terms of $x$.',
+        marks: 4,
+        steps: [
+          'By alternate segment theorem (tangent $TA$, chord $AB$), $\\angle ADB = \\angle TAB = x$.',
+          'Since $BD$ is a diameter, $\\angle BAD = 90^\\circ$ (angle in a semicircle). Also $\\angle BCD = 90^\\circ$, or use same segment on chord $AD$: $\\angle ACD = \\angle ABD = 90^\\circ - x$.',
+        ],
+        answer: '$\\angle ADB = x$, $\\angle ACD = 90^\\circ - x$',
+        markSchemeNotes: 'B1 $\\angle ADB = x$ (alternate segment), B1 $\\angle BAD = 90^\\circ$ (semicircle), M1 $\\angle ABD = 90^\\circ - x$, A1 $\\angle ACD = 90^\\circ - x$ (same segment).',
       },
     ],
     rapidSummary: [
