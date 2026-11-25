@@ -1,13 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  acquireFullscreenBodyLock,
   capturePdfZoomAnchor,
   computeAnchoredScrollPosition,
+  computeFitWidthZoom,
   computePinchZoomScale,
   computeScrollThumbMetrics,
   computeScrollTopFromTrackY,
   computeTwoFingerPanAndZoom,
   evaluateTwoFingerPinchEngagement,
+  resolveAnnotatorContainerClasses,
   resolveDefaultAnnotatorToolAndWidth,
   snapClientPointToRulerEdge,
 } from './pdfAnnotations';
@@ -220,4 +223,55 @@ test('resolveDefaultAnnotatorToolAndWidth defaults MS/answers to pan(scroll) and
     widthPreset: 'fine',
   });
 });
+
+test('computeFitWidthZoom fits A4 page cleanly to tablet portrait/landscape containers and clamps bounds', () => {
+  // Tablet portrait ~710px container, A4 base width 595px, 48px padding -> 662 / 595 = 1.11
+  assert.equal(
+    computeFitWidthZoom({ containerWidth: 710, pageWidth: 595, horizontalPadding: 48 }),
+    1.11
+  );
+  // Tablet landscape ~1200px container -> (1200 - 48) / 595 = 1.94
+  assert.equal(
+    computeFitWidthZoom({ containerWidth: 1200, pageWidth: 595, horizontalPadding: 48 }),
+    1.94
+  );
+  // Clamps extremely narrow / wide containers safely
+  assert.equal(computeFitWidthZoom({ containerWidth: 260, pageWidth: 595 }), 0.65);
+  assert.equal(computeFitWidthZoom({ containerWidth: 2200, pageWidth: 595 }), 2.5);
+  assert.equal(computeFitWidthZoom({ containerWidth: 0, pageWidth: 0 }), 1);
+});
+
+test('resolveAnnotatorContainerClasses switches cleanly between inline, parent split fullscreen, and annotator fullscreen', () => {
+  const inlineLayout = resolveAnnotatorContainerClasses({
+    isAnnotatorFullscreen: false,
+    isParentFullscreen: false,
+    defaultHeightClass: 'h-[620px]',
+  });
+  assert.equal(inlineLayout.isImmersive, false);
+  assert.equal(inlineLayout.scrollContainerClass, 'h-[620px]');
+
+  const splitFsLayout = resolveAnnotatorContainerClasses({
+    isAnnotatorFullscreen: false,
+    isParentFullscreen: true,
+  });
+  assert.equal(splitFsLayout.isImmersive, true);
+  assert.equal(splitFsLayout.scrollContainerClass, 'flex-1 min-h-0');
+  assert.ok(splitFsLayout.rootClass.includes('flex-1'));
+
+  const soloFsLayout = resolveAnnotatorContainerClasses({
+    isAnnotatorFullscreen: true,
+    isParentFullscreen: true,
+  });
+  assert.equal(soloFsLayout.isImmersive, true);
+  assert.ok(soloFsLayout.rootClass.includes('fixed inset-0'));
+  assert.ok(soloFsLayout.rootClass.includes('z-[70]'));
+  assert.ok(soloFsLayout.rootClass.includes('h-[100dvh]'));
+  assert.equal(soloFsLayout.scrollContainerClass, 'flex-1 min-h-0');
+
+  // Safe no-op in Node SSR environment
+  const release = acquireFullscreenBodyLock();
+  release();
+  release();
+});
+
 

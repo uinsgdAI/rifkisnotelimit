@@ -6,6 +6,8 @@ import {
   Download,
   ExternalLink,
   Loader2,
+  Maximize2,
+  Minimize2,
   Pen,
   Search,
 } from 'lucide-react';
@@ -14,6 +16,7 @@ import { TOPICAL_PAPERS_0580, type TopicalPaperPack } from '../data/topicalPaper
 import type { AppRoute } from '../types/syllabus';
 import { buildGoogleDocsViewerUrl } from '../utils/papacambridge';
 import {
+  acquireFullscreenBodyLock,
   buildPdfByteCandidateUrls,
   fetchPdfBytesWithFallback,
   prefetchPdfBytes,
@@ -36,6 +39,7 @@ interface TopicalPastPapersSectionProps {
 interface NativePdfFrameProps {
   externalUrl: string;
   title: string;
+  fullHeight?: boolean;
   onSwitchToAnnotate: () => void;
   onSwitchToWeb: () => void;
 }
@@ -43,6 +47,7 @@ interface NativePdfFrameProps {
 const NativePdfFrame: React.FC<NativePdfFrameProps> = ({
   externalUrl,
   title,
+  fullHeight = false,
   onSwitchToAnnotate,
   onSwitchToWeb,
 }) => {
@@ -89,7 +94,11 @@ const NativePdfFrame: React.FC<NativePdfFrameProps> = ({
 
   if (loading) {
     return (
-      <div className="w-full h-[640px] flex flex-col items-center justify-center gap-3 text-sm text-[#5E588C] bg-[#FAF9FF]">
+      <div
+        className={`w-full ${
+          fullHeight ? 'flex-1 min-h-0' : 'h-[640px]'
+        } flex flex-col items-center justify-center gap-3 text-sm text-[#5E588C] bg-[#FAF9FF]`}
+      >
         <Loader2 className="w-5 h-5 animate-spin text-[#6D69F2]" />
         <span>Loading native PDF viewer...</span>
       </div>
@@ -98,7 +107,11 @@ const NativePdfFrame: React.FC<NativePdfFrameProps> = ({
 
   if (error || !blobUrl) {
     return (
-      <div className="w-full h-[640px] flex flex-col items-center justify-center gap-3 p-6 text-center bg-[#FAF9FF]">
+      <div
+        className={`w-full ${
+          fullHeight ? 'flex-1 min-h-0' : 'h-[640px]'
+        } flex flex-col items-center justify-center gap-3 p-6 text-center bg-[#FAF9FF]`}
+      >
         <p className="text-sm text-[#393469] max-w-md">
           Native browser PDF could not be embedded ({error || 'blocked by network'}).
         </p>
@@ -135,9 +148,13 @@ const NativePdfFrame: React.FC<NativePdfFrameProps> = ({
       aria-label={title}
       data={blobUrl}
       type="application/pdf"
-      className="w-full h-[640px] block bg-[#FAF9FF]"
+      className={`w-full block bg-[#FAF9FF] ${fullHeight ? 'flex-1 min-h-0' : 'h-[640px]'}`}
     >
-      <div className="w-full h-[640px] flex flex-col items-center justify-center gap-3 p-6 text-center bg-[#FAF9FF]">
+      <div
+        className={`w-full ${
+          fullHeight ? 'flex-1 min-h-0' : 'h-[640px]'
+        } flex flex-col items-center justify-center gap-3 p-6 text-center bg-[#FAF9FF]`}
+      >
         <p className="text-sm text-[#393469] max-w-md">
           This browser does not embed Native PDF plugins inline. Use Annotate (Draw) to view &amp; scribble directly on every page, or open the PDF in a new tab.
         </p>
@@ -185,6 +202,84 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
   );
   const [splitAnswers, setSplitAnswers] = useState(true);
   const viewerRef = useRef<HTMLElement | null>(null);
+  const [isViewerFullscreen, setIsViewerFullscreen] = useState(false);
+  const enteredNativeViewerFsRef = useRef(false);
+
+  const exitViewerFullscreen = useCallback(() => {
+    setIsViewerFullscreen(false);
+    if (
+      enteredNativeViewerFsRef.current &&
+      typeof document !== 'undefined' &&
+      document.fullscreenElement === viewerRef.current &&
+      typeof document.exitFullscreen === 'function'
+    ) {
+      document.exitFullscreen().catch(() => undefined);
+    }
+    enteredNativeViewerFsRef.current = false;
+  }, []);
+
+  const toggleViewerFullscreen = useCallback(() => {
+    if (isViewerFullscreen) {
+      exitViewerFullscreen();
+      return;
+    }
+    setIsViewerFullscreen(true);
+    const el = viewerRef.current;
+    if (
+      el &&
+      typeof el.requestFullscreen === 'function' &&
+      typeof document !== 'undefined' &&
+      !document.fullscreenElement
+    ) {
+      try {
+        Promise.resolve(el.requestFullscreen())
+          .then(() => {
+            enteredNativeViewerFsRef.current = true;
+          })
+          .catch(() => {
+            enteredNativeViewerFsRef.current = false;
+          });
+      } catch {
+        enteredNativeViewerFsRef.current = false;
+      }
+    }
+  }, [isViewerFullscreen, exitViewerFullscreen]);
+
+  useEffect(() => {
+    if (!isViewerFullscreen) return;
+    const releaseLock = acquireFullscreenBodyLock();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        exitViewerFullscreen();
+      }
+    };
+    const onFsChange = () => {
+      if (enteredNativeViewerFsRef.current && !document.fullscreenElement) {
+        enteredNativeViewerFsRef.current = false;
+        setIsViewerFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => {
+      releaseLock();
+      window.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('fullscreenchange', onFsChange);
+    };
+  }, [isViewerFullscreen, exitViewerFullscreen]);
+
+  useEffect(() => {
+    return () => {
+      if (
+        enteredNativeViewerFsRef.current &&
+        typeof document !== 'undefined' &&
+        document.fullscreenElement === viewerRef.current &&
+        typeof document.exitFullscreen === 'function'
+      ) {
+        document.exitFullscreen().catch(() => undefined);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     setChapterFilter(selectedChapterFilter);
@@ -373,30 +468,41 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
           ref={viewerRef}
           aria-label={`Topical PDF Viewer for ${activePack.title}`}
           data-testid="topical-pdf-viewer"
-          className="sk-card overflow-hidden border-2 border-[#1D1A4A] shadow-[4px_5px_0_#B8B3FF] scroll-mt-20"
+          data-fullscreen={isViewerFullscreen}
+          className={
+            isViewerFullscreen
+              ? 'fixed inset-0 z-[65] w-screen h-screen h-[100dvh] bg-white flex flex-col overflow-hidden'
+              : 'sk-card overflow-hidden border-2 border-[#1D1A4A] shadow-[4px_5px_0_#B8B3FF] scroll-mt-20'
+          }
         >
-          <div className="px-4 py-3 border-b-[1.5px] border-[#DCDAF0] bg-[#FAF9FF] flex flex-wrap items-center justify-between gap-3">
+          <div
+            className={`${
+              isViewerFullscreen ? 'px-3 py-1.5 gap-2' : 'px-4 py-2.5 gap-2.5'
+            } border-b-[1.5px] border-[#DCDAF0] bg-[#FAF9FF] flex flex-wrap items-center justify-between shrink-0`}
+          >
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="font-display font-bold text-[#1D1A4A]">
+                <span className="font-display font-bold text-[#1D1A4A] truncate">
                   #{activePack.order} · {activePack.title}
                 </span>
                 <span className="font-mono text-[#5E588C]">({activePack.paperMode})</span>
               </div>
-              <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] font-mono text-[#5E588C]">
-                <span>{activePack.questionsFilename}</span>
-                {splitAnswers && (
-                  <>
-                    <span aria-hidden="true">+</span>
-                    <span className="text-emerald-800 font-semibold">
-                      {activePack.answersFilename}
-                    </span>
-                  </>
-                )}
-              </div>
+              {!isViewerFullscreen && (
+                <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] font-mono text-[#5E588C]">
+                  <span>{activePack.questionsFilename}</span>
+                  {splitAnswers && (
+                    <>
+                      <span aria-hidden="true">+</span>
+                      <span className="text-emerald-800 font-semibold">
+                        {activePack.answersFilename}
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
               {activePack.topicIds[0] && (
                 <button
                   type="button"
@@ -462,17 +568,19 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                 </button>
               </div>
 
-              <a
-                href={activePack.questionsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold sk-btn-subtle"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                Open Q
-              </a>
+              {!isViewerFullscreen && (
+                <a
+                  href={activePack.questionsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold sk-btn-subtle"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Open Q
+                </a>
+              )}
 
-              {splitAnswers && (
+              {!isViewerFullscreen && splitAnswers && (
                 <a
                   href={activePack.answersUrl}
                   target="_blank"
@@ -484,9 +592,36 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                 </a>
               )}
 
+              {(splitAnswers || viewerMode !== 'annotate') && (
+                <button
+                  type="button"
+                  data-testid="topical-viewer-fullscreen-btn"
+                  onClick={toggleViewerFullscreen}
+                  aria-pressed={isViewerFullscreen}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold cursor-pointer ${
+                    isViewerFullscreen ? 'sk-btn-secondary' : 'sk-btn-subtle'
+                  }`}
+                >
+                  {isViewerFullscreen ? (
+                    <>
+                      <Minimize2 className="w-3.5 h-3.5" />
+                      Exit Fullscreen
+                    </>
+                  ) : (
+                    <>
+                      <Maximize2 className="w-3.5 h-3.5" />
+                      {splitAnswers ? 'Fullscreen Split' : 'Fullscreen'}
+                    </>
+                  )}
+                </button>
+              )}
+
               <button
                 type="button"
-                onClick={() => setActivePack(null)}
+                onClick={() => {
+                  exitViewerFullscreen();
+                  setActivePack(null);
+                }}
                 className="px-3 py-1.5 text-xs font-bold sk-btn-ink cursor-pointer"
               >
                 Close Viewer
@@ -496,27 +631,36 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
 
           <div
             className={`grid gap-px bg-[#DCDAF0] ${
-              splitAnswers ? 'lg:grid-cols-2' : 'grid-cols-1'
+              isViewerFullscreen ? 'flex-1 min-h-0' : ''
+            } ${
+              splitAnswers
+                ? isViewerFullscreen
+                  ? 'grid-rows-2 lg:grid-rows-1 lg:grid-cols-2'
+                  : 'lg:grid-cols-2'
+                : 'grid-cols-1'
             }`}
           >
-            <div className="bg-white min-w-0" data-testid="topical-qp-pane">
-              <div className="px-3 py-1.5 text-[11px] font-semibold text-[#5E588C] border-b border-[#DCDAF0] flex items-center justify-between gap-2">
-                <span>Questions — {activePack.questionsFilename}</span>
-                <a
-                  href={activePack.questionsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#5B57E8] hover:underline shrink-0"
-                >
-                  Open in new tab
-                </a>
-              </div>
+            <div className="bg-white min-w-0 min-h-0 flex flex-col" data-testid="topical-qp-pane">
+              {!isViewerFullscreen && (
+                <div className="px-3 py-1.5 text-[11px] font-semibold text-[#5E588C] border-b border-[#DCDAF0] flex items-center justify-between gap-2 shrink-0">
+                  <span>Questions — {activePack.questionsFilename}</span>
+                  <a
+                    href={activePack.questionsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#5B57E8] hover:underline shrink-0"
+                  >
+                    Open in new tab
+                  </a>
+                </div>
+              )}
               {viewerMode === 'annotate' ? (
                 <PdfAnnotator
                   sourceUrl={getTopicalPdfBytesUrl(activePack.questionsUrl)}
                   externalUrl={activePack.questionsUrl}
                   paperKey={`topical:${activePack.questionsFilename}`}
                   paperTitle={`${activePack.title} — Questions`}
+                  isParentFullscreen={isViewerFullscreen}
                   initialTool="pen"
                   initialWidthPreset="fine"
                   onFallbackViewer={() => setViewerMode('web')}
@@ -525,6 +669,7 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                 <NativePdfFrame
                   externalUrl={activePack.questionsUrl}
                   title={activePack.questionsFilename}
+                  fullHeight={isViewerFullscreen}
                   onSwitchToAnnotate={() => setViewerMode('annotate')}
                   onSwitchToWeb={() => setViewerMode('web')}
                 />
@@ -532,30 +677,35 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                 <iframe
                   title={activePack.questionsFilename}
                   src={buildGoogleDocsViewerUrl(activePack.questionsUrl)}
-                  className="w-full h-[640px] border-0 bg-[#FAF9FF]"
+                  className={`w-full border-0 bg-[#FAF9FF] ${
+                    isViewerFullscreen ? 'flex-1 min-h-0' : 'h-[640px]'
+                  }`}
                 />
               )}
             </div>
 
             {splitAnswers && (
-              <div className="bg-white min-w-0" data-testid="topical-ms-pane">
-                <div className="px-3 py-1.5 text-[11px] font-semibold text-emerald-800 border-b border-[#DCDAF0] flex items-center justify-between gap-2">
-                  <span>Worked Solutions — {activePack.answersFilename}</span>
-                  <a
-                    href={activePack.answersUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-emerald-700 hover:underline shrink-0"
-                  >
-                    Open in new tab
-                  </a>
-                </div>
+              <div className="bg-white min-w-0 min-h-0 flex flex-col" data-testid="topical-ms-pane">
+                {!isViewerFullscreen && (
+                  <div className="px-3 py-1.5 text-[11px] font-semibold text-emerald-800 border-b border-[#DCDAF0] flex items-center justify-between gap-2 shrink-0">
+                    <span>Worked Solutions — {activePack.answersFilename}</span>
+                    <a
+                      href={activePack.answersUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-emerald-700 hover:underline shrink-0"
+                    >
+                      Open in new tab
+                    </a>
+                  </div>
+                )}
                 {viewerMode === 'annotate' ? (
                   <PdfAnnotator
                     sourceUrl={getTopicalPdfBytesUrl(activePack.answersUrl)}
                     externalUrl={activePack.answersUrl}
                     paperKey={`topical:${activePack.answersFilename}`}
                     paperTitle={`${activePack.title} — Worked Answers`}
+                    isParentFullscreen={isViewerFullscreen}
                     initialTool="pan"
                     initialPenColorHex="#dc2626"
                     initialWidthPreset="fine"
@@ -565,6 +715,7 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                   <NativePdfFrame
                     externalUrl={activePack.answersUrl}
                     title={activePack.answersFilename}
+                    fullHeight={isViewerFullscreen}
                     onSwitchToAnnotate={() => setViewerMode('annotate')}
                     onSwitchToWeb={() => setViewerMode('web')}
                   />
@@ -572,7 +723,9 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                   <iframe
                     title={activePack.answersFilename}
                     src={buildGoogleDocsViewerUrl(activePack.answersUrl)}
-                    className="w-full h-[640px] border-0 bg-[#FAF9FF]"
+                    className={`w-full border-0 bg-[#FAF9FF] ${
+                      isViewerFullscreen ? 'flex-1 min-h-0' : 'h-[640px]'
+                    }`}
                   />
                 )}
               </div>

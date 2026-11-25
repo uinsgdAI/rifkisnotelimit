@@ -7,6 +7,8 @@ import {
   Download,
   ExternalLink,
   Loader2,
+  Maximize2,
+  Minimize2,
   Pen,
   Search,
   Upload,
@@ -20,7 +22,11 @@ import {
   generateSessionPaperFallback,
   resolvePdfIframeUrl,
 } from '../utils/papacambridge';
-import { buildPdfByteCandidateUrls, prefetchPdfBytes } from '../utils/pdfAnnotations';
+import {
+  acquireFullscreenBodyLock,
+  buildPdfByteCandidateUrls,
+  prefetchPdfBytes,
+} from '../utils/pdfAnnotations';
 import { setBackgroundWarmupPaused } from '../utils/backgroundPreloader';
 import { warmSharedPdfWorker } from '../utils/pdfJsCache';
 import { MathText } from './MathText';
@@ -102,6 +108,8 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
   const [activePrimaryPdf, setActivePrimaryPdf] = useState<PastPaperFile | null>(null);
   const [activeSecondaryPdf, setActiveSecondaryPdf] = useState<PastPaperFile | null>(null);
   const [topicQuery, setTopicQuery] = useState('');
+  const [isViewerFullscreen, setIsViewerFullscreen] = useState(false);
+  const enteredNativeViewerFsRef = useRef(false);
 
   useEffect(() => {
     setBackgroundWarmupPaused(true);
@@ -115,6 +123,91 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
     const timer = window.setTimeout(() => warmSharedPdfWorker(), 120);
     return () => window.clearTimeout(timer);
   }, [viewerMode]);
+
+  const exitViewerFullscreen = () => {
+    setIsViewerFullscreen(false);
+    if (
+      enteredNativeViewerFsRef.current &&
+      typeof document !== 'undefined' &&
+      document.fullscreenElement === viewerRef.current &&
+      typeof document.exitFullscreen === 'function'
+    ) {
+      document.exitFullscreen().catch(() => undefined);
+    }
+    enteredNativeViewerFsRef.current = false;
+  };
+
+  const toggleViewerFullscreen = () => {
+    if (isViewerFullscreen) {
+      exitViewerFullscreen();
+      return;
+    }
+    setIsViewerFullscreen(true);
+    const el = viewerRef.current;
+    if (
+      el &&
+      typeof el.requestFullscreen === 'function' &&
+      typeof document !== 'undefined' &&
+      !document.fullscreenElement
+    ) {
+      try {
+        Promise.resolve(el.requestFullscreen())
+          .then(() => {
+            enteredNativeViewerFsRef.current = true;
+          })
+          .catch(() => {
+            enteredNativeViewerFsRef.current = false;
+          });
+      } catch {
+        enteredNativeViewerFsRef.current = false;
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!isViewerFullscreen) return;
+    const releaseLock = acquireFullscreenBodyLock();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsViewerFullscreen(false);
+        if (
+          enteredNativeViewerFsRef.current &&
+          typeof document !== 'undefined' &&
+          document.fullscreenElement === viewerRef.current &&
+          typeof document.exitFullscreen === 'function'
+        ) {
+          document.exitFullscreen().catch(() => undefined);
+        }
+        enteredNativeViewerFsRef.current = false;
+      }
+    };
+    const onFsChange = () => {
+      if (enteredNativeViewerFsRef.current && !document.fullscreenElement) {
+        enteredNativeViewerFsRef.current = false;
+        setIsViewerFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => {
+      releaseLock();
+      window.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('fullscreenchange', onFsChange);
+    };
+  }, [isViewerFullscreen]);
+
+  useEffect(() => {
+    return () => {
+      if (
+        enteredNativeViewerFsRef.current &&
+        typeof document !== 'undefined' &&
+        document.fullscreenElement === viewerRef.current &&
+        typeof document.exitFullscreen === 'function'
+      ) {
+        document.exitFullscreen().catch(() => undefined);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -654,23 +747,32 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
         <section
           ref={viewerRef}
           aria-label="Past Paper Document Viewer"
-          className="sk-card border-2 border-[#1D1A4A] shadow-[4px_5px_0_#B8B3FF] overflow-hidden scroll-mt-20"
+          data-fullscreen={isViewerFullscreen}
+          className={
+            isViewerFullscreen
+              ? 'fixed inset-0 z-[65] w-screen h-screen h-[100dvh] bg-white flex flex-col overflow-hidden'
+              : 'sk-card border-2 border-[#1D1A4A] shadow-[4px_5px_0_#B8B3FF] overflow-hidden scroll-mt-20'
+          }
         >
-          <div className="px-4 py-3 border-b-[1.5px] border-[#DCDAF0] bg-[#FAF9FF] flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3 text-xs font-mono text-[#1D1A4A]">
-              <span className="font-bold">
+          <div
+            className={`${
+              isViewerFullscreen ? 'px-3 py-1.5 gap-2' : 'px-4 py-2.5 gap-2.5'
+            } border-b-[1.5px] border-[#DCDAF0] bg-[#FAF9FF] flex flex-wrap items-center justify-between shrink-0`}
+          >
+            <div className="flex items-center gap-2 text-xs font-mono text-[#1D1A4A] min-w-0 truncate">
+              <span className="font-bold truncate">
                 {localPdf ? localPdf.filename : activePrimaryPdf?.filename}
               </span>
               {activeSecondaryPdf && (
                 <>
                   <span aria-hidden="true">+</span>
-                  <span className="font-bold text-emerald-800">
+                  <span className="font-bold text-emerald-800 truncate">
                     {activeSecondaryPdf.filename}
                   </span>
                 </>
               )}
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
               {!localPdf && (
                 <div
                   role="group"
@@ -708,7 +810,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                   </button>
                 </div>
               )}
-              {activePrimaryPdf && (
+              {!isViewerFullscreen && activePrimaryPdf && (
                 <a
                   href={activePrimaryPdf.url}
                   target="_blank"
@@ -719,7 +821,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                   Open QP
                 </a>
               )}
-              {activeSecondaryPdf && (
+              {!isViewerFullscreen && activeSecondaryPdf && (
                 <a
                   href={activeSecondaryPdf.url}
                   target="_blank"
@@ -730,9 +832,33 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                   Open MS
                 </a>
               )}
+              {(Boolean(activeSecondaryPdf) || (!localPdf && viewerMode !== 'annotate')) && (
+                <button
+                  type="button"
+                  data-testid="pastpapers-viewer-fullscreen-btn"
+                  onClick={toggleViewerFullscreen}
+                  aria-pressed={isViewerFullscreen}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold cursor-pointer ${
+                    isViewerFullscreen ? 'sk-btn-secondary' : 'sk-btn-subtle'
+                  }`}
+                >
+                  {isViewerFullscreen ? (
+                    <>
+                      <Minimize2 className="w-3.5 h-3.5" />
+                      Exit Fullscreen
+                    </>
+                  ) : (
+                    <>
+                      <Maximize2 className="w-3.5 h-3.5" />
+                      {activeSecondaryPdf ? 'Fullscreen Split' : 'Fullscreen'}
+                    </>
+                  )}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => {
+                  exitViewerFullscreen();
                   setLocalPdf(null);
                   setActivePrimaryPdf(null);
                   setActiveSecondaryPdf(null);
@@ -746,32 +872,41 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
 
           <div
             className={`grid gap-px bg-[#DCDAF0] ${
-              activeSecondaryPdf ? 'lg:grid-cols-2' : 'grid-cols-1'
+              isViewerFullscreen ? 'flex-1 min-h-0' : ''
+            } ${
+              activeSecondaryPdf
+                ? isViewerFullscreen
+                  ? 'grid-rows-2 lg:grid-rows-1 lg:grid-cols-2'
+                  : 'lg:grid-cols-2'
+                : 'grid-cols-1'
             }`}
           >
-            <div className="bg-white min-w-0" data-testid="qp-pane">
-              <div className="px-3 py-1.5 text-[11px] font-semibold text-[#5E588C] border-b border-[#DCDAF0] flex items-center justify-between gap-2">
-                <span>
-                  {localPdf
-                    ? `Local PDF Annotation — ${localPdf.filename}`
-                    : `${activePrimaryPdf?.docTypeLabel} — ${activePrimaryPdf?.filename}`}
-                </span>
-                {activePrimaryPdf && (
-                  <a
-                    href={activePrimaryPdf.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#5B57E8] hover:underline shrink-0"
-                  >
-                    Open in new tab
-                  </a>
-                )}
-              </div>
+            <div className="bg-white min-w-0 min-h-0 flex flex-col" data-testid="qp-pane">
+              {!isViewerFullscreen && (
+                <div className="px-3 py-1.5 text-[11px] font-semibold text-[#5E588C] border-b border-[#DCDAF0] flex items-center justify-between gap-2 shrink-0">
+                  <span>
+                    {localPdf
+                      ? `Local PDF Annotation — ${localPdf.filename}`
+                      : `${activePrimaryPdf?.docTypeLabel} — ${activePrimaryPdf?.filename}`}
+                  </span>
+                  {activePrimaryPdf && (
+                    <a
+                      href={activePrimaryPdf.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#5B57E8] hover:underline shrink-0"
+                    >
+                      Open in new tab
+                    </a>
+                  )}
+                </div>
+              )}
               {localPdf ? (
                 <PdfAnnotator
                   sourceUrl={localPdf.url}
                   paperKey={`local:${localPdf.filename}`}
                   paperTitle={localPdf.filename}
+                  isParentFullscreen={isViewerFullscreen}
                   initialTool="pen"
                   initialWidthPreset="fine"
                 />
@@ -780,6 +915,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                   sourceUrl={pdfBytesUrl(activePrimaryPdf)}
                   paperKey={activePrimaryPdf.filename}
                   paperTitle={activePrimaryPdf.filename}
+                  isParentFullscreen={isViewerFullscreen}
                   initialTool={activePrimaryPdf.docType === 'MS' ? 'pan' : 'pen'}
                   initialWidthPreset="fine"
                   onFallbackViewer={() => setViewerMode('proxy')}
@@ -788,29 +924,34 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                 <iframe
                   title={activePrimaryPdf.filename}
                   src={pdfIframeUrl(activePrimaryPdf)}
-                  className="w-full h-[640px] border-0 bg-[#FAF9FF]"
+                  className={`w-full border-0 bg-[#FAF9FF] ${
+                    isViewerFullscreen ? 'flex-1 min-h-0' : 'h-[640px]'
+                  }`}
                 />
               ) : null}
             </div>
 
             {activeSecondaryPdf && (
-              <div className="bg-white min-w-0" data-testid="ms-pane">
-                <div className="px-3 py-1.5 text-[11px] font-semibold text-emerald-800 border-b border-[#DCDAF0] flex items-center justify-between gap-2">
-                  <span>Mark Scheme — {activeSecondaryPdf.filename}</span>
-                  <a
-                    href={activeSecondaryPdf.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-emerald-700 hover:underline shrink-0"
-                  >
-                    Open in new tab
-                  </a>
-                </div>
+              <div className="bg-white min-w-0 min-h-0 flex flex-col" data-testid="ms-pane">
+                {!isViewerFullscreen && (
+                  <div className="px-3 py-1.5 text-[11px] font-semibold text-emerald-800 border-b border-[#DCDAF0] flex items-center justify-between gap-2 shrink-0">
+                    <span>Mark Scheme — {activeSecondaryPdf.filename}</span>
+                    <a
+                      href={activeSecondaryPdf.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-emerald-700 hover:underline shrink-0"
+                    >
+                      Open in new tab
+                    </a>
+                  </div>
+                )}
                 {viewerMode === 'annotate' ? (
                   <PdfAnnotator
                     sourceUrl={pdfBytesUrl(activeSecondaryPdf)}
                     paperKey={activeSecondaryPdf.filename}
                     paperTitle={activeSecondaryPdf.filename}
+                    isParentFullscreen={isViewerFullscreen}
                     initialTool="pan"
                     initialPenColorHex="#dc2626"
                     initialWidthPreset="fine"
@@ -820,7 +961,9 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                   <iframe
                     title={activeSecondaryPdf.filename}
                     src={pdfIframeUrl(activeSecondaryPdf)}
-                    className="w-full h-[640px] border-0 bg-[#FAF9FF]"
+                    className={`w-full border-0 bg-[#FAF9FF] ${
+                      isViewerFullscreen ? 'flex-1 min-h-0' : 'h-[640px]'
+                    }`}
                   />
                 )}
               </div>

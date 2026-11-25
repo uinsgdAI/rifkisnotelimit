@@ -1061,6 +1061,81 @@ async function executeFetchCandidates(
   throw new Error(lastError);
 }
 
+export function computeFitWidthZoom(opts: {
+  containerWidth: number;
+  pageWidth: number;
+  horizontalPadding?: number;
+  minZoom?: number;
+  maxZoom?: number;
+}): number {
+  const {
+    containerWidth,
+    pageWidth,
+    horizontalPadding = 48,
+    minZoom = 0.65,
+    maxZoom = 2.5,
+  } = opts;
+  if (!Number.isFinite(containerWidth) || !Number.isFinite(pageWidth) || pageWidth <= 0) {
+    return 1;
+  }
+  const usableWidth = Math.max(120, containerWidth - horizontalPadding);
+  const raw = usableWidth / pageWidth;
+  const clamped = Math.max(minZoom, Math.min(maxZoom, raw));
+  return Number(clamped.toFixed(2));
+}
 
+export function resolveAnnotatorContainerClasses(opts: {
+  isAnnotatorFullscreen: boolean;
+  isParentFullscreen?: boolean;
+  defaultHeightClass?: string;
+}): {
+  rootClass: string;
+  scrollContainerClass: string;
+  isImmersive: boolean;
+} {
+  const defaultHeight = opts.defaultHeightClass ?? 'h-[620px]';
+  if (opts.isAnnotatorFullscreen) {
+    return {
+      rootClass:
+        'fixed inset-0 z-[70] w-screen h-screen h-[100dvh] flex flex-col bg-[#FAF9FF] overflow-hidden',
+      scrollContainerClass: 'flex-1 min-h-0',
+      isImmersive: true,
+    };
+  }
+  if (opts.isParentFullscreen) {
+    return {
+      rootClass: 'flex-1 min-h-0 flex flex-col bg-[#FAF9FF]',
+      scrollContainerClass: 'flex-1 min-h-0',
+      isImmersive: true,
+    };
+  }
+  return {
+    rootClass: 'flex flex-col bg-[#FAF9FF]',
+    scrollContainerClass: defaultHeight,
+    isImmersive: false,
+  };
+}
 
+let activeFullscreenLocks = 0;
+let savedBodyOverflow: string | null = null;
 
+export function acquireFullscreenBodyLock(): () => void {
+  if (typeof document === 'undefined' || !document.body) {
+    return () => undefined;
+  }
+  if (activeFullscreenLocks === 0) {
+    savedBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+  }
+  activeFullscreenLocks += 1;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    activeFullscreenLocks = Math.max(0, activeFullscreenLocks - 1);
+    if (activeFullscreenLocks === 0 && typeof document !== 'undefined' && document.body) {
+      document.body.style.overflow = savedBodyOverflow ?? '';
+      savedBodyOverflow = null;
+    }
+  };
+}

@@ -7,6 +7,8 @@ import {
   Hand,
   Highlighter,
   Loader2,
+  Maximize2,
+  Minimize2,
   Pen,
   Redo2,
   RotateCw,
@@ -19,10 +21,12 @@ import {
 } from 'lucide-react';
 import type * as pdfjsLib from 'pdfjs-dist';
 import {
+  acquireFullscreenBodyLock,
   buildPdfByteCandidateUrls,
   capturePdfZoomAnchor,
   cloneAnnotationsMap,
   computeAnchoredScrollPosition,
+  computeFitWidthZoom,
   computeScrollThumbMetrics,
   computeScrollTopFromTrackY,
   computeTwoFingerPanAndZoom,
@@ -37,6 +41,7 @@ import {
   pushAnnotationHistory,
   redoAnnotationHistory,
   renderStrokesToCanvas,
+  resolveAnnotatorContainerClasses,
   savePaperAnnotations,
   snapClientPointToRulerEdge,
   undoAnnotationHistory,
@@ -55,6 +60,7 @@ interface PdfAnnotatorProps {
   paperKey: string;
   paperTitle: string;
   heightClass?: string;
+  isParentFullscreen?: boolean;
   initialTool?: AnnotationTool;
   initialPenColorHex?: string;
   initialWidthPreset?: StrokeWidthPresetId;
@@ -438,6 +444,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
   paperKey,
   paperTitle,
   heightClass = 'h-[620px]',
+  isParentFullscreen = false,
   initialTool = 'pen',
   initialPenColorHex = PEN_COLORS[1].hex,
   initialWidthPreset = 'fine',
@@ -453,6 +460,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
   const [localOverrideUrl, setLocalOverrideUrl] = useState<string | null>(null);
   const localUploadRef = useRef<HTMLInputElement | null>(null);
 
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [zoom, setZoom] = useState(1.0);
   const [zoomCommitSeq, setZoomCommitSeq] = useState(0);
   const [pinchPreview, setPinchPreview] = useState({ scale: 1, tx: 0, ty: 0 });
@@ -475,11 +483,13 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     createInitialAnnotationHistory(loadPaperAnnotations(paperKey))
   );
 
+  const annotatorRootRef = useRef<HTMLDivElement | null>(null);
+  const enteredNativeFsRef = useRef(false);
   const viewportBoxRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const pagesStackRef = useRef<HTMLDivElement | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
-  const pendingScrollAnchorRef = useRef<PdfZoomAnchor | null>(null);
+  const pendingScrollAnchorRef = useRef<(PdfZoomAnchor & { pinToTop?: boolean }) | null>(null);
   const singlePanRef = useRef<{
     active: boolean;
     pointerId: number;
@@ -612,7 +622,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
       }
       observer?.disconnect();
     };
-  }, [pdfDoc, numPages, zoom, loading, syncScrollMetrics]);
+  }, [pdfDoc, numPages, zoom, loading, isFullscreen, isParentFullscreen, syncScrollMetrics]);
 
   // Sync annotations map & default tool/width preset when switching papers
   useEffect(() => {
@@ -915,30 +925,35 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     container.scrollBy({ top: direction * delta, behavior: 'smooth' });
   };
 
-  const captureAnchorAt = useCallback((clientX?: number, clientY?: number): PdfZoomAnchor | null => {
-    const container = containerRef.current;
-    if (!container) return null;
-    const pageEls = container.querySelectorAll<HTMLElement>('[data-pdf-page]');
-    const snapshots = Array.from(pageEls)
-      .map((el) => {
-        const pageNumber = Number(el.dataset.pdfPage);
-        const r = el.getBoundingClientRect();
-        return {
-          pageNumber,
-          left: r.left,
-          top: r.top,
-          width: r.width,
-          height: r.height,
-        };
-      })
-      .filter((p) => Number.isFinite(p.pageNumber) && p.height > 0);
-    return capturePdfZoomAnchor({
-      pages: snapshots,
-      containerRect: container.getBoundingClientRect(),
-      anchorClientX: clientX,
-      anchorClientY: clientY,
-    });
-  }, []);
+  const captureAnchorAt = useCallback(
+    (clientX?: number, clientY?: number): (PdfZoomAnchor & { pinToTop?: boolean }) | null => {
+      const container = containerRef.current;
+      if (!container) return null;
+      const pinToTop = clientY === undefined && container.scrollTop <= 8;
+      const pageEls = container.querySelectorAll<HTMLElement>('[data-pdf-page]');
+      const snapshots = Array.from(pageEls)
+        .map((el) => {
+          const pageNumber = Number(el.dataset.pdfPage);
+          const r = el.getBoundingClientRect();
+          return {
+            pageNumber,
+            left: r.left,
+            top: r.top,
+            width: r.width,
+            height: r.height,
+          };
+        })
+        .filter((p) => Number.isFinite(p.pageNumber) && p.height > 0);
+      const anchor = capturePdfZoomAnchor({
+        pages: snapshots,
+        containerRect: container.getBoundingClientRect(),
+        anchorClientX: clientX,
+        anchorClientY: clientY,
+      });
+      return anchor ? { ...anchor, pinToTop } : null;
+    },
+    []
+  );
 
   useLayoutEffect(() => {
     const anchor = pendingScrollAnchorRef.current;
@@ -963,7 +978,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
       clientHeight: container.clientHeight,
     });
     container.scrollLeft = nextPos.scrollLeft;
-    container.scrollTop = nextPos.scrollTop;
+    container.scrollTop = anchor.pinToTop ? 0 : nextPos.scrollTop;
     syncScrollMetrics();
   }, [zoom, zoomCommitSeq, syncScrollMetrics]);
 
@@ -978,6 +993,115 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     },
     [captureAnchorAt]
   );
+
+  const applyFitWidthZoom = useCallback(() => {
+    const container = containerRef.current;
+    const basePage = basePageDims[visiblePage] ?? basePageDims[1];
+    if (!container || !basePage) return;
+    const anchor = captureAnchorAt();
+    if (anchor) {
+      pendingScrollAnchorRef.current = anchor;
+    }
+    const nextZoom = computeFitWidthZoom({
+      containerWidth: container.clientWidth,
+      pageWidth: basePage.width,
+      horizontalPadding: isFullscreen || isParentFullscreen ? 24 : 56,
+    });
+    setZoom(nextZoom);
+    setZoomCommitSeq((s) => s + 1);
+  }, [basePageDims, visiblePage, captureAnchorAt, isFullscreen, isParentFullscreen]);
+
+  const exitFullscreen = useCallback(() => {
+    const anchor = captureAnchorAt();
+    if (anchor) {
+      pendingScrollAnchorRef.current = anchor;
+    }
+    setIsFullscreen(false);
+    setZoomCommitSeq((s) => s + 1);
+    if (
+      enteredNativeFsRef.current &&
+      typeof document !== 'undefined' &&
+      document.fullscreenElement === annotatorRootRef.current &&
+      typeof document.exitFullscreen === 'function'
+    ) {
+      document.exitFullscreen().catch(() => undefined);
+    }
+    enteredNativeFsRef.current = false;
+  }, [captureAnchorAt]);
+
+  const toggleFullscreen = useCallback(() => {
+    if (isFullscreen) {
+      exitFullscreen();
+      return;
+    }
+    const anchor = captureAnchorAt();
+    if (anchor) {
+      pendingScrollAnchorRef.current = anchor;
+    }
+    setIsFullscreen(true);
+    setZoomCommitSeq((s) => s + 1);
+    const el = annotatorRootRef.current;
+    if (
+      el &&
+      typeof el.requestFullscreen === 'function' &&
+      typeof document !== 'undefined' &&
+      !document.fullscreenElement
+    ) {
+      try {
+        Promise.resolve(el.requestFullscreen())
+          .then(() => {
+            enteredNativeFsRef.current = true;
+          })
+          .catch(() => {
+            enteredNativeFsRef.current = false;
+          });
+      } catch {
+        enteredNativeFsRef.current = false;
+      }
+    }
+  }, [isFullscreen, exitFullscreen, captureAnchorAt]);
+
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const releaseLock = acquireFullscreenBodyLock();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        exitFullscreen();
+      }
+    };
+    const onFsChange = () => {
+      if (enteredNativeFsRef.current && !document.fullscreenElement) {
+        enteredNativeFsRef.current = false;
+        const anchor = captureAnchorAt();
+        if (anchor) {
+          pendingScrollAnchorRef.current = anchor;
+        }
+        setIsFullscreen(false);
+        setZoomCommitSeq((s) => s + 1);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => {
+      releaseLock();
+      window.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('fullscreenchange', onFsChange);
+    };
+  }, [isFullscreen, exitFullscreen, captureAnchorAt]);
+
+  useEffect(() => {
+    return () => {
+      if (
+        enteredNativeFsRef.current &&
+        typeof document !== 'undefined' &&
+        document.fullscreenElement === annotatorRootRef.current &&
+        typeof document.exitFullscreen === 'function'
+      ) {
+        document.exitFullscreen().catch(() => undefined);
+      }
+    };
+  }, []);
 
   // Unified two-finger gesture handlers: pan/scroll (X+Y) + pinch-to-zoom around midpoint
   const getTwoTouchMetrics = () => {
@@ -1269,15 +1393,28 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     e.preventDefault();
   };
 
+  const layout = resolveAnnotatorContainerClasses({
+    isAnnotatorFullscreen: isFullscreen,
+    isParentFullscreen,
+    defaultHeightClass: heightClass,
+  });
+
   return (
     <div
-      className="flex flex-col bg-[#FAF9FF]"
+      ref={annotatorRootRef}
+      data-testid="pdf-annotator-root"
+      data-fullscreen={isFullscreen}
+      className={layout.rootClass}
       onKeyDown={handleKeyDown}
       tabIndex={0}
       aria-label={`PDF Annotation Workspace for ${paperTitle}`}
     >
       {/* Annotation Toolbar */}
-      <div className="px-3 py-2 bg-white border-b-[1.5px] border-[#DCDAF0] flex flex-wrap items-center justify-between gap-2">
+      <div
+        className={`bg-white border-b-[1.5px] border-[#DCDAF0] flex flex-wrap items-center justify-between ${
+          layout.isImmersive ? 'px-2.5 py-1.5 gap-1.5' : 'px-3 py-2 gap-2'
+        }`}
+      >
         <div className="flex flex-wrap items-center gap-1.5">
           {/* Primary Tool Selector */}
           <div
@@ -1390,8 +1527,16 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
           </button>
         </div>
 
-        {/* History, Zoom, and Export Controls */}
+        {/* History, Zoom, Export, and Fullscreen Controls */}
         <div className="flex flex-wrap items-center gap-1.5">
+          {isFullscreen && (
+            <span
+              title={paperTitle}
+              className="hidden sm:inline-block max-w-[190px] truncate px-2 py-0.5 text-[11px] font-mono font-semibold text-[#5E588C] bg-[#F4F3FC] border border-[#DCDAF0] rounded-lg"
+            >
+              {paperTitle}
+            </span>
+          )}
           <div className="inline-flex items-center border-[1.5px] border-[#DCDAF0] rounded-[11px] bg-white overflow-hidden">
             <button
               type="button"
@@ -1411,6 +1556,16 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
               className="p-1.5 text-[#1D1A4A] hover:bg-[#F4F3FC] cursor-pointer"
             >
               <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={applyFitWidthZoom}
+              disabled={!pdfDoc}
+              title="Fit page width to screen"
+              aria-label="Fit page width"
+              className="px-2 py-1 text-[11px] font-semibold text-[#5B57E8] hover:bg-[#F4F3FC] border-l border-[#DCDAF0] disabled:opacity-40 cursor-pointer"
+            >
+              Fit
             </button>
           </div>
 
@@ -1452,18 +1607,40 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
             <Camera className="w-3.5 h-3.5" />
             Save Page PNG
           </button>
+          <button
+            type="button"
+            data-testid="pdf-annotator-fullscreen-btn"
+            onClick={toggleFullscreen}
+            aria-pressed={isFullscreen}
+            title={isFullscreen ? 'Exit fullscreen annotate mode (Esc)' : 'Maximize annotation canvas'}
+            className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold cursor-pointer whitespace-nowrap ${
+              isFullscreen ? 'sk-btn-ink' : 'sk-btn-secondary'
+            }`}
+          >
+            {isFullscreen ? (
+              <>
+                <Minimize2 className="w-3.5 h-3.5" />
+                Exit Fullscreen
+              </>
+            ) : (
+              <>
+                <Maximize2 className="w-3.5 h-3.5" />
+                Fullscreen
+              </>
+            )}
+          </button>
         </div>
       </div>
 
       {/* Scrollable Multi-Page PDF + Pinch-Zoom + Interactive Ruler + Wide Touch Scroll Rail */}
-      <div className="flex items-stretch w-full">
+      <div className="flex items-stretch w-full flex-1 min-h-0">
         <div
           ref={viewportBoxRef}
           onPointerDownCapture={handleViewportPointerDownCapture}
           onPointerMoveCapture={handleViewportPointerMoveCapture}
           onPointerUpCapture={handleViewportPointerEndCapture}
           onPointerCancelCapture={handleViewportPointerEndCapture}
-          className="relative flex-1 min-w-0 overflow-hidden"
+          className="relative flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col"
         >
           <div
             ref={containerRef}
@@ -1478,7 +1655,9 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
               touchAction: pdfDoc && !errorMsg ? 'none' : 'pan-y',
               WebkitTouchCallout: 'none',
             }}
-            className={`w-full ${heightClass} overflow-auto px-5 sm:px-8 py-5 bg-[#EBE9F9]/75 pdf-annotator-scroll ${
+            className={`w-full ${layout.scrollContainerClass} overflow-auto bg-[#EBE9F9]/75 pdf-annotator-scroll ${
+              layout.isImmersive ? 'px-2 sm:px-6 py-4' : 'px-5 sm:px-8 py-5'
+            } ${
               tool === 'pan' && pdfDoc && !errorMsg ? 'cursor-grab active:cursor-grabbing' : ''
             }`}
           >
@@ -1755,7 +1934,11 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
       </div>
 
       {/* Quiet Footer Hint */}
-      <div className="px-3 py-1.5 bg-white border-t-[1.5px] border-[#DCDAF0] flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#5E588C]">
+      <div
+        className={`px-3 bg-white border-t-[1.5px] border-[#DCDAF0] flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#5E588C] ${
+          layout.isImmersive ? 'py-1' : 'py-1.5'
+        }`}
+      >
         <span>
           {numPages > 0
             ? `Page ${visiblePage} of ${numPages} · 2 fingers to pan/scroll or pinch-zoom · Use right PDF rail or Ruler`
@@ -1763,6 +1946,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
         </span>
         <span className="font-mono tabular-nums">
           {totalStrokes} {totalStrokes === 1 ? 'stroke' : 'strokes'} saved · Ctrl+Z to undo
+          {isFullscreen ? ' · Esc to exit' : ''}
         </span>
       </div>
     </div>
