@@ -11,6 +11,7 @@ import {
   computeScrollThumbMetrics,
   computeScrollTopFromTrackY,
   computeTwoFingerPanAndZoom,
+  eraseBrushAlongSegment,
   eraseStrokesAlongSegment,
   evaluateTwoFingerPinchEngagement,
   nextScrollRailSide,
@@ -417,12 +418,20 @@ test('clampStrokeSize and resolveStrokeSizeFromPreset enforce manual slider boun
   assert.equal(clampStrokeSize('highlighter', 50), STROKE_SIZE_BOUNDS.highlighter.max);
   assert.equal(clampStrokeSize('highlighter', 16.6), 17);
 
+  assert.equal(clampStrokeSize('eraser', 1), STROKE_SIZE_BOUNDS.eraser.min);
+  assert.equal(clampStrokeSize('eraser', 80), STROKE_SIZE_BOUNDS.eraser.max);
+  assert.equal(clampStrokeSize('eraser', 15), 16);
+  assert.equal(clampStrokeSize('eraser', Number.NaN), STROKE_SIZE_BOUNDS.eraser.defaultSize);
+
   assert.equal(resolveStrokeSizeFromPreset('pen', 'fine'), 2);
   assert.equal(resolveStrokeSizeFromPreset('pen', 'med'), 3.5);
   assert.equal(resolveStrokeSizeFromPreset('pen', 'bold'), 6);
   assert.equal(resolveStrokeSizeFromPreset('highlighter', 'fine'), 12);
   assert.equal(resolveStrokeSizeFromPreset('highlighter', 'med'), 18);
   assert.equal(resolveStrokeSizeFromPreset('highlighter', 'bold'), 26);
+  assert.equal(resolveStrokeSizeFromPreset('eraser', 'fine'), 10);
+  assert.equal(resolveStrokeSizeFromPreset('eraser', 'med'), 16);
+  assert.equal(resolveStrokeSizeFromPreset('eraser', 'bold'), 28);
 });
 
 test('Palm Lock blocks accidental single-touch draw/pan while allowing S Pen, mouse, and explicit Scroll tool', () => {
@@ -520,6 +529,129 @@ test('nextScrollRailSide cycles left -> right -> off and computePageJumpScrollTo
     3200
   );
 });
+
+test('eraseBrushAlongSegment splits crossed long strokes around the brush capsule without deleting unrelated parts', () => {
+  const pageDims = { width: 595, height: 842 };
+  const longHorizontal = {
+    id: 'h1',
+    tool: 'pen' as const,
+    color: '#1d4ed8',
+    size: 2,
+    points: [
+      { x: 0.1, y: 0.5 },
+      { x: 0.9, y: 0.5 },
+    ],
+  };
+  // Parallel line ~16px below (y = 0.5 + 16/842 ≈ 0.519)
+  const parallelNearby = {
+    id: 'h2',
+    tool: 'pen' as const,
+    color: '#0f172a',
+    size: 2,
+    points: [
+      { x: 0.1, y: 0.5 + 16 / 842 },
+      { x: 0.9, y: 0.5 + 16 / 842 },
+    ],
+  };
+
+  // Small 10px brush swipes vertically through x=0.5 near h1 only (y=0.45 -> y=0.502)
+  const smallCut = eraseBrushAlongSegment(
+    [longHorizontal, parallelNearby],
+    { x: 0.5, y: 0.45 },
+    { x: 0.5, y: 0.502 },
+    10,
+    pageDims
+  );
+
+  assert.equal(smallCut.removedAny, true);
+  // h1 was split into 2 pieces, h2 remained completely untouched -> 3 total strokes
+  assert.equal(smallCut.remaining.length, 3);
+  const h1Parts = smallCut.remaining.filter((s) => s.id.startsWith('h1'));
+  assert.equal(h1Parts.length, 2);
+  assert.notEqual(h1Parts[0].id, h1Parts[1].id);
+  // Left segment ends left of x=0.5, right segment begins right of x=0.5
+  assert.ok(h1Parts[0].points[h1Parts[0].points.length - 1].x < 0.5);
+  assert.ok(h1Parts[1].points[0].x > 0.5);
+  // Nearby parallel stroke h2 survived intact
+  const h2After = smallCut.remaining.find((s) => s.id === 'h2');
+  assert.ok(h2After);
+  assert.equal(h2After.points[0].x, 0.1);
+  assert.equal(h2After.points[1].x, 0.9);
+
+  // Larger 44px brush at same line cuts both h1 and h2 cleanly
+  const wideCut = eraseBrushAlongSegment(
+    [longHorizontal, parallelNearby],
+    { x: 0.5, y: 0.48 },
+    { x: 0.5, y: 0.502 },
+    44,
+    pageDims
+  );
+  assert.equal(wideCut.removedAny, true);
+  assert.equal(wideCut.remaining.length, 4); // both strokes split in two
+});
+
+test('eraseBrushAlongSegment handles dots, multi-split unique IDs, and continuous multi-stroke slides', () => {
+  const pageDims = { width: 595, height: 842 };
+  const strokes = [
+    {
+      id: 'dot-hit',
+      tool: 'pen' as const,
+      color: '#dc2626',
+      size: 2,
+      points: [{ x: 0.2, y: 0.3 }],
+    },
+    {
+      id: 'dot-miss',
+      tool: 'pen' as const,
+      color: '#dc2626',
+      size: 2,
+      points: [{ x: 0.2 + 20 / 595, y: 0.3 }],
+    },
+    {
+      id: 'diag',
+      tool: 'pen' as const,
+      color: '#1d4ed8',
+      size: 3,
+      points: [
+        { x: 0.1, y: 0.2 },
+        { x: 0.5, y: 0.2 },
+        { x: 0.9, y: 0.2 },
+      ],
+    },
+  ];
+
+  // Slide horizontally along y=0.3 around dot-hit with 14px brush
+  const res1 = eraseBrushAlongSegment(
+    strokes,
+    { x: 0.15, y: 0.3 },
+    { x: 0.21, y: 0.3 },
+    14,
+    pageDims
+  );
+  assert.equal(res1.removedAny, true);
+  assert.equal(res1.remaining.some((s) => s.id === 'dot-hit'), false);
+  assert.equal(res1.remaining.some((s) => s.id === 'dot-miss'), true);
+
+  // Cut diag once at x=0.3 and then cut the right piece again at x=0.7 -> 3 pieces with unique IDs
+  const cut1 = eraseBrushAlongSegment(
+    res1.remaining,
+    { x: 0.3, y: 0.18 },
+    { x: 0.3, y: 0.22 },
+    12,
+    pageDims
+  );
+  const cut2 = eraseBrushAlongSegment(
+    cut1.remaining,
+    { x: 0.7, y: 0.18 },
+    { x: 0.7, y: 0.22 },
+    12,
+    pageDims
+  );
+  const diagIds = cut2.remaining.filter((s) => s.id.startsWith('diag')).map((s) => s.id);
+  assert.equal(diagIds.length, 3);
+  assert.equal(new Set(diagIds).size, 3);
+});
+
 
 
 

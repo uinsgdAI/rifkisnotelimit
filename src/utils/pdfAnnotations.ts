@@ -11,9 +11,13 @@ export type StrokeWidthPresetId = 'fine' | 'med' | 'bold';
 export const STROKE_SIZE_BOUNDS = {
   pen: { min: 1, max: 12, step: 0.5, defaultSize: 2 },
   highlighter: { min: 6, max: 36, step: 1, defaultSize: 12 },
+  eraser: { min: 4, max: 48, step: 2, defaultSize: 16 },
 } as const;
 
-export function clampStrokeSize(tool: 'pen' | 'highlighter', size: number): number {
+export function clampStrokeSize(
+  tool: 'pen' | 'highlighter' | 'eraser',
+  size: number
+): number {
   const bounds = STROKE_SIZE_BOUNDS[tool];
   if (!Number.isFinite(size)) return bounds.defaultSize;
   const clamped = Math.min(bounds.max, Math.max(bounds.min, size));
@@ -22,9 +26,14 @@ export function clampStrokeSize(tool: 'pen' | 'highlighter', size: number): numb
 }
 
 export function resolveStrokeSizeFromPreset(
-  tool: 'pen' | 'highlighter',
+  tool: 'pen' | 'highlighter' | 'eraser',
   preset: StrokeWidthPresetId
 ): number {
+  if (tool === 'eraser') {
+    if (preset === 'fine') return 10;
+    if (preset === 'bold') return 28;
+    return 16;
+  }
   if (tool === 'highlighter') {
     if (preset === 'fine') return 12;
     if (preset === 'bold') return 26;
@@ -217,6 +226,301 @@ export function eraseStrokesNearPoint(
   normalizedRadius = 0.024
 ): { remaining: AnnotationStroke[]; removedAny: boolean } {
   return eraseStrokesAlongSegment(strokes, point, point, normalizedRadius);
+}
+
+interface PxPoint {
+  x: number;
+  y: number;
+}
+
+function splitSegmentOutsideCapsule(
+  a: PxPoint,
+  b: PxPoint,
+  e0: PxPoint,
+  e1: PxPoint,
+  radius: number
+): Array<[PxPoint, PxPoint]> {
+  const minAx = Math.min(a.x, b.x) - radius;
+  const maxAx = Math.max(a.x, b.x) + radius;
+  const minEx = Math.min(e0.x, e1.x);
+  const maxEx = Math.max(e0.x, e1.x);
+  if (maxAx < minEx || minAx > maxEx) {
+    return [[a, b]];
+  }
+  const minAy = Math.min(a.y, b.y) - radius;
+  const maxAy = Math.max(a.y, b.y) + radius;
+  const minEy = Math.min(e0.y, e1.y);
+  const maxEy = Math.max(e0.y, e1.y);
+  if (maxAy < minEy || minAy > maxEy) {
+    return [[a, b]];
+  }
+
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const pointAt = (t: number): PxPoint => ({
+    x: a.x + t * dx,
+    y: a.y + t * dy,
+  });
+  const distAt = (t: number): number =>
+    pointToSegmentDistance(a.x + t * dx, a.y + t * dy, e0.x, e0.y, e1.x, e1.y);
+
+  const d0 = distAt(0);
+  const d1 = distAt(1);
+
+  // Distance to a convex line segment along a line is convex:
+  // if both endpoints are inside the capsule, the entire segment is inside.
+  if (d0 <= radius && d1 <= radius) {
+    return [];
+  }
+
+  if (d0 <= radius && d1 > radius) {
+    let lo = 0;
+    let hi = 1;
+    for (let iter = 0; iter < 22; iter++) {
+      const mid = (lo + hi) * 0.5;
+      if (distAt(mid) <= radius) lo = mid;
+      else hi = mid;
+    }
+    return [[pointAt(hi), b]];
+  }
+
+  if (d0 > radius && d1 <= radius) {
+    let lo = 0;
+    let hi = 1;
+    for (let iter = 0; iter < 22; iter++) {
+      const mid = (lo + hi) * 0.5;
+      if (distAt(mid) <= radius) hi = mid;
+      else lo = mid;
+    }
+    return [[a, pointAt(lo)]];
+  }
+
+  // Both endpoints outside: fast check for segment-segment intersection first
+  if (segmentToSegmentDistance(a, b, e0, e1) > radius) {
+    return [[a, b]];
+  }
+
+  // Golden-section search to find minimum of convex distance function on [0, 1]
+  let lo = 0;
+  let hi = 1;
+  const invPhi = 0.6180339887498949;
+  let c = hi - invPhi * (hi - lo);
+  let d = lo + invPhi * (hi - lo);
+  let fc = distAt(c);
+  let fd = distAt(d);
+  for (let iter = 0; iter < 28; iter++) {
+    if (fc <= fd) {
+      hi = d;
+      d = c;
+      fd = fc;
+      c = hi - invPhi * (hi - lo);
+      fc = distAt(c);
+    } else {
+      lo = c;
+      c = d;
+      fc = fd;
+      d = lo + invPhi * (hi - lo);
+      fd = distAt(d);
+    }
+  }
+  const tMin = (lo + hi) * 0.5;
+  if (distAt(tMin) > radius) {
+    return [[a, b]];
+  }
+
+  // Find tEnter on [0, tMin] where d(0) > radius and d(tMin) <= radius
+  let eLo = 0;
+  let eHi = tMin;
+  for (let iter = 0; iter < 22; iter++) {
+    const mid = (eLo + eHi) * 0.5;
+    if (distAt(mid) <= radius) eHi = mid;
+    else eLo = mid;
+  }
+
+  // Find tExit on [tMin, 1] where d(tMin) <= radius and d(1) > radius
+  let xLo = tMin;
+  let xHi = 1;
+  for (let iter = 0; iter < 22; iter++) {
+    const mid = (xLo + xHi) * 0.5;
+    if (distAt(mid) <= radius) xLo = mid;
+    else xHi = mid;
+  }
+
+  return [
+    [a, pointAt(eLo)],
+    [pointAt(xHi), b],
+  ];
+}
+
+function polylineLengthPx(pts: PxPoint[]): number {
+  let len = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    len += Math.hypot(pts[i + 1].x - pts[i].x, pts[i + 1].y - pts[i].y);
+  }
+  return len;
+}
+
+function allocateSplitStrokeId(baseId: string, usedIds: Set<string>): string {
+  const root = baseId.replace(/__p\d+$/, '');
+  let counter = 1;
+  while (usedIds.has(`${root}__p${counter}`)) {
+    counter += 1;
+  }
+  const candidate = `${root}__p${counter}`;
+  usedIds.add(candidate);
+  return candidate;
+}
+
+export function eraseBrushAlongSegment(
+  strokes: AnnotationStroke[],
+  fromPoint: NormalizedPoint,
+  toPoint: NormalizedPoint,
+  eraserSizePx: number,
+  pageDims: { width: number; height: number } = { width: 595, height: 842 }
+): { remaining: AnnotationStroke[]; removedAny: boolean } {
+  const pageW = pageDims.width > 1 ? pageDims.width : 595;
+  const pageH = pageDims.height > 1 ? pageDims.height : 842;
+  const brushRadiusPx = Math.max(2, eraserSizePx / 2);
+
+  const e0: PxPoint = { x: fromPoint.x * pageW, y: fromPoint.y * pageH };
+  const e1: PxPoint = { x: toPoint.x * pageW, y: toPoint.y * pageH };
+
+  let removedAny = false;
+  const usedIds = new Set<string>(strokes.map((s) => s.id));
+  const remaining: AnnotationStroke[] = [];
+
+  for (const stroke of strokes) {
+    if (stroke.points.length === 0) {
+      removedAny = true;
+      continue;
+    }
+
+    const strokeAllowancePx = Math.min(stroke.size * 0.38, 9);
+    const effectiveRadiusPx = brushRadiusPx + strokeAllowancePx;
+
+    const pxPoints: PxPoint[] = stroke.points.map((pt) => ({
+      x: pt.x * pageW,
+      y: pt.y * pageH,
+    }));
+
+    if (pxPoints.length === 1 || polylineLengthPx(pxPoints) < 0.5) {
+      const p = pxPoints[0];
+      if (pointToSegmentDistance(p.x, p.y, e0.x, e0.y, e1.x, e1.y) <= effectiveRadiusPx) {
+        removedAny = true;
+      } else {
+        remaining.push(stroke);
+      }
+      continue;
+    }
+
+    // Fast path: check bounding box of stroke vs brush capsule
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const pt of pxPoints) {
+      if (pt.x < minX) minX = pt.x;
+      if (pt.y < minY) minY = pt.y;
+      if (pt.x > maxX) maxX = pt.x;
+      if (pt.y > maxY) maxY = pt.y;
+    }
+    const minEx = Math.min(e0.x, e1.x) - effectiveRadiusPx;
+    const maxEx = Math.max(e0.x, e1.x) + effectiveRadiusPx;
+    const minEy = Math.min(e0.y, e1.y) - effectiveRadiusPx;
+    const maxEy = Math.max(e0.y, e1.y) + effectiveRadiusPx;
+    if (maxX < minEx || minX > maxEx || maxY < minEy || minY > maxEy) {
+      remaining.push(stroke);
+      continue;
+    }
+
+    const chains: PxPoint[][] = [];
+    let currentChain: PxPoint[] = [];
+    let strokeModified = false;
+
+    for (let i = 0; i < pxPoints.length - 1; i++) {
+      const a = pxPoints[i];
+      const b = pxPoints[i + 1];
+      const pieces = splitSegmentOutsideCapsule(a, b, e0, e1, effectiveRadiusPx);
+
+      if (
+        pieces.length === 1 &&
+        pieces[0][0] === a &&
+        pieces[0][1] === b
+      ) {
+        if (currentChain.length === 0) {
+          currentChain = [a, b];
+        } else {
+          const last = currentChain[currentChain.length - 1];
+          if (Math.hypot(last.x - a.x, last.y - a.y) < 1e-3) {
+            currentChain.push(b);
+          } else {
+            if (currentChain.length >= 2 && polylineLengthPx(currentChain) >= 0.5) {
+              chains.push(currentChain);
+            }
+            currentChain = [a, b];
+          }
+        }
+        continue;
+      }
+
+      strokeModified = true;
+      if (pieces.length === 0) {
+        if (currentChain.length >= 2 && polylineLengthPx(currentChain) >= 0.5) {
+          chains.push(currentChain);
+        }
+        currentChain = [];
+        continue;
+      }
+
+      for (const [pStart, pEnd] of pieces) {
+        if (Math.hypot(pEnd.x - pStart.x, pEnd.y - pStart.y) < 0.25) {
+          if (currentChain.length >= 2 && polylineLengthPx(currentChain) >= 0.5) {
+            chains.push(currentChain);
+          }
+          currentChain = [];
+          continue;
+        }
+        if (currentChain.length === 0) {
+          currentChain = [pStart, pEnd];
+        } else {
+          const last = currentChain[currentChain.length - 1];
+          if (Math.hypot(last.x - pStart.x, last.y - pStart.y) < 1e-3) {
+            currentChain.push(pEnd);
+          } else {
+            if (currentChain.length >= 2 && polylineLengthPx(currentChain) >= 0.5) {
+              chains.push(currentChain);
+            }
+            currentChain = [pStart, pEnd];
+          }
+        }
+      }
+    }
+
+    if (currentChain.length >= 2 && polylineLengthPx(currentChain) >= 0.5) {
+      chains.push(currentChain);
+    }
+
+    if (!strokeModified) {
+      remaining.push(stroke);
+      continue;
+    }
+
+    removedAny = true;
+    chains.forEach((chain, idx) => {
+      const normalizedPts = chain.map((pt) => ({
+        x: clampNormalized(pt.x / pageW),
+        y: clampNormalized(pt.y / pageH),
+      }));
+      const id = idx === 0 ? stroke.id : allocateSplitStrokeId(stroke.id, usedIds);
+      remaining.push({
+        ...stroke,
+        id,
+        points: normalizedPts,
+      });
+    });
+  }
+
+  return { remaining, removedAny };
 }
 
 export function cloneAnnotationsMap(map: PaperAnnotationsMap): PaperAnnotationsMap {

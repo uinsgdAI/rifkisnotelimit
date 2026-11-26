@@ -38,7 +38,7 @@ import {
   computeTwoFingerPanAndZoom,
   countTotalStrokes,
   createInitialAnnotationHistory,
-  eraseStrokesAlongSegment,
+  eraseBrushAlongSegment,
   estimateVisiblePage,
   evaluateTwoFingerPinchEngagement,
   fetchPdfBytesWithFallback,
@@ -113,11 +113,13 @@ interface PdfPageCanvasProps {
   activeTool: AnnotationTool;
   activeColor: string;
   activeSize: number;
+  eraserSize: number;
   scrollRootRef: React.RefObject<HTMLDivElement | null>;
   isMultiTouchActiveRef: React.MutableRefObject<boolean>;
   multiTouchSignal: number;
   palmLock: boolean;
   onDetectStylus?: () => void;
+  onPalmBlockedTouch?: () => void;
   getRulerGeometry: () => RulerClientGeometry | null;
   onCommitStroke: (pageNumber: number, stroke: AnnotationStroke) => void;
   onEraseSegment: (
@@ -144,11 +146,13 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
   activeTool,
   activeColor,
   activeSize,
+  eraserSize,
   scrollRootRef,
   isMultiTouchActiveRef,
   multiTouchSignal,
   palmLock,
   onDetectStylus,
+  onPalmBlockedTouch,
   getRulerGeometry,
   onCommitStroke,
   onEraseSegment,
@@ -160,6 +164,7 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
   const liveStrokeRef = useRef<AnnotationStroke | null>(null);
   const snappedEdgeRef = useRef<'top' | 'bottom' | null>(null);
   const isDrawingRef = useRef(false);
+  const activePointerIdRef = useRef<number | null>(null);
   const activeEraseModeRef = useRef(false);
   const lastErasePointRef = useRef<NormalizedPoint | null>(null);
   const liveEraseCursorRef = useRef<NormalizedPoint | null>(null);
@@ -280,27 +285,37 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
     if (liveEraseCursorRef.current) {
       const ex = liveEraseCursorRef.current.x * cssWidth;
       const ey = liveEraseCursorRef.current.y * cssHeight;
-      const radiusPx = Math.max(10, Math.round(cssWidth * 0.024));
+      const radiusPx = Math.max(2, (eraserSize / 2) * scale);
       ctx.save();
       ctx.beginPath();
       ctx.arc(ex, ey, radiusPx, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255, 95, 168, 0.14)';
+      ctx.fillStyle = activeEraseModeRef.current
+        ? 'rgba(255, 95, 168, 0.22)'
+        : 'rgba(255, 95, 168, 0.12)';
       ctx.fill();
       ctx.lineWidth = 1.5;
-      ctx.strokeStyle = 'rgba(192, 38, 107, 0.85)';
+      ctx.strokeStyle = 'rgba(192, 38, 107, 0.88)';
       ctx.stroke();
       ctx.restore();
     }
-  }, [strokes, scale, isNearViewport]);
+  }, [strokes, scale, eraserSize, isNearViewport]);
 
   useEffect(() => {
     redrawOverlay();
   }, [redrawOverlay, displayDims, renderedDims]);
 
   useEffect(() => {
+    if (activeTool !== 'eraser' && !activeEraseModeRef.current && liveEraseCursorRef.current) {
+      liveEraseCursorRef.current = null;
+      redrawOverlay();
+    }
+  }, [activeTool, redrawOverlay]);
+
+  useEffect(() => {
     if (multiTouchSignal === 0) return;
     if (isDrawingRef.current || liveStrokeRef.current || activeEraseModeRef.current) {
       isDrawingRef.current = false;
+      activePointerIdRef.current = null;
       activeEraseModeRef.current = false;
       lastErasePointRef.current = null;
       liveEraseCursorRef.current = null;
@@ -322,6 +337,7 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
         pointerType: e.pointerType,
       })
     ) {
+      onPalmBlockedTouch?.();
       return;
     }
     const isHardwarePenEraser =
@@ -330,6 +346,7 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
 
     if (isMultiTouchActiveRef.current) {
       isDrawingRef.current = false;
+      activePointerIdRef.current = null;
       activeEraseModeRef.current = false;
       lastErasePointRef.current = null;
       liveEraseCursorRef.current = null;
@@ -339,8 +356,13 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
       return;
     }
 
+    if (isDrawingRef.current && activePointerIdRef.current !== null && activePointerIdRef.current !== e.pointerId) {
+      return;
+    }
+
     const canvas = drawCanvasRef.current;
     if (!canvas) return;
+    e.preventDefault();
     try {
       canvas.setPointerCapture(e.pointerId);
     } catch {
@@ -348,6 +370,7 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
     }
 
     const rect = canvas.getBoundingClientRect();
+    activePointerIdRef.current = e.pointerId;
 
     if (activeTool === 'eraser' || isHardwarePenEraser) {
       const point = normalizePointerToPage(e.clientX, e.clientY, rect);
@@ -388,6 +411,7 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
     if (isMultiTouchActiveRef.current) {
       if (isDrawingRef.current || activeEraseModeRef.current) {
         isDrawingRef.current = false;
+        activePointerIdRef.current = null;
         activeEraseModeRef.current = false;
         lastErasePointRef.current = null;
         liveEraseCursorRef.current = null;
@@ -398,26 +422,30 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
       return;
     }
 
-    if (!isDrawingRef.current || activeTool === 'pan') return;
     const canvas = drawCanvasRef.current;
     if (!canvas) return;
-
     const rect = canvas.getBoundingClientRect();
 
-    if (activeEraseModeRef.current || activeTool === 'eraser') {
-      const nativeEv = e.nativeEvent as PointerEvent;
-      const coalesced =
-        typeof nativeEv.getCoalescedEvents === 'function' ? nativeEv.getCoalescedEvents() : null;
-      const samples = coalesced && coalesced.length > 0 ? coalesced : [nativeEv];
-      let prevPt =
-        lastErasePointRef.current ?? normalizePointerToPage(e.clientX, e.clientY, rect);
-      for (const sample of samples) {
-        const pt = normalizePointerToPage(sample.clientX, sample.clientY, rect);
-        onEraseSegment(pageNumber, prevPt, pt, false);
-        prevPt = pt;
+    // Hover cursor preview for Eraser (mouse & S Pen hover) before pressing down
+    if (!isDrawingRef.current) {
+      if (activeTool === 'eraser' && (e.pointerType === 'mouse' || e.pointerType === 'pen')) {
+        liveEraseCursorRef.current = normalizePointerToPage(e.clientX, e.clientY, rect);
+        redrawOverlay();
       }
-      lastErasePointRef.current = prevPt;
-      liveEraseCursorRef.current = prevPt;
+      return;
+    }
+
+    if (activeTool === 'pan') return;
+    if (activePointerIdRef.current !== null && activePointerIdRef.current !== e.pointerId) {
+      return;
+    }
+
+    if (activeEraseModeRef.current || activeTool === 'eraser') {
+      const pt = normalizePointerToPage(e.clientX, e.clientY, rect);
+      const prevPt = lastErasePointRef.current ?? pt;
+      onEraseSegment(pageNumber, prevPt, pt, false);
+      lastErasePointRef.current = pt;
+      liveEraseCursorRef.current = pt;
       redrawOverlay();
       return;
     }
@@ -449,7 +477,16 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
 
   const finishStroke = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!isDrawingRef.current) return;
+    if (
+      activePointerIdRef.current !== null &&
+      activePointerIdRef.current !== e.pointerId &&
+      e.type !== 'pointercancel' &&
+      e.type !== 'lostpointercapture'
+    ) {
+      return;
+    }
     isDrawingRef.current = false;
+    activePointerIdRef.current = null;
 
     const canvas = drawCanvasRef.current;
     if (canvas && canvas.hasPointerCapture(e.pointerId)) {
@@ -473,7 +510,9 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
     if (activeEraseModeRef.current) {
       activeEraseModeRef.current = false;
       lastErasePointRef.current = null;
-      liveEraseCursorRef.current = null;
+      if (e.pointerType !== 'mouse' || activeTool !== 'eraser' || e.type !== 'pointerup') {
+        liveEraseCursorRef.current = null;
+      }
       redrawOverlay();
       return;
     }
@@ -483,6 +522,13 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
       const committed = liveStrokeRef.current;
       liveStrokeRef.current = null;
       onCommitStroke(pageNumber, committed);
+    }
+  };
+
+  const handlePointerLeave = () => {
+    if (!isDrawingRef.current && liveEraseCursorRef.current) {
+      liveEraseCursorRef.current = null;
+      redrawOverlay();
     }
   };
 
@@ -505,6 +551,8 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
         onPointerMove={handlePointerMove}
         onPointerUp={finishStroke}
         onPointerCancel={finishStroke}
+        onLostPointerCapture={finishStroke}
+        onPointerLeave={handlePointerLeave}
         onContextMenu={(e) => e.preventDefault()}
         style={{
           touchAction: 'none',
@@ -516,7 +564,7 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
           activeTool === 'pan'
             ? 'pointer-events-none cursor-grab'
             : activeTool === 'eraser'
-              ? 'cursor-cell'
+              ? 'cursor-none'
               : 'cursor-crosshair'
         }`}
       />
@@ -562,6 +610,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
   const [hlSize, setHlSize] = useState<number>(() =>
     resolveStrokeSizeFromPreset('highlighter', initialWidthPreset)
   );
+  const [eraserSize, setEraserSize] = useState<number>(STROKE_SIZE_BOUNDS.eraser.defaultSize);
   const [activeExportPage, setActiveExportPage] = useState(1);
 
   const [rulerEnabled, setRulerEnabled] = useState(false);
@@ -593,6 +642,8 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     }
   });
   const manualPalmOverrideRef = useRef(false);
+  const [palmBlockedFlash, setPalmBlockedFlash] = useState(false);
+  const palmBlockedTimerRef = useRef<number | null>(null);
 
   const [history, setHistory] = useState<AnnotationHistoryState>(() =>
     createInitialAnnotationHistory(loadPaperAnnotations(paperKey))
@@ -795,11 +846,23 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
   }, []);
 
   const handleTogglePalmLock = useCallback(() => {
+    setPalmBlockedFlash(false);
     setPalmLock((prev) => {
       const next = !prev;
       manualPalmOverrideRef.current = !next;
       return next;
     });
+  }, []);
+
+  const triggerPalmBlockedFlash = useCallback(() => {
+    setPalmBlockedFlash(true);
+    if (palmBlockedTimerRef.current !== null) {
+      window.clearTimeout(palmBlockedTimerRef.current);
+    }
+    palmBlockedTimerRef.current = window.setTimeout(() => {
+      setPalmBlockedFlash(false);
+      palmBlockedTimerRef.current = null;
+    }, 1500);
   }, []);
 
   const handleCycleRailSide = useCallback(() => {
@@ -934,6 +997,10 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
   useEffect(() => {
     liveAnnotationsRef.current = history.present;
   }, [history.present]);
+  const eraserSizeRef = useRef(eraserSize);
+  eraserSizeRef.current = eraserSize;
+  const basePageDimsRef = useRef(basePageDims);
+  basePageDimsRef.current = basePageDims;
   const eraseGestureHasPushedRef = useRef(false);
 
   const handleCommitStroke = useCallback((pageNumber: number, stroke: AnnotationStroke) => {
@@ -957,15 +1024,20 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
       const currentList = liveAnnotationsRef.current[pageNumber] || [];
       if (currentList.length === 0) return;
 
-      const { remaining, removedAny } = eraseStrokesAlongSegment(
+      const pageDims =
+        basePageDimsRef.current[pageNumber] ??
+        basePageDimsRef.current[1] ?? { width: 595, height: 842 };
+
+      const { remaining, removedAny } = eraseBrushAlongSegment(
         currentList,
         fromPoint,
         toPoint,
-        0.024
+        eraserSizeRef.current,
+        pageDims
       );
       if (!removedAny) return;
 
-      const nextMap = cloneAnnotationsMap(liveAnnotationsRef.current);
+      const nextMap: PaperAnnotationsMap = { ...liveAnnotationsRef.current };
       if (remaining.length === 0) {
         delete nextMap[pageNumber];
       } else {
@@ -979,7 +1051,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
       } else {
         setHistory((prev) => ({
           ...prev,
-          present: cloneAnnotationsMap(nextMap),
+          present: nextMap,
         }));
       }
     },
@@ -1026,12 +1098,20 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
 
   const activeColor = tool === 'highlighter' ? hlColor : penColor;
   const activeSize = tool === 'highlighter' ? hlSize : penSize;
+  const sliderValue =
+    tool === 'eraser' ? eraserSize : tool === 'highlighter' ? hlSize : penSize;
   const strokeBounds =
-    tool === 'highlighter' ? STROKE_SIZE_BOUNDS.highlighter : STROKE_SIZE_BOUNDS.pen;
+    tool === 'eraser'
+      ? STROKE_SIZE_BOUNDS.eraser
+      : tool === 'highlighter'
+        ? STROKE_SIZE_BOUNDS.highlighter
+        : STROKE_SIZE_BOUNDS.pen;
   const dotPreviewPx =
-    tool === 'highlighter'
-      ? Math.max(6, Math.min(18, Math.round(hlSize * 0.5)))
-      : Math.max(3, Math.min(15, Math.round(penSize * 1.35)));
+    tool === 'eraser'
+      ? Math.max(5, Math.min(20, Math.round(eraserSize * 0.42)))
+      : tool === 'highlighter'
+        ? Math.max(6, Math.min(18, Math.round(hlSize * 0.5)))
+        : Math.max(3, Math.min(15, Math.round(penSize * 1.35)));
   const totalStrokes = useMemo(() => countTotalStrokes(history.present), [history.present]);
 
   const pageNumbers = useMemo(
@@ -1832,11 +1912,17 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
             </div>
           )}
 
-          {/* Manual Pen / Highlighter Stroke Slider */}
-          {(tool === 'pen' || tool === 'highlighter') && (
+          {/* Manual Pen / Highlighter / Eraser Brush Slider */}
+          {(tool === 'pen' || tool === 'highlighter' || tool === 'eraser') && (
             <div
               role="group"
-              aria-label={tool === 'highlighter' ? 'Highlighter stroke thickness' : 'Pen stroke thickness'}
+              aria-label={
+                tool === 'eraser'
+                  ? 'Eraser brush size'
+                  : tool === 'highlighter'
+                    ? 'Highlighter stroke thickness'
+                    : 'Pen stroke thickness'
+              }
               className="inline-flex items-center gap-2 px-2.5 py-1 bg-[#F4F3FC] border-2 border-[#1D1A4A] rounded-[12px] shadow-[2px_2px_0_#B8B3FF]"
             >
               <span
@@ -1844,30 +1930,46 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
                 className="w-5 h-5 flex items-center justify-center shrink-0"
               >
                 <span
-                  className="rounded-full block border border-[#1D1A4A]/40 transition-all duration-100"
-                  style={{
-                    width: `${dotPreviewPx}px`,
-                    height: `${dotPreviewPx}px`,
-                    backgroundColor: activeColor,
-                    opacity: tool === 'highlighter' ? 0.55 : 1,
-                  }}
+                  className="rounded-full block transition-all duration-100"
+                  style={
+                    tool === 'eraser'
+                      ? {
+                          width: `${dotPreviewPx}px`,
+                          height: `${dotPreviewPx}px`,
+                          backgroundColor: 'rgba(255, 95, 168, 0.22)',
+                          border: '1.5px solid #C0266B',
+                        }
+                      : {
+                          width: `${dotPreviewPx}px`,
+                          height: `${dotPreviewPx}px`,
+                          backgroundColor: activeColor,
+                          opacity: tool === 'highlighter' ? 0.55 : 1,
+                          border: '1px solid rgba(29, 26, 74, 0.4)',
+                        }
+                  }
                 />
               </span>
               <SakugaSlider
                 testId="annotator-stroke-slider"
                 size="compact"
-                variant={tool === 'highlighter' ? 'sakura' : 'indigo'}
+                variant={tool === 'pen' ? 'indigo' : 'sakura'}
                 min={strokeBounds.min}
                 max={strokeBounds.max}
                 step={strokeBounds.step}
-                value={activeSize}
+                value={sliderValue}
                 ariaLabel={
-                  tool === 'highlighter' ? 'Highlighter thickness' : 'Pen thickness'
+                  tool === 'eraser'
+                    ? 'Eraser brush size'
+                    : tool === 'highlighter'
+                      ? 'Highlighter thickness'
+                      : 'Pen thickness'
                 }
                 showValuePill={true}
                 formatValue={(v) => `${v}px`}
                 onChange={(next) => {
-                  if (tool === 'highlighter') {
+                  if (tool === 'eraser') {
+                    setEraserSize(clampStrokeSize('eraser', next));
+                  } else if (tool === 'highlighter') {
                     setHlSize(clampStrokeSize('highlighter', next));
                   } else {
                     setPenSize(clampStrokeSize('pen', next));
@@ -1901,17 +2003,19 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
             aria-pressed={palmLock}
             title={
               palmLock
-                ? 'Palm Lock ON: S Pen & mouse draw; 1-finger/palm touch blocked (2-finger scroll/zoom still works)'
+                ? 'Palm Lock ON: S Pen & mouse draw/erase; 1-finger/palm touch blocked (tap to allow finger touch)'
                 : 'Enable Palm Lock when writing with S Pen so your right palm cannot scroll or draw dots'
             }
-            className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-[11px] cursor-pointer whitespace-nowrap ${
-              palmLock
-                ? 'bg-[#FFF5FA] border-2 border-[#1D1A4A] text-[#1D1A4A] shadow-[2px_2px_0_#FF5FA8]'
-                : 'sk-btn-subtle'
+            className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-[11px] cursor-pointer whitespace-nowrap transition-transform ${
+              palmBlockedFlash
+                ? 'bg-[#FFE4F1] border-2 border-[#C0266B] text-[#C0266B] scale-105 shadow-[2px_2px_0_#FF5FA8]'
+                : palmLock
+                  ? 'bg-[#FFF5FA] border-2 border-[#1D1A4A] text-[#1D1A4A] shadow-[2px_2px_0_#FF5FA8]'
+                  : 'sk-btn-subtle'
             }`}
           >
             <Shield className="w-3.5 h-3.5" />
-            Palm Lock
+            {palmBlockedFlash ? 'S Pen Only (Tap to Unlock)' : 'Palm Lock'}
           </button>
 
           {/* Scroll Rail Placement (Left default for right-handed users, Right, or Off) */}
@@ -2172,11 +2276,13 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
                     activeTool={tool}
                     activeColor={activeColor}
                     activeSize={activeSize}
+                    eraserSize={eraserSize}
                     scrollRootRef={containerRef}
                     isMultiTouchActiveRef={isMultiTouchActiveRef}
                     multiTouchSignal={multiTouchSignal}
                     palmLock={palmLock}
                     onDetectStylus={handleDetectStylus}
+                    onPalmBlockedTouch={triggerPalmBlockedFlash}
                     getRulerGeometry={getRulerGeometry}
                     onCommitStroke={handleCommitStroke}
                     onEraseSegment={handleEraseSegment}
