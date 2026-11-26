@@ -22,6 +22,7 @@ import {
   shouldStartSinglePointerBackgroundPan,
   snapClientPointToRulerEdge,
   STROKE_SIZE_BOUNDS,
+  type AnnotationStroke,
 } from './pdfAnnotations';
 
 test('capturePdfZoomAnchor selects visible page and preserves normalized focal offset', () => {
@@ -652,6 +653,48 @@ test('eraseBrushAlongSegment handles dots, multi-split unique IDs, and continuou
   assert.equal(new Set(diagIds).size, 3);
 });
 
+test('eraseBrushAlongSegment cleanly erases all remaining pieces of a dense curved stroke after partial deletion', () => {
+  const pageDims = { width: 595, height: 842 };
+  const curvePoints = Array.from({ length: 65 }, (_, i) => {
+    const t = i / 64;
+    return {
+      x: 0.15 + 0.7 * t,
+      y: 0.45 + 0.06 * Math.sin(t * Math.PI * 2),
+    };
+  });
+  let strokes: AnnotationStroke[] = [
+    {
+      id: 'curve-1',
+      tool: 'pen',
+      color: '#1d4ed8',
+      size: 2.5,
+      points: curvePoints,
+    },
+  ];
 
+  // 1) Erase middle section -> splits stroke into left and right pieces
+  const firstErase = eraseBrushAlongSegment(
+    strokes,
+    { x: 0.5, y: 0.36 },
+    { x: 0.5, y: 0.54 },
+    16,
+    pageDims
+  );
+  assert.equal(firstErase.removedAny, true);
+  assert.equal(firstErase.remaining.length, 2);
+  strokes = firstErase.remaining;
 
-
+  // 2) Sweep across left remainder and right remainder consecutively -> 0 strokes remain
+  let prev = curvePoints[0];
+  for (let i = 1; i <= 50; i++) {
+    const t = i / 50;
+    const next = {
+      x: 0.15 + 0.7 * t,
+      y: 0.45 + 0.06 * Math.sin(t * Math.PI * 2),
+    };
+    const res = eraseBrushAlongSegment(strokes, prev, next, 16, pageDims);
+    strokes = res.remaining;
+    prev = next;
+  }
+  assert.equal(strokes.length, 0);
+});

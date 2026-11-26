@@ -165,6 +165,9 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
   const snappedEdgeRef = useRef<'top' | 'bottom' | null>(null);
   const isDrawingRef = useRef(false);
   const activePointerIdRef = useRef<number | null>(null);
+  const activePointerTypeRef = useRef<string>('mouse');
+  const sawButtonsOnDownRef = useRef(false);
+  const windowListenersCleanupRef = useRef<(() => void) | null>(null);
   const activeEraseModeRef = useRef(false);
   const lastErasePointRef = useRef<NormalizedPoint | null>(null);
   const liveEraseCursorRef = useRef<NormalizedPoint | null>(null);
@@ -311,19 +314,237 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
     }
   }, [activeTool, redrawOverlay]);
 
-  useEffect(() => {
-    if (multiTouchSignal === 0) return;
-    if (isDrawingRef.current || liveStrokeRef.current || activeEraseModeRef.current) {
+  const detachWindowStrokeListeners = useCallback(() => {
+    if (windowListenersCleanupRef.current) {
+      windowListenersCleanupRef.current();
+      windowListenersCleanupRef.current = null;
+    }
+  }, []);
+
+  const resetActiveGesture = useCallback(
+    (clearCursor = true) => {
+      detachWindowStrokeListeners();
       isDrawingRef.current = false;
       activePointerIdRef.current = null;
+      sawButtonsOnDownRef.current = false;
       activeEraseModeRef.current = false;
       lastErasePointRef.current = null;
-      liveEraseCursorRef.current = null;
+      if (clearCursor) {
+        liveEraseCursorRef.current = null;
+      }
       liveStrokeRef.current = null;
       snappedEdgeRef.current = null;
       redrawOverlay();
+    },
+    [detachWindowStrokeListeners, redrawOverlay]
+  );
+
+  useEffect(() => {
+    return () => {
+      detachWindowStrokeListeners();
+    };
+  }, [detachWindowStrokeListeners]);
+
+  useEffect(() => {
+    if (multiTouchSignal === 0) return;
+    if (
+      activePointerTypeRef.current === 'touch' &&
+      (isDrawingRef.current || liveStrokeRef.current || activeEraseModeRef.current)
+    ) {
+      resetActiveGesture(true);
     }
-  }, [multiTouchSignal, redrawOverlay]);
+  }, [multiTouchSignal, resetActiveGesture]);
+
+  const completeActiveGesture = useCallback(
+    (pointerId: number, pointerType: string, eventType: string) => {
+      if (!isDrawingRef.current) return;
+      if (
+        activePointerIdRef.current !== null &&
+        activePointerIdRef.current !== pointerId &&
+        eventType !== 'pointercancel' &&
+        eventType !== 'blur'
+      ) {
+        return;
+      }
+
+      detachWindowStrokeListeners();
+      isDrawingRef.current = false;
+      activePointerIdRef.current = null;
+      sawButtonsOnDownRef.current = false;
+
+      const canvas = drawCanvasRef.current;
+      if (canvas && typeof canvas.hasPointerCapture === 'function') {
+        try {
+          if (canvas.hasPointerCapture(pointerId)) {
+            canvas.releasePointerCapture(pointerId);
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      if (pointerType === 'touch' && isMultiTouchActiveRef.current) {
+        activeEraseModeRef.current = false;
+        lastErasePointRef.current = null;
+        liveEraseCursorRef.current = null;
+        liveStrokeRef.current = null;
+        snappedEdgeRef.current = null;
+        redrawOverlay();
+        return;
+      }
+
+      if (activeEraseModeRef.current) {
+        activeEraseModeRef.current = false;
+        lastErasePointRef.current = null;
+        if (
+          (pointerType !== 'mouse' && pointerType !== 'pen') ||
+          activeTool !== 'eraser' ||
+          eventType !== 'pointerup'
+        ) {
+          liveEraseCursorRef.current = null;
+        }
+        redrawOverlay();
+        return;
+      }
+
+      snappedEdgeRef.current = null;
+      if (activeTool !== 'eraser' && liveStrokeRef.current) {
+        const committed = liveStrokeRef.current;
+        liveStrokeRef.current = null;
+        onCommitStroke(pageNumber, committed);
+      }
+    },
+    [activeTool, detachWindowStrokeListeners, isMultiTouchActiveRef, onCommitStroke, pageNumber, redrawOverlay]
+  );
+
+  const processActivePointerMove = useCallback(
+    (
+      pointerId: number,
+      pointerType: string,
+      buttons: number,
+      clientX: number,
+      clientY: number
+    ) => {
+      if (pointerType === 'touch' && isMultiTouchActiveRef.current) {
+        if (isDrawingRef.current || activeEraseModeRef.current) {
+          resetActiveGesture(true);
+        }
+        return;
+      }
+
+      const canvas = drawCanvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+
+      if (!isDrawingRef.current) {
+        if (activeTool === 'eraser' && (pointerType === 'mouse' || pointerType === 'pen')) {
+          liveEraseCursorRef.current = normalizePointerToPage(clientX, clientY, rect);
+          redrawOverlay();
+        }
+        return;
+      }
+
+      if (activePointerIdRef.current !== null && activePointerIdRef.current !== pointerId) {
+        return;
+      }
+
+      // Recover cleanly if mouse or S Pen lifted into hover without firing pointerup
+      if (
+        sawButtonsOnDownRef.current &&
+        pointerType !== 'touch' &&
+        (buttons & (1 | 2 | 32)) === 0
+      ) {
+        completeActiveGesture(pointerId, pointerType, 'pointerup');
+        return;
+      }
+
+      if (activeTool === 'pan' && !activeEraseModeRef.current) return;
+
+      if (activeEraseModeRef.current || activeTool === 'eraser') {
+        const pt = normalizePointerToPage(clientX, clientY, rect);
+        const prevPt = lastErasePointRef.current ?? pt;
+        onEraseSegment(pageNumber, prevPt, pt, false);
+        lastErasePointRef.current = pt;
+        liveEraseCursorRef.current = pt;
+        redrawOverlay();
+        return;
+      }
+
+      if (!liveStrokeRef.current) return;
+
+      if (snappedEdgeRef.current) {
+        const ruler = getRulerGeometry();
+        if (ruler) {
+          const snap = snapClientPointToRulerEdge(clientX, clientY, ruler, {
+            forcedEdge: snappedEdgeRef.current,
+          });
+          const endPt = normalizePointerToPage(snap.clientX, snap.clientY, rect);
+          const startPt = liveStrokeRef.current.points[0];
+          liveStrokeRef.current.points = [startPt, endPt];
+          redrawOverlay();
+          return;
+        }
+      }
+
+      const point = normalizePointerToPage(clientX, clientY, rect);
+      const prev = liveStrokeRef.current.points[liveStrokeRef.current.points.length - 1];
+      if (Math.hypot(point.x - prev.x, point.y - prev.y) < 0.0012) {
+        return;
+      }
+      liveStrokeRef.current.points.push(point);
+      redrawOverlay();
+    },
+    [
+      activeTool,
+      completeActiveGesture,
+      getRulerGeometry,
+      isMultiTouchActiveRef,
+      onEraseSegment,
+      pageNumber,
+      redrawOverlay,
+      resetActiveGesture,
+    ]
+  );
+
+  const attachWindowStrokeListeners = useCallback(
+    (trackedPointerId: number, trackedPointerType: string) => {
+      detachWindowStrokeListeners();
+      const canvas = drawCanvasRef.current;
+
+      const onWinMove = (ev: PointerEvent) => {
+        if (ev.pointerId !== trackedPointerId) return;
+        if (canvas && ev.target === canvas) return;
+        processActivePointerMove(
+          ev.pointerId,
+          ev.pointerType || trackedPointerType,
+          ev.buttons,
+          ev.clientX,
+          ev.clientY
+        );
+      };
+      const onWinEnd = (ev: PointerEvent) => {
+        if (ev.pointerId !== trackedPointerId) return;
+        if (canvas && ev.target === canvas) return;
+        completeActiveGesture(ev.pointerId, ev.pointerType || trackedPointerType, ev.type);
+      };
+      const onWinBlur = () => {
+        completeActiveGesture(trackedPointerId, trackedPointerType, 'blur');
+      };
+
+      window.addEventListener('pointermove', onWinMove);
+      window.addEventListener('pointerup', onWinEnd);
+      window.addEventListener('pointercancel', onWinEnd);
+      window.addEventListener('blur', onWinBlur);
+
+      windowListenersCleanupRef.current = () => {
+        window.removeEventListener('pointermove', onWinMove);
+        window.removeEventListener('pointerup', onWinEnd);
+        window.removeEventListener('pointercancel', onWinEnd);
+        window.removeEventListener('blur', onWinBlur);
+      };
+    },
+    [completeActiveGesture, detachWindowStrokeListeners, processActivePointerMove]
+  );
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (activeTool === 'pan') return;
@@ -344,20 +565,22 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
       e.pointerType === 'pen' && (e.button === 5 || (e.buttons & 32) !== 0);
     if (e.button !== 0 && e.pointerType === 'mouse') return;
 
-    if (isMultiTouchActiveRef.current) {
-      isDrawingRef.current = false;
-      activePointerIdRef.current = null;
-      activeEraseModeRef.current = false;
-      lastErasePointRef.current = null;
-      liveEraseCursorRef.current = null;
-      liveStrokeRef.current = null;
-      snappedEdgeRef.current = null;
-      redrawOverlay();
+    if (e.pointerType === 'touch' && isMultiTouchActiveRef.current) {
+      resetActiveGesture(true);
       return;
     }
 
-    if (isDrawingRef.current && activePointerIdRef.current !== null && activePointerIdRef.current !== e.pointerId) {
-      return;
+    // If an earlier pointer somehow missed pointerup/pointercancel, finalize it instead of deadlocking future strokes/erases
+    if (
+      isDrawingRef.current &&
+      activePointerIdRef.current !== null &&
+      activePointerIdRef.current !== e.pointerId
+    ) {
+      if (e.isPrimary || e.pointerType === 'pen' || e.pointerType === 'mouse') {
+        completeActiveGesture(activePointerIdRef.current, activePointerTypeRef.current, 'pointercancel');
+      } else {
+        return;
+      }
     }
 
     const canvas = drawCanvasRef.current;
@@ -371,6 +594,9 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
 
     const rect = canvas.getBoundingClientRect();
     activePointerIdRef.current = e.pointerId;
+    activePointerTypeRef.current = e.pointerType;
+    sawButtonsOnDownRef.current = e.buttons !== 0;
+    attachWindowStrokeListeners(e.pointerId, e.pointerType);
 
     if (activeTool === 'eraser' || isHardwarePenEraser) {
       const point = normalizePointerToPage(e.clientX, e.clientY, rect);
@@ -408,121 +634,17 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (isMultiTouchActiveRef.current) {
-      if (isDrawingRef.current || activeEraseModeRef.current) {
-        isDrawingRef.current = false;
-        activePointerIdRef.current = null;
-        activeEraseModeRef.current = false;
-        lastErasePointRef.current = null;
-        liveEraseCursorRef.current = null;
-        liveStrokeRef.current = null;
-        snappedEdgeRef.current = null;
-        redrawOverlay();
-      }
-      return;
-    }
-
-    const canvas = drawCanvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-
-    // Hover cursor preview for Eraser (mouse & S Pen hover) before pressing down
-    if (!isDrawingRef.current) {
-      if (activeTool === 'eraser' && (e.pointerType === 'mouse' || e.pointerType === 'pen')) {
-        liveEraseCursorRef.current = normalizePointerToPage(e.clientX, e.clientY, rect);
-        redrawOverlay();
-      }
-      return;
-    }
-
-    if (activeTool === 'pan') return;
-    if (activePointerIdRef.current !== null && activePointerIdRef.current !== e.pointerId) {
-      return;
-    }
-
-    if (activeEraseModeRef.current || activeTool === 'eraser') {
-      const pt = normalizePointerToPage(e.clientX, e.clientY, rect);
-      const prevPt = lastErasePointRef.current ?? pt;
-      onEraseSegment(pageNumber, prevPt, pt, false);
-      lastErasePointRef.current = pt;
-      liveEraseCursorRef.current = pt;
-      redrawOverlay();
-      return;
-    }
-
-    if (!liveStrokeRef.current) return;
-
-    if (snappedEdgeRef.current) {
-      const ruler = getRulerGeometry();
-      if (ruler) {
-        const snap = snapClientPointToRulerEdge(e.clientX, e.clientY, ruler, {
-          forcedEdge: snappedEdgeRef.current,
-        });
-        const endPt = normalizePointerToPage(snap.clientX, snap.clientY, rect);
-        const startPt = liveStrokeRef.current.points[0];
-        liveStrokeRef.current.points = [startPt, endPt];
-        redrawOverlay();
-        return;
-      }
-    }
-
-    const point = normalizePointerToPage(e.clientX, e.clientY, rect);
-    const prev = liveStrokeRef.current.points[liveStrokeRef.current.points.length - 1];
-    if (Math.hypot(point.x - prev.x, point.y - prev.y) < 0.0012) {
-      return;
-    }
-    liveStrokeRef.current.points.push(point);
-    redrawOverlay();
+    processActivePointerMove(
+      e.pointerId,
+      e.pointerType,
+      e.buttons,
+      e.clientX,
+      e.clientY
+    );
   };
 
   const finishStroke = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isDrawingRef.current) return;
-    if (
-      activePointerIdRef.current !== null &&
-      activePointerIdRef.current !== e.pointerId &&
-      e.type !== 'pointercancel' &&
-      e.type !== 'lostpointercapture'
-    ) {
-      return;
-    }
-    isDrawingRef.current = false;
-    activePointerIdRef.current = null;
-
-    const canvas = drawCanvasRef.current;
-    if (canvas && canvas.hasPointerCapture(e.pointerId)) {
-      try {
-        canvas.releasePointerCapture(e.pointerId);
-      } catch {
-        // ignore
-      }
-    }
-
-    if (isMultiTouchActiveRef.current) {
-      activeEraseModeRef.current = false;
-      lastErasePointRef.current = null;
-      liveEraseCursorRef.current = null;
-      liveStrokeRef.current = null;
-      snappedEdgeRef.current = null;
-      redrawOverlay();
-      return;
-    }
-
-    if (activeEraseModeRef.current) {
-      activeEraseModeRef.current = false;
-      lastErasePointRef.current = null;
-      if (e.pointerType !== 'mouse' || activeTool !== 'eraser' || e.type !== 'pointerup') {
-        liveEraseCursorRef.current = null;
-      }
-      redrawOverlay();
-      return;
-    }
-
-    snappedEdgeRef.current = null;
-    if (activeTool !== 'eraser' && liveStrokeRef.current) {
-      const committed = liveStrokeRef.current;
-      liveStrokeRef.current = null;
-      onCommitStroke(pageNumber, committed);
-    }
+    completeActiveGesture(e.pointerId, e.pointerType, e.type);
   };
 
   const handlePointerLeave = () => {
@@ -551,7 +673,6 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
         onPointerMove={handlePointerMove}
         onPointerUp={finishStroke}
         onPointerCancel={finishStroke}
-        onLostPointerCapture={finishStroke}
         onPointerLeave={handlePointerLeave}
         onContextMenu={(e) => e.preventDefault()}
         style={{
@@ -687,7 +808,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
   });
 
   // Multi-touch 2-finger pan/scroll + pinch-to-zoom state
-  const activeTouchPointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const activeTouchPointersRef = useRef<Map<number, { x: number; y: number; updatedAt: number }>>(new Map());
   const isMultiTouchActiveRef = useRef(false);
   const [multiTouchSignal, setMultiTouchSignal] = useState(0);
   const twoFingerSessionRef = useRef<{
@@ -1482,9 +1603,45 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     };
   };
 
+  const pruneStaleTouchPointers = useCallback((nowMs: number, maxIdleMs: number) => {
+    let removed = false;
+    for (const [pid, info] of activeTouchPointersRef.current.entries()) {
+      if (nowMs - info.updatedAt > maxIdleMs) {
+        activeTouchPointersRef.current.delete(pid);
+        removed = true;
+      }
+    }
+    if (removed && activeTouchPointersRef.current.size < 2) {
+      const session = twoFingerSessionRef.current;
+      session.active = false;
+      session.pinchEngaged = false;
+      session.movedPointerIds.clear();
+      session.pendingPinchSinceMs = null;
+      setPinchPreview({ scale: 1, tx: 0, ty: 0 });
+      if (activeTouchPointersRef.current.size === 0) {
+        isMultiTouchActiveRef.current = false;
+      }
+    }
+  }, []);
+
   const handleViewportPointerDownCapture = (e: React.PointerEvent<HTMLDivElement>) => {
+    const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    // If S Pen presses down while resting palm or stale OS-rejected touches lingered, clear idle touches so S Pen never locks out
+    if (e.pointerType === 'pen') {
+      pruneStaleTouchPointers(nowMs, 180);
+      if (!twoFingerSessionRef.current.pinchEngaged && activeTouchPointersRef.current.size < 2) {
+        isMultiTouchActiveRef.current = false;
+      }
+      return;
+    }
     if (e.pointerType !== 'touch') return;
-    activeTouchPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    pruneStaleTouchPointers(nowMs, e.isPrimary ? 1200 : 3500);
+    activeTouchPointersRef.current.set(e.pointerId, {
+      x: e.clientX,
+      y: e.clientY,
+      updatedAt: nowMs,
+    });
     if (activeTouchPointersRef.current.size >= 2) {
       isMultiTouchActiveRef.current = true;
       singlePanRef.current.active = false;
@@ -1520,7 +1677,12 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
   const handleViewportPointerMoveCapture = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.pointerType !== 'touch') return;
     if (!activeTouchPointersRef.current.has(e.pointerId)) return;
-    activeTouchPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    activeTouchPointersRef.current.set(e.pointerId, {
+      x: e.clientX,
+      y: e.clientY,
+      updatedAt: nowMs,
+    });
 
     const session = twoFingerSessionRef.current;
     const container = containerRef.current;
@@ -1721,13 +1883,25 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
         releaseTouchPointer(e.pointerId);
       }
     };
+    const clearTransientTouchState = () => {
+      singlePanRef.current.active = false;
+      activeTouchPointersRef.current.clear();
+      isMultiTouchActiveRef.current = false;
+      twoFingerSessionRef.current.active = false;
+      twoFingerSessionRef.current.pinchEngaged = false;
+      twoFingerSessionRef.current.movedPointerIds.clear();
+      twoFingerSessionRef.current.pendingPinchSinceMs = null;
+      setPinchPreview({ scale: 1, tx: 0, ty: 0 });
+    };
     window.addEventListener('pointermove', onWindowPointerMove);
     window.addEventListener('pointerup', onWindowPointerUp);
     window.addEventListener('pointercancel', onWindowPointerUp);
+    window.addEventListener('blur', clearTransientTouchState);
     return () => {
       window.removeEventListener('pointermove', onWindowPointerMove);
       window.removeEventListener('pointerup', onWindowPointerUp);
       window.removeEventListener('pointercancel', onWindowPointerUp);
+      window.removeEventListener('blur', clearTransientTouchState);
     };
   }, [syncScrollMetrics, releaseTouchPointer]);
 
