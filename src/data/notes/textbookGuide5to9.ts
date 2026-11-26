@@ -84,25 +84,30 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
     ],
   },
   '5.3': {
-    bigIdea: 'An arc is simply the fraction $\\frac{\\theta}{360}$ of a full circle\'s circumference ($2\\pi r$), and a sector is that exact same fraction $\\frac{\\theta}{360}$ of the full circle\'s area ($\\pi r^2$).',
+    bigIdea: 'Two radii $OA$ and $OB$ divide every circle into a **minor sector** (angle $\\theta < 180^\\circ$) and a **major sector** (reflex angle $360^\\circ - \\theta$). Both use the exact same fraction rule $\\frac{\\text{sector angle}}{360^\\circ}$ of circumference ($2\\pi r$) or area ($\\pi r^2$), and their areas always sum to $\\pi r^2$.',
     stepByStepMethod: [
-      'Convert diameter to radius immediately ($r = \\frac{d}{2}$) before squaring!',
-      'Keep $\\pi$ exact until the end on Non-Calculator Papers 1 & 2 ("give your answer in terms of $\\pi$").',
-      'For PERIMETER of a sector, remember BOTH straight radii PLUS the curved arc: $P = 2r + \\frac{\\theta}{360}(2\\pi r)$.',
+      'Check whether the question asks for the **minor sector** ($\\theta < 180^\\circ$) or the **major sector** (use reflex angle $360^\\circ - \\theta$).',
+      'Convert diameter to radius immediately ($r = \\frac{d}{2}$) before squaring in $\\pi r^2$.',
+      'Keep $\\pi$ exact until the end on Non-Calculator Papers 1 & 2 ("give your answer in terms of $\\pi$"), or use $\\text{Major Area} = \\pi r^2 - \\text{Minor Area}$ as a fast check.',
+      'For PERIMETER of either a minor or major sector, add BOTH straight radii PLUS its curved arc: $P = 2r + \\frac{\\text{angle}}{360}(2\\pi r)$.',
     ],
     comparisonTable: {
-      title: 'Circles, Arcs & Sectors Comparison',
-      headers: ['Measurement', 'Full Circle', 'Sector of Angle $\\theta$'],
+      title: 'Full Circle vs Minor Sector vs Major Sector',
+      headers: ['Measurement', 'Full Circle ($360^\\circ$)', 'Minor Sector ($\\theta < 180^\\circ$)', 'Major Sector ($360^\\circ - \\theta$)'],
       rows: [
-        ['Curve length / Circumference', '$2\\pi r = \\pi d$', 'Arc length $= \\frac{\\theta}{360} \\times 2\\pi r$'],
-        ['Area', '$\\pi r^2$', 'Sector area $= \\frac{\\theta}{360} \\times \\pi r^2$'],
-        ['Full Perimeter', '$2\\pi r$', '$2r + \\frac{\\theta}{360} \\times 2\\pi r$'],
+        ['Curved edge', '$2\\pi r = \\pi d$', 'Minor arc $= \\frac{\\theta}{360} \\times 2\\pi r$', 'Major arc $= \\frac{360 - \\theta}{360} \\times 2\\pi r$'],
+        ['Sector area', '$\\pi r^2$', '$\\frac{\\theta}{360} \\times \\pi r^2$', '$\\frac{360 - \\theta}{360} \\times \\pi r^2 = \\pi r^2 - A_{\\text{minor}}$'],
+        ['Full perimeter', '$2\\pi r$', 'Minor arc $+ 2r$', 'Major arc $+ 2r$'],
       ],
     },
     extraStudyNotes: [
       {
+        heading: 'Reverse Problems: Given Major or Minor Sector Area',
+        body: 'If a question gives the **major sector area** $A_{\\text{major}}$ and radius $r$, set $\\frac{\\theta_{\\text{major}}}{360}\\pi r^2 = A_{\\text{major}}$ to find the reflex angle $\\theta_{\\text{major}}$, then subtract $360^\\circ - \\theta_{\\text{major}}$ if it asks for the acute/obtuse angle $\\angle AOB$ of the minor sector!',
+      },
+      {
         heading: 'Area of a Circular Segment (Sector minus Triangle)',
-        body: 'In Extended Paper 4, the minor segment cut off by chord $AB$ equals $\\text{Sector } OAB - \\triangle OAB$. Use $\\frac{\\theta}{360}\\pi r^2 - \\frac{1}{2} r^2 \\sin\\theta$!',
+        body: 'In Extended Paper 4, the minor segment cut off by chord $AB$ equals $\\text{Minor Sector } OAB - \\triangle OAB$. Use $\\frac{\\theta}{360}\\pi r^2 - \\frac{1}{2} r^2 \\sin\\theta$! (And the **major segment** equals $\\text{Full Circle } \\pi r^2 - \\text{Minor Segment}$.)',
       },
       {
         heading: 'Rolling a Sector into a Hollow Cone (Extended)',
@@ -111,8 +116,20 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
     ],
     extraWorkedExamples: [
       {
-        title: 'Total perimeter of a sector in terms of $\\pi$',
-        question: 'A sector has radius $9\\text{ cm}$ and angle $80^\\circ$. Find its perimeter in the form $a + b\\pi$.',
+        title: 'Major sector area and perimeter from the minor angle',
+        question: 'A circle of radius $6\\text{ cm}$ has minor sector angle $\\angle AOB = 120^\\circ$. Find, in terms of $\\pi$, (a) the area of the minor sector, (b) the area of the major sector, and (c) the perimeter of the major sector.',
+        marks: 5,
+        steps: [
+          '(a) Minor sector area $= \\frac{120}{360} \\times \\pi(6^2) = \\frac{1}{3} \\times 36\\pi = 12\\pi\\text{ cm}^2$.',
+          '(b) Reflex angle for major sector $= 360^\\circ - 120^\\circ = 240^\\circ$. Major sector area $= \\frac{240}{360} \\times 36\\pi = \\frac{2}{3} \\times 36\\pi = 24\\pi\\text{ cm}^2$ (check: $12\\pi + 24\\pi = 36\\pi$).',
+          '(c) Major arc $= \\frac{240}{360} \\times 2\\pi(6) = \\frac{2}{3} \\times 12\\pi = 8\\pi\\text{ cm}$. Add two radii: $\\text{Major Perimeter} = 8\\pi + 6 + 6 = 8\\pi + 12\\text{ cm}$.',
+        ],
+        answer: '(a) $12\\pi\\text{ cm}^2$, (b) $24\\pi\\text{ cm}^2$, (c) $8\\pi + 12\\text{ cm}$',
+        markSchemeNotes: 'M1 minor area $12\\pi$; B1 reflex $240^\\circ$, A1 major area $24\\pi$; M1 major arc $8\\pi$, A1 $8\\pi + 12$.',
+      },
+      {
+        title: 'Total perimeter of a minor sector in terms of $\\pi$',
+        question: 'A minor sector has radius $9\\text{ cm}$ and angle $80^\\circ$. Find its perimeter in the form $a + b\\pi$.',
         marks: 3,
         steps: [
           'Arc length $= \\frac{80}{360} \\times 2\\pi(9) = \\frac{2}{9} \\times 18\\pi = 4\\pi\\text{ cm}$.',
@@ -135,7 +152,8 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
       },
     ],
     rapidSummary: [
-      { rule: 'Sector perimeter needs $+ 2r$', detail: 'Arc length alone omits the two straight edge radii.' },
+      { rule: 'Minor vs Major Sector', detail: 'Minor uses angle $\\theta < 180^\\circ$; Major uses reflex angle $360^\\circ - \\theta$, and $\\text{Minor Area} + \\text{Major Area} = \\pi r^2$.' },
+      { rule: 'Sector perimeter needs $+ 2r$', detail: 'Arc length alone omits the two straight edge radii (applies to both minor and major sectors).' },
       { rule: 'Keep exact $\\pi$', detail: 'On Non-Calculator Papers 1/2, leave answers like $12\\pi + 8$.' },
     ],
   },

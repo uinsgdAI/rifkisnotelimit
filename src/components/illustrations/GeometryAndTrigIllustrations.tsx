@@ -617,22 +617,81 @@ export const AreaPerimeterIllustration: React.FC = () => (
   </section>
 );
 
-/* 5.3 Sectors vs Perimeter */
+/* 5.3 Minor vs Major Sectors & Sector Perimeter */
 export const SectorIllustration: React.FC = () => (
-  <section aria-label="Arc Length versus Sector Perimeter" className="p-5 sm:p-6 sk-card space-y-4">
+  <section aria-label="Minor vs Major Sectors and Sector Perimeter" className="p-5 sm:p-6 sk-card space-y-4">
     <div>
       <h2 className="font-display text-base font-bold text-[#1D1A4A]">
-        Visual Notebook Diagram · Arc Length vs Sector Perimeter (<span className="font-mono text-[#FF5FA8]">+ 2r</span>)
+        Visual Notebook Diagrams · Minor vs Major Sector Areas &amp; Sector Perimeter (<span className="font-mono text-[#FF5FA8]">+ 2r</span>)
       </h2>
-      <p className="text-xs text-[#5E588C] mt-0.5">Never forget to add the two straight radii when finding sector perimeter.</p>
+      <p className="text-xs text-[#5E588C] mt-0.5">
+        Two radii always split a circle into a Minor Sector (<span className="font-mono">&theta; &lt; 180°</span>) and a Major Sector (<span className="font-mono">360° &minus; &theta;</span>). Their areas add up to <span className="font-mono">&pi;r&sup2;</span>.
+      </p>
     </div>
-    <div className="grid md:grid-cols-2 gap-5 items-center">
-      <div className="p-3 bg-white border-2 border-[#1D1A4A] rounded-[16px] shadow-[3px_4px_0_#B8B3FF]">
-        <svg viewBox="0 0 320 205" className="w-full h-auto" role="img" aria-label="Circle sector of radius 6 cm and angle 60 degrees">
-          <rect x="0" y="0" width="320" height="205" fill="#FAF9FF" rx="10" />
+
+    <div className="grid md:grid-cols-2 gap-5 items-stretch">
+      {/* Panel 1: Minor Sector vs Major Sector */}
+      <div className="p-3.5 bg-white border-2 border-[#1D1A4A] rounded-[16px] shadow-[3px_4px_0_#B8B3FF] flex flex-col justify-between gap-3">
+        <svg viewBox="0 0 320 210" className="w-full h-auto" role="img" aria-label="Circle split into 72 degree minor sector and 288 degree major sector of radius 10 cm">
+          <rect x="0" y="0" width="320" height="210" fill="#FAF9FF" rx="10" />
+          {/* Major sector (288 deg): clockwise from A(214,106) to B(171.2,47) with O(152,106), R=62 */}
+          <path d="M 152 106 L 214 106 A 62 62 0 1 1 171.2 47 Z" fill="#EDE9FE" stroke="none" />
+          {/* Minor sector (72 deg): clockwise from B(171.2,47) to A(214,106) */}
+          <path d="M 152 106 L 171.2 47 A 62 62 0 0 1 214 106 Z" fill="#FCE7F3" stroke="none" />
+
+          {/* Major arc & Minor arc highlights */}
+          <path d="M 214 106 A 62 62 0 1 1 171.2 47" fill="none" stroke="#5B57E8" strokeWidth="3.2" strokeLinecap="round" />
+          <path d="M 171.2 47 A 62 62 0 0 1 214 106" fill="none" stroke="#FF5FA8" strokeWidth="3.8" strokeLinecap="round" />
+
+          {/* Radii OA and OB */}
+          <line x1="152" y1="106" x2="214" y2="106" stroke="#1D1A4A" strokeWidth="2.4" />
+          <line x1="152" y1="106" x2="171.2" y2="47" stroke="#1D1A4A" strokeWidth="2.4" />
+          <circle cx="152" cy="106" r="3" fill="#1D1A4A" />
+
+          {/* Reflex angle arc (288 deg) & Minor angle arc (72 deg) */}
+          <path d="M 167 106 A 15 15 0 1 1 156.6 91.7" fill="none" stroke="#4338CA" strokeWidth="1.7" />
+          <path d="M 158.8 85.1 A 22 22 0 0 1 174 106" fill="none" stroke="#C0266B" strokeWidth="1.9" />
+
+          {/* Vertex & radius labels */}
+          <text x="142" y="102" fontSize="10.5" fontWeight="800" fill="#1D1A4A">O</text>
+          <text x="220" y="110" fontSize="10.5" fontWeight="800" fill="#1D1A4A">A</text>
+          <text x="174" y="39" fontSize="10.5" fontWeight="800" fill="#1D1A4A">B</text>
+          <text x="186" y="121" textAnchor="middle" fontSize="10" fontWeight="800" fill="#1D1A4A">r = 10 cm</text>
+
+          {/* Angle labels inside sectors */}
+          <text x="179" y="96" fontSize="10.5" fontWeight="800" fill="#C0266B">72°</text>
+          <text x="125" y="124" textAnchor="middle" fontSize="10.5" fontWeight="800" fill="#4338CA">288°</text>
+
+          {/* Outside-left pointer + label for Major Sector */}
+          <line x1="78" y1="74" x2="104" y2="88" stroke="#4338CA" strokeWidth="1.4" strokeDasharray="3 2" />
+          <text x="45" y="64" textAnchor="middle" fontSize="10.5" fontWeight="800" fill="#4338CA">Major Sector</text>
+          <text x="45" y="77" textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#4338CA">(360° &minus; 72°)</text>
+
+          {/* Outside-right pointer + label for Minor Sector */}
+          <line x1="201" y1="75" x2="231" y2="60" stroke="#C0266B" strokeWidth="1.4" strokeDasharray="3 2" />
+          <text x="270" y="52" textAnchor="middle" fontSize="10.5" fontWeight="800" fill="#C0266B">Minor Sector</text>
+          <text x="270" y="65" textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#C0266B">(&theta; = 72°)</text>
+
+          {/* Bottom legend strip */}
+          <rect x="14" y="183" width="292" height="20" rx="6" fill="#FFFFFF" stroke="#DCDAF0" strokeWidth="1" />
+          <text x="160" y="196.5" textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#1D1A4A">
+            Minor Area + Major Area = 20π + 80π = 100π cm² (Full Circle)
+          </text>
+        </svg>
+        <div className="p-3 sk-card-soft font-mono text-xs space-y-1.5 text-[#393469]">
+          <div><span className="text-[#C0266B] font-bold">Minor Area</span> = (72 &divide; 360) &times; &pi;(10&sup2;) = <strong>20&pi; cm&sup2;</strong></div>
+          <div><span className="text-[#4338CA] font-bold">Major Area</span> = (288 &divide; 360) &times; &pi;(10&sup2;) = <strong>80&pi; cm&sup2;</strong></div>
+          <div className="pt-1 border-t border-[#DCDAF0] text-[#1D1A4A] font-bold">Fast Check: &pi;r&sup2; &minus; Minor = 100&pi; &minus; 20&pi; = 80&pi; cm&sup2;</div>
+        </div>
+      </div>
+
+      {/* Panel 2: Arc Length vs Sector Perimeter (+ 2r) */}
+      <div className="p-3.5 bg-white border-2 border-[#1D1A4A] rounded-[16px] shadow-[3px_4px_0_#B8B3FF] flex flex-col justify-between gap-3">
+        <svg viewBox="0 0 320 210" className="w-full h-auto" role="img" aria-label="Circle sector of radius 6 cm and angle 60 degrees">
+          <rect x="0" y="0" width="320" height="210" fill="#FAF9FF" rx="10" />
           {/* Ghost full circle */}
           <circle cx="115" cy="148" r="95" fill="none" stroke="#DCDAF0" strokeWidth="1.5" strokeDasharray="4 4" />
-          {/* Sector wedge 60 degrees from vertical-ish (30° to 90°) */}
+          {/* Sector wedge 60 degrees */}
           <path d="M 115 148 L 162.5 65.7 A 95 95 0 0 1 210 148 Z" fill="#EDE9FE" stroke="none" />
           <line x1="115" y1="148" x2="162.5" y2="65.7" stroke="#5B57E8" strokeWidth="2.6" />
           <line x1="115" y1="148" x2="210" y2="148" stroke="#5B57E8" strokeWidth="2.6" />
@@ -643,12 +702,10 @@ export const SectorIllustration: React.FC = () => (
           <text x="162" y="164" textAnchor="middle" fontSize="10.5" fontWeight="800" fill="#5B57E8">r = 6 cm</text>
           <text x="206" y="96" fontSize="11" fontWeight="800" fill="#C0266B">Arc = 2π cm</text>
         </svg>
-      </div>
-      <div className="space-y-3 text-sm text-[#393469]">
-        <div className="p-3.5 sk-card-soft font-mono text-xs space-y-1.5">
-          <div><span className="text-[#C0266B] font-bold">Curved Arc</span> = (60 ÷ 360) × 2π(6) = <strong>2π cm</strong></div>
+        <div className="p-3 sk-card-soft font-mono text-xs space-y-1.5 text-[#393469]">
+          <div><span className="text-[#C0266B] font-bold">Curved Arc</span> = (60 &divide; 360) &times; 2&pi;(6) = <strong>2&pi; cm</strong></div>
           <div><span className="text-[#5B57E8] font-bold">Two Straight Radii</span> = 6 + 6 = <strong>12 cm</strong></div>
-          <div className="pt-1 border-t border-[#DCDAF0] text-[#1D1A4A] font-bold">Total Sector Perimeter = 2π + 12 cm</div>
+          <div className="pt-1 border-t border-[#DCDAF0] text-[#1D1A4A] font-bold">Sector Perimeter = Arc + 2r = 2&pi; + 12 cm</div>
         </div>
       </div>
     </div>

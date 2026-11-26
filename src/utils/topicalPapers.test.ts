@@ -115,6 +115,9 @@ test('Syllabus notes explicitly cover all strengthened topical sub-skills and ?p
   assert.match(getCombinedText('2.5'), /Completing the Square.*a > 1/i);
   assert.match(getCombinedText('2.7'), /Cubic.*Fraction Sequences/i);
   assert.match(getCombinedText('2.10'), /Drawing a Tangent/i);
+  assert.match(getCombinedText('5.3'), /Minor Sector/i);
+  assert.match(getCombinedText('5.3'), /Major Sector/i);
+  assert.match(getCombinedText('5.3'), /360\^\\circ - \\theta/i);
 
   const parsedPackRoute = parseAppRoute('/practice/0580', '?pack=surds-non-calc');
   assert.deepEqual(parsedPackRoute, {

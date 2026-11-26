@@ -106,24 +106,48 @@ export const CHAPTER_5_NOTES: SubtopicNote[] = [
     code: '5.3',
     title: 'Circles, arcs and sectors',
     tier: 'Core & Extended',
-    summary: 'Calculate circle circumference and area, and find arc lengths, sector perimeters, and sector areas (including in terms of $\\pi$).',
+    summary: 'Calculate circle circumference and area, distinguish between minor sectors ($\\theta < 180^\\circ$) and major sectors ($360^\\circ - \\theta$), and find the arc length, perimeter, and area of each.',
     coreObjectives: [
       'Carry out calculations involving the circumference and area of a circle.',
     ],
     extendedObjectives: [
-      'Carry out calculations involving arc length and sector area as fractions of the circumference and area of a circle.',
+      'Carry out calculations involving arc length and sector area (for both minor and major sectors) as fractions of the circumference and area of a circle.',
     ],
     keyFormulas: [
       { label: 'Circle circumference & area', latex: 'C = 2\\pi r = \\pi d, \\qquad A = \\pi r^2' },
-      { label: 'Arc length & Sector area', latex: '\\text{Arc} = \\frac{\\theta}{360^\\circ} \\times 2\\pi r, \\qquad \\text{Sector Area} = \\frac{\\theta}{360^\\circ} \\times \\pi r^2' },
+      { label: 'Minor sector (angle $\\theta < 180^\\circ$)', latex: '\\text{Minor Arc} = \\frac{\\theta}{360^\\circ} \\times 2\\pi r, \\qquad \\text{Minor Area} = \\frac{\\theta}{360^\\circ} \\times \\pi r^2' },
+      { label: 'Major sector (reflex angle $360^\\circ - \\theta$)', latex: '\\text{Major Area} = \\frac{360^\\circ - \\theta}{360^\\circ} \\times \\pi r^2 = \\pi r^2 - \\text{Minor Area}' },
     ],
     studyNotes: [
       {
+        heading: 'Minor Sector vs Major Sector: Finding Each Area',
+        body: 'Two radii $OA$ and $OB$ always split a circle into two sectors that together make the whole circle ($\\pi r^2$). Identify which region the question asks for before substituting into the fraction $\\frac{\\text{angle}}{360^\\circ} \\times \\pi r^2$:',
+        bullets: [
+          '**Minor Sector** ($\\theta < 180^\\circ$): the smaller wedge bounded by $OA$, $OB$, and the shorter minor arc. Area $= \\frac{\\theta}{360^\\circ} \\times \\pi r^2$.',
+          '**Major Sector** (reflex angle $360^\\circ - \\theta > 180^\\circ$): the larger remaining region bounded by $OA$, $OB$, and the longer major arc. Area $= \\frac{360^\\circ - \\theta}{360^\\circ} \\times \\pi r^2$.',
+          '**Fast Complement Check**: $\\text{Minor Sector Area} + \\text{Major Sector Area} = \\pi r^2$ (full circle), so $\\text{Major Area} = \\pi r^2 - \\text{Minor Area}$.',
+          '**Special case ($180^\\circ$)**: when the two radii form a straight diameter, both halves are equal **semicircles** of area $\\frac{1}{2}\\pi r^2$.',
+        ],
+        noteBox: 'Check carefully whether the question shades or names the minor sector ($\\theta$) or major sector (reflex angle $360^\\circ - \\theta$).',
+      },
+      {
         heading: 'Arc length vs Sector PERIMETER!',
-        body: 'The most common mark-losing trap in 0580: if a question asks for the PERIMETER of a sector, you must add the two straight radii ($2r$) to the curved arc length: $\\text{Perimeter} = \\text{Arc} + 2r$.',
+        body: 'The most common mark-losing trap in 0580: if a question asks for the PERIMETER of a minor or major sector, you must add the two straight radii ($2r$) to the curved arc length: $\\text{Perimeter} = \\text{Arc} + 2r$.',
       },
     ],
     workedExamples: [
+      {
+        title: 'Finding both Minor Sector Area and Major Sector Area',
+        question: 'A circle has centre $O$ and radius $10\\text{ cm}$. Radii $OA$ and $OB$ meet at $\\angle AOB = 72^\\circ$. Find, in terms of $\\pi$, (a) the area of the minor sector $OAB$, and (b) the area of the major sector $OAB$ (also give part (b) to $3$ significant figures).',
+        marks: 4,
+        steps: [
+          '(a) Minor sector uses $\\theta = 72^\\circ$: $\\text{Minor Area} = \\frac{72}{360} \\times \\pi(10^2) = \\frac{1}{5} \\times 100\\pi = 20\\pi\\text{ cm}^2$.',
+          '(b) Major sector uses the reflex angle $360^\\circ - 72^\\circ = 288^\\circ$: $\\text{Major Area} = \\frac{288}{360} \\times \\pi(10^2) = \\frac{4}{5} \\times 100\\pi = 80\\pi\\text{ cm}^2$.',
+          'Quick check by subtracting from the full circle: $100\\pi - 20\\pi = 80\\pi\\text{ cm}^2 \\approx 251\\text{ cm}^2$ ($3$ s.f.).',
+        ],
+        answer: '(a) $20\\pi\\text{ cm}^2$, (b) $80\\pi\\text{ cm}^2 \\approx 251\\text{ cm}^2$',
+        markSchemeNotes: 'M1 for $\\frac{72}{360}\\pi(10^2)$, A1 for $20\\pi$; M1 for $360-72 = 288^\\circ$ or $\\pi(10^2) - 20\\pi$, A1 for $80\\pi$ / $251$.',
+      },
       {
         title: 'Perimeter of a sector in terms of $\\pi$ (Non-calculator)',
         question: 'A sector of radius $6\\text{ cm}$ has central angle $60^\\circ$. Find the perimeter of the sector in the form $a\\pi + b$.',
@@ -137,7 +161,8 @@ export const CHAPTER_5_NOTES: SubtopicNote[] = [
       },
     ],
     commonMistakes: [
-      'Forgetting $+ 2r$ when asked for the perimeter of a sector or semicircle.',
+      'Using the acute angle $\\theta$ instead of the reflex angle $(360^\\circ - \\theta)$ when calculating the area or arc length of a major sector.',
+      'Forgetting $+ 2r$ when asked for the perimeter of a minor sector, major sector, or semicircle.',
       'Using diameter instead of radius in $\\pi r^2$.',
     ],
     quickCheck: {
