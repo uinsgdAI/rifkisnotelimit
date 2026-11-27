@@ -1,4 +1,4 @@
-import { TOPICAL_PAPERS_0580, type TopicalPaperPack } from '../data/topicalPapers0580';
+import type { TopicalPaperPack } from '../types/syllabus';
 
 export interface TopicalPaperFilterOptions {
   chapterId?: number | 'all';
@@ -7,7 +7,7 @@ export interface TopicalPaperFilterOptions {
 }
 
 export function filterTopicalPapers(
-  packs: TopicalPaperPack[] = TOPICAL_PAPERS_0580,
+  packs: TopicalPaperPack[] = [],
   options: TopicalPaperFilterOptions = {}
 ): TopicalPaperPack[] {
   const { chapterId = 'all', query = '', paperMode = 'all' } = options;
@@ -36,16 +36,21 @@ export function filterTopicalPapers(
 
 export function findTopicalPapersForTopic(
   topicId: string,
-  packs: TopicalPaperPack[] = TOPICAL_PAPERS_0580
+  packs: TopicalPaperPack[] = []
 ): TopicalPaperPack[] {
   return packs.filter((pack) => pack.topicIds.includes(topicId));
 }
 
 export function countTopicalPapersByChapter(
-  packs: TopicalPaperPack[] = TOPICAL_PAPERS_0580
+  packs: TopicalPaperPack[] = [],
+  chapterCount?: number
 ): Record<number, number> {
+  const maxChapter = Math.max(
+    chapterCount ?? 9,
+    ...packs.map((pack) => pack.chapterId)
+  );
   const counts: Record<number, number> = {};
-  for (let ch = 1; ch <= 9; ch += 1) {
+  for (let ch = 1; ch <= maxChapter; ch += 1) {
     counts[ch] = 0;
   }
   for (const pack of packs) {
@@ -55,5 +60,6 @@ export function countTopicalPapersByChapter(
 }
 
 export function getTopicalPdfBytesUrl(rawUrl: string): string {
-  return `/api/papacambridge/pdf?url=${encodeURIComponent(rawUrl)}`;
+  const cleanUrl = rawUrl.split('#')[0];
+  return `/api/papacambridge/pdf?url=${encodeURIComponent(cleanUrl)}`;
 }

@@ -52,10 +52,10 @@ const MoneyConverterSandbox: React.FC = () => {
 
         <div>
           <div className="flex justify-between text-xs mb-1">
-            <label htmlFor="money-amount" className="font-semibold text-[#1D1A4A]">
+            <label htmlFor="money-amount" className="font-semibold text-[var(--sk-ink)]">
               Starting Amount ({direction === 'home-to-foreign' ? 'USD' : 'EUR'})
             </label>
-            <span className="font-mono tabular-nums text-[#1D1A4A] font-bold">
+            <span className="font-mono tabular-nums text-[var(--sk-ink)] font-bold">
               {direction === 'home-to-foreign' ? `$${amount}` : `€${amount}`}
             </span>
           </div>
@@ -71,10 +71,10 @@ const MoneyConverterSandbox: React.FC = () => {
 
         <div>
           <div className="flex justify-between text-xs mb-1">
-            <label htmlFor="money-rate" className="font-semibold text-[#1D1A4A]">
+            <label htmlFor="money-rate" className="font-semibold text-[var(--sk-ink)]">
               Exchange Rate ($1 USD = r EUR)
             </label>
-            <span className="font-mono tabular-nums text-[#1D1A4A] font-bold">{rate.toFixed(2)}</span>
+            <span className="font-mono tabular-nums text-[var(--sk-ink)] font-bold">{rate.toFixed(2)}</span>
           </div>
           <SakugaSlider
             id="money-rate"
@@ -89,10 +89,10 @@ const MoneyConverterSandbox: React.FC = () => {
         <div className="flex items-center justify-between gap-4 pt-1">
           <div className="flex-1">
             <div className="flex justify-between text-xs mb-1">
-              <label htmlFor="money-comm" className="font-semibold text-[#1D1A4A]">
+              <label htmlFor="money-comm" className="font-semibold text-[var(--sk-ink)]">
                 Bank Commission (%)
               </label>
-              <span className="font-mono tabular-nums text-[#1D1A4A] font-bold">
+              <span className="font-mono tabular-nums text-[var(--sk-ink)] font-bold">
                 {effectivePct}%
               </span>
             </div>
@@ -118,24 +118,24 @@ const MoneyConverterSandbox: React.FC = () => {
       </div>
 
       <div className="p-4 sk-card-soft space-y-3">
-        <div className="text-xs font-semibold text-[#5E588C]">Live Step-by-Step Working</div>
-        <div className="space-y-2 text-xs font-mono text-[#393469]">
+        <div className="text-xs font-semibold text-[var(--sk-dim)]">Live Step-by-Step Working</div>
+        <div className="space-y-2 text-xs font-mono text-[var(--sk-body)]">
           <div>
             1. Net after {effectivePct}% commission:{' '}
-            <span className="font-semibold text-[#1D1A4A]">
+            <span className="font-semibold text-[var(--sk-ink)]">
               {amount} × {(1 - effectivePct / 100).toFixed(3)} = {netAmount.toFixed(2)}
             </span>
           </div>
           <div>
             2. {direction === 'home-to-foreign' ? 'Multiply by rate' : 'Divide by rate'}:{' '}
-            <span className="font-semibold text-[#1D1A4A]">
+            <span className="font-semibold text-[var(--sk-ink)]">
               {netAmount.toFixed(2)} {direction === 'home-to-foreign' ? '×' : '÷'} {rate.toFixed(2)}
             </span>
           </div>
         </div>
-        <div className="pt-2 border-t border-[#DCDAF0] flex items-baseline justify-between">
-          <span className="text-xs font-semibold text-[#5E588C]">Converted Total (2 d.p.)</span>
-          <span className="font-mono text-xl font-bold tabular-nums text-[#5B57E8]">
+        <div className="pt-2 border-t border-[var(--sk-line)] flex items-baseline justify-between">
+          <span className="text-xs font-semibold text-[var(--sk-dim)]">Converted Total (2 d.p.)</span>
+          <span className="font-mono text-xl font-bold tabular-nums text-[var(--sk-pri)]">
             {direction === 'home-to-foreign' ? `€${converted.toFixed(2)}` : `$${converted.toFixed(2)}`}
           </span>
         </div>
@@ -155,8 +155,8 @@ const TrigTriangleSandbox: React.FC = () => {
       <div className="space-y-4">
         <div>
           <div className="flex justify-between text-xs mb-1">
-            <label htmlFor="trig-opp" className="font-semibold text-[#1D1A4A]">Opposite Side (cm)</label>
-            <span className="font-mono tabular-nums font-bold text-[#1D1A4A]">{opp} cm</span>
+            <label htmlFor="trig-opp" className="font-semibold text-[var(--sk-ink)]">Opposite Side (cm)</label>
+            <span className="font-mono tabular-nums font-bold text-[var(--sk-ink)]">{opp} cm</span>
           </div>
           <SakugaSlider
             id="trig-opp"
@@ -169,8 +169,8 @@ const TrigTriangleSandbox: React.FC = () => {
         </div>
         <div>
           <div className="flex justify-between text-xs mb-1">
-            <label htmlFor="trig-adj" className="font-semibold text-[#1D1A4A]">Adjacent Side (cm)</label>
-            <span className="font-mono tabular-nums font-bold text-[#1D1A4A]">{adj} cm</span>
+            <label htmlFor="trig-adj" className="font-semibold text-[var(--sk-ink)]">Adjacent Side (cm)</label>
+            <span className="font-mono tabular-nums font-bold text-[var(--sk-ink)]">{adj} cm</span>
           </div>
           <SakugaSlider
             id="trig-adj"
@@ -182,16 +182,16 @@ const TrigTriangleSandbox: React.FC = () => {
           />
         </div>
         <div className="grid grid-cols-2 gap-2 text-xs font-mono sk-card-soft p-3">
-          <div>Hypotenuse: <strong className="text-[#1D1A4A]">{hyp.toFixed(2)} cm</strong></div>
-          <div>Angle θ: <strong className="text-[#5B57E8]">{angleDeg.toFixed(1)}°</strong></div>
-          <div>sin θ: <strong className="text-[#1D1A4A]">{(opp / hyp).toFixed(3)}</strong></div>
-          <div>cos θ: <strong className="text-[#1D1A4A]">{(adj / hyp).toFixed(3)}</strong></div>
+          <div>Hypotenuse: <strong className="text-[var(--sk-ink)]">{hyp.toFixed(2)} cm</strong></div>
+          <div>Angle θ: <strong className="text-[var(--sk-pri)]">{angleDeg.toFixed(1)}°</strong></div>
+          <div>sin θ: <strong className="text-[var(--sk-ink)]">{(opp / hyp).toFixed(3)}</strong></div>
+          <div>cos θ: <strong className="text-[var(--sk-ink)]">{(adj / hyp).toFixed(3)}</strong></div>
         </div>
       </div>
 
       <svg
         viewBox="0 0 260 190"
-        className="w-full max-w-[280px] mx-auto bg-[#FAF9FF] border-[1.5px] border-[#DCDAF0] rounded-xl"
+        className="w-full max-w-[280px] mx-auto bg-[var(--sk-surface)] border-[1.5px] border-[var(--sk-line)] rounded-xl"
         role="img"
         aria-label="Right angled triangle trigonometry explorer"
       >
@@ -239,10 +239,10 @@ const CircleTheoremSandbox: React.FC = () => {
       <div className="space-y-4">
         <div>
           <div className="flex justify-between text-xs mb-1">
-            <label htmlFor="circle-theta" className="font-semibold text-[#1D1A4A]">
+            <label htmlFor="circle-theta" className="font-semibold text-[var(--sk-ink)]">
               Circumference Angle θ (degrees)
             </label>
-            <span className="font-mono tabular-nums font-bold text-[#5B57E8]">{circumAngle}°</span>
+            <span className="font-mono tabular-nums font-bold text-[var(--sk-pri)]">{circumAngle}°</span>
           </div>
           <SakugaSlider
             id="circle-theta"
@@ -255,19 +255,19 @@ const CircleTheoremSandbox: React.FC = () => {
         </div>
         <div className="space-y-2 text-xs sk-card-soft p-3.5 font-mono">
           <div className="flex justify-between">
-            <span className="text-[#5E588C]">Angle at centre (2θ):</span>
+            <span className="text-[var(--sk-dim)]">Angle at centre (2θ):</span>
             <strong className="text-emerald-700">{centreAngle}°</strong>
           </div>
           <div className="flex justify-between">
-            <span className="text-[#5E588C]">Cyclic opposite (180° − θ):</span>
-            <strong className="text-[#C0266B]">{cyclicOpp}°</strong>
+            <span className="text-[var(--sk-dim)]">Cyclic opposite (180° − θ):</span>
+            <strong className="text-[var(--sk-acc-ink)]">{cyclicOpp}°</strong>
           </div>
         </div>
       </div>
 
       <svg
         viewBox="0 0 220 200"
-        className="w-full max-w-[230px] mx-auto bg-[#FAF9FF] border-[1.5px] border-[#DCDAF0] rounded-xl"
+        className="w-full max-w-[230px] mx-auto bg-[var(--sk-surface)] border-[1.5px] border-[var(--sk-line)] rounded-xl"
         role="img"
         aria-label="Circle theorem angle at centre demonstration"
       >
@@ -323,21 +323,21 @@ const CompoundInterestSandbox: React.FC = () => {
 
         <div>
           <div className="flex justify-between text-xs mb-1">
-            <label htmlFor="ci-p" className="font-semibold text-[#1D1A4A]">Principal ($)</label>
+            <label htmlFor="ci-p" className="font-semibold text-[var(--sk-ink)]">Principal ($)</label>
             <span className="font-mono tabular-nums font-bold">${principal}</span>
           </div>
           <SakugaSlider id="ci-p" min={200} max={5000} step={100} value={principal} onChange={setPrincipal} />
         </div>
         <div>
           <div className="flex justify-between text-xs mb-1">
-            <label htmlFor="ci-r" className="font-semibold text-[#1D1A4A]">Annual Rate (%)</label>
+            <label htmlFor="ci-r" className="font-semibold text-[var(--sk-ink)]">Annual Rate (%)</label>
             <span className="font-mono tabular-nums font-bold">{rate}%</span>
           </div>
           <SakugaSlider id="ci-r" min={1} max={20} step={1} value={rate} onChange={setRate} />
         </div>
         <div>
           <div className="flex justify-between text-xs mb-1">
-            <label htmlFor="ci-n" className="font-semibold text-[#1D1A4A]">Years (n)</label>
+            <label htmlFor="ci-n" className="font-semibold text-[var(--sk-ink)]">Years (n)</label>
             <span className="font-mono tabular-nums font-bold">{years} yrs</span>
           </div>
           <SakugaSlider id="ci-n" variant="sakura" min={1} max={15} step={1} value={years} onChange={setYears} />
@@ -345,16 +345,16 @@ const CompoundInterestSandbox: React.FC = () => {
       </div>
 
       <div className="p-4 sk-card-soft space-y-3">
-        <div className="text-xs font-mono text-[#393469]">
+        <div className="text-xs font-mono text-[var(--sk-body)]">
           Formula: {principal} × ({mult.toFixed(2)})<sup>{years}</sup>
         </div>
-        <div className="flex items-baseline justify-between pt-2 border-t border-[#DCDAF0]">
-          <span className="text-xs font-semibold text-[#5E588C]">Final Value</span>
-          <span className="font-mono text-xl font-bold tabular-nums text-[#5B57E8]">
+        <div className="flex items-baseline justify-between pt-2 border-t border-[var(--sk-line)]">
+          <span className="text-xs font-semibold text-[var(--sk-dim)]">Final Value</span>
+          <span className="font-mono text-xl font-bold tabular-nums text-[var(--sk-pri)]">
             ${finalAmount.toFixed(2)}
           </span>
         </div>
-        <div className="text-xs text-[#5E588C] font-mono">
+        <div className="text-xs text-[var(--sk-dim)] font-mono">
           Total change: {finalAmount >= principal ? '+' : ''}${(finalAmount - principal).toFixed(2)}
         </div>
       </div>
@@ -377,14 +377,14 @@ const ProbabilityTreeSandbox: React.FC = () => {
       <div className="space-y-4">
         <div>
           <div className="flex justify-between text-xs mb-1">
-            <label htmlFor="prob-red" className="font-semibold text-[#1D1A4A]">Red Counters</label>
+            <label htmlFor="prob-red" className="font-semibold text-[var(--sk-ink)]">Red Counters</label>
             <span className="font-mono tabular-nums font-bold">{red}</span>
           </div>
           <SakugaSlider id="prob-red" variant="sakura" min={1} max={9} step={1} value={red} onChange={setRed} />
         </div>
         <div>
           <div className="flex justify-between text-xs mb-1">
-            <label htmlFor="prob-blue" className="font-semibold text-[#1D1A4A]">Blue Counters</label>
+            <label htmlFor="prob-blue" className="font-semibold text-[var(--sk-ink)]">Blue Counters</label>
             <span className="font-mono tabular-nums font-bold">{blue}</span>
           </div>
           <SakugaSlider id="prob-blue" min={1} max={9} step={1} value={blue} onChange={setBlue} />
@@ -394,20 +394,20 @@ const ProbabilityTreeSandbox: React.FC = () => {
           onClick={() => setWithReplacement((w) => !w)}
           className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold sk-btn-subtle cursor-pointer"
         >
-          <RefreshCw className="w-3.5 h-3.5 text-[#5B57E8]" />
+          <RefreshCw className="w-3.5 h-3.5 text-[var(--sk-pri)]" />
           Mode: {withReplacement ? 'With Replacement' : 'Without Replacement'}
         </button>
       </div>
 
       <div className="p-4 sk-card-soft space-y-2.5 text-xs font-mono">
-        <div className="text-[#5E588C]">Total counters = {total}</div>
+        <div className="text-[var(--sk-dim)]">Total counters = {total}</div>
         <div className="flex justify-between">
           <span>P(Both Red):</span>
-          <strong className="text-[#1D1A4A]">{pRR.toFixed(4)}</strong>
+          <strong className="text-[var(--sk-ink)]">{pRR.toFixed(4)}</strong>
         </div>
         <div className="flex justify-between">
           <span>P(Different colours):</span>
-          <strong className="text-[#5B57E8]">{pDiff.toFixed(4)}</strong>
+          <strong className="text-[var(--sk-pri)]">{pDiff.toFixed(4)}</strong>
         </div>
       </div>
     </div>
@@ -427,14 +427,14 @@ const MensurationSandbox: React.FC = () => {
       <div className="space-y-4">
         <div>
           <div className="flex justify-between text-xs mb-1">
-            <label htmlFor="mens-r" className="font-semibold text-[#1D1A4A]">Radius r (cm)</label>
+            <label htmlFor="mens-r" className="font-semibold text-[var(--sk-ink)]">Radius r (cm)</label>
             <span className="font-mono font-bold">{radius} cm</span>
           </div>
           <SakugaSlider id="mens-r" min={2} max={15} step={1} value={radius} onChange={setRadius} />
         </div>
         <div>
           <div className="flex justify-between text-xs mb-1">
-            <label htmlFor="mens-h" className="font-semibold text-[#1D1A4A]">Vertical Height h (cm)</label>
+            <label htmlFor="mens-h" className="font-semibold text-[var(--sk-ink)]">Vertical Height h (cm)</label>
             <span className="font-mono font-bold">{height} cm</span>
           </div>
           <SakugaSlider id="mens-h" variant="sakura" min={3} max={20} step={1} value={height} onChange={setHeight} />
@@ -475,14 +475,14 @@ const StandardFormSandbox: React.FC = () => {
       <div className="space-y-4">
         <div>
           <div className="flex justify-between text-xs mb-1">
-            <label htmlFor="sf-c" className="font-semibold text-[#1D1A4A]">Raw Coefficient</label>
+            <label htmlFor="sf-c" className="font-semibold text-[var(--sk-ink)]">Raw Coefficient</label>
             <span className="font-mono font-bold">{coeff}</span>
           </div>
           <SakugaSlider id="sf-c" min={0.2} max={50} step={0.2} value={coeff} onChange={setCoeff} />
         </div>
         <div>
           <div className="flex justify-between text-xs mb-1">
-            <label htmlFor="sf-e" className="font-semibold text-[#1D1A4A]">Raw Exponent (n)</label>
+            <label htmlFor="sf-e" className="font-semibold text-[var(--sk-ink)]">Raw Exponent (n)</label>
             <span className="font-mono font-bold">{exp}</span>
           </div>
           <SakugaSlider id="sf-e" variant="sakura" min={-4} max={8} step={1} value={exp} onChange={setExp} />
@@ -490,10 +490,10 @@ const StandardFormSandbox: React.FC = () => {
       </div>
       <div className="p-4 sk-card-soft space-y-2 text-xs font-mono">
         <div>Input: {coeff.toFixed(1)} × 10<sup>{exp}</sup></div>
-        <div className="text-[#5B57E8] font-bold text-base">
+        <div className="text-[var(--sk-pri)] font-bold text-base">
           Normalised: {normA.toFixed(2)} × 10<sup>{normExp}</sup>
         </div>
-        <div className="text-[#5E588C]">Ordinary value: {value.toPrecision(4)}</div>
+        <div className="text-[var(--sk-dim)]">Ordinary value: {value.toPrecision(4)}</div>
       </div>
     </div>
   );
@@ -598,10 +598,10 @@ const SequenceExplorerSandbox: React.FC = () => {
             <>
               <div>
                 <div className="flex justify-between text-xs mb-1">
-                  <label htmlFor="seq-a" className="font-semibold text-[#1D1A4A]">
+                  <label htmlFor="seq-a" className="font-semibold text-[var(--sk-ink)]">
                     Leading coefficient a
                   </label>
-                  <span className="font-mono font-bold text-[#5B57E8]">{coeffA}</span>
+                  <span className="font-mono font-bold text-[var(--sk-pri)]">{coeffA}</span>
                 </div>
                 <SakugaSlider
                   id="seq-a"
@@ -615,10 +615,10 @@ const SequenceExplorerSandbox: React.FC = () => {
 
               <div>
                 <div className="flex justify-between text-xs mb-1">
-                  <label htmlFor="seq-b" className="font-semibold text-[#1D1A4A]">
+                  <label htmlFor="seq-b" className="font-semibold text-[var(--sk-ink)]">
                     Coefficient b
                   </label>
-                  <span className="font-mono font-bold text-[#1D1A4A]">{coeffB}</span>
+                  <span className="font-mono font-bold text-[var(--sk-ink)]">{coeffB}</span>
                 </div>
                 <SakugaSlider
                   id="seq-b"
@@ -633,10 +633,10 @@ const SequenceExplorerSandbox: React.FC = () => {
 
               <div>
                 <div className="flex justify-between text-xs mb-1">
-                  <label htmlFor="seq-c" className="font-semibold text-[#1D1A4A]">
+                  <label htmlFor="seq-c" className="font-semibold text-[var(--sk-ink)]">
                     Coefficient c
                   </label>
-                  <span className="font-mono font-bold text-[#1D1A4A]">{coeffC}</span>
+                  <span className="font-mono font-bold text-[var(--sk-ink)]">{coeffC}</span>
                 </div>
                 <SakugaSlider
                   id="seq-c"
@@ -651,10 +651,10 @@ const SequenceExplorerSandbox: React.FC = () => {
               {seqMode === 'cubic' && (
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <label htmlFor="seq-d" className="font-semibold text-[#1D1A4A]">
+                    <label htmlFor="seq-d" className="font-semibold text-[var(--sk-ink)]">
                       Constant term d
                     </label>
-                    <span className="font-mono font-bold text-[#1D1A4A]">{coeffD}</span>
+                    <span className="font-mono font-bold text-[var(--sk-ink)]">{coeffD}</span>
                   </div>
                   <SakugaSlider
                     id="seq-d"
@@ -670,7 +670,7 @@ const SequenceExplorerSandbox: React.FC = () => {
             </>
           ) : (
             <div className="space-y-2">
-              <label htmlFor="seq-custom-terms" className="block text-xs font-semibold text-[#1D1A4A]">
+              <label htmlFor="seq-custom-terms" className="block text-xs font-semibold text-[var(--sk-ink)]">
                 Enter {seqMode === 'quadratic' ? 'at least 4' : 'at least 5'} terms separated by commas:
               </label>
               <input
@@ -681,7 +681,7 @@ const SequenceExplorerSandbox: React.FC = () => {
                 placeholder={seqMode === 'quadratic' ? 'e.g. 5, 11, 21, 35, 53' : 'e.g. 2, 11, 38, 95, 194'}
                 className="w-full px-3 py-2 text-sm sk-input font-mono"
               />
-              <p className="text-[11px] text-[#5E588C]">
+              <p className="text-[11px] text-[var(--sk-dim)]">
                 The solver checks constant {seqMode === 'quadratic' ? '2nd' : '3rd'} differences and solves backwards from Term 1 automatically.
               </p>
             </div>
@@ -728,9 +728,9 @@ const SequenceExplorerSandbox: React.FC = () => {
             </div>
           ) : (
             <>
-              <div className="flex items-center justify-between gap-2 pb-2 border-b border-[#DCDAF0]">
-                <span className="text-xs font-bold text-[#5E588C]">Resulting Formula</span>
-                <div className="text-sm font-bold text-[#5B57E8]">
+              <div className="flex items-center justify-between gap-2 pb-2 border-b border-[var(--sk-line)]">
+                <span className="text-xs font-bold text-[var(--sk-dim)]">Resulting Formula</span>
+                <div className="text-sm font-bold text-[var(--sk-pri)]">
                   <KaTeXFormula latex={`u_n = ${activeSolution.formulaLatex}`} />
                 </div>
               </div>
@@ -738,14 +738,14 @@ const SequenceExplorerSandbox: React.FC = () => {
               {/* Difference Pyramid */}
               <div className="space-y-1.5 text-xs font-mono">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="w-16 text-[11px] text-[#5E588C] shrink-0">Terms uₙ:</span>
+                  <span className="w-16 text-[11px] text-[var(--sk-dim)] shrink-0">Terms uₙ:</span>
                   {activeSolution.table.terms.slice(0, 5).map((t, i) => (
                     <span
                       key={i}
                       className={`px-2 py-0.5 rounded border ${
                         i === 0
-                          ? 'bg-[#EEF0FF] border-[#5B57E8] text-[#1D1A4A] font-bold'
-                          : 'bg-white border-[#DCDAF0] text-[#393469]'
+                          ? 'bg-[var(--sk-chip)] border-[var(--sk-pri)] text-[var(--sk-ink)] font-bold'
+                          : 'bg-white border-[var(--sk-line)] text-[var(--sk-body)]'
                       }`}
                     >
                       {t}
@@ -753,14 +753,14 @@ const SequenceExplorerSandbox: React.FC = () => {
                   ))}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="w-16 text-[11px] text-[#5E588C] shrink-0">1st diff:</span>
+                  <span className="w-16 text-[11px] text-[var(--sk-dim)] shrink-0">1st diff:</span>
                   {activeSolution.table.firstDiffs.slice(0, 4).map((d, i) => (
                     <span
                       key={i}
                       className={`px-2 py-0.5 rounded border ${
                         i === 0
-                          ? 'bg-[#FFF0F6] border-[#FF5FA8] text-[#9D174D] font-bold'
-                          : 'bg-white border-[#DCDAF0] text-[#393469]'
+                          ? 'bg-[var(--sk-acc-soft)] border-[var(--sk-acc)] text-[var(--sk-acc-ink)] font-bold'
+                          : 'bg-white border-[var(--sk-line)] text-[var(--sk-body)]'
                       }`}
                     >
                       {d >= 0 ? `+${d}` : d}
@@ -768,14 +768,14 @@ const SequenceExplorerSandbox: React.FC = () => {
                   ))}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="w-16 text-[11px] text-[#5E588C] shrink-0">2nd diff:</span>
+                  <span className="w-16 text-[11px] text-[var(--sk-dim)] shrink-0">2nd diff:</span>
                   {activeSolution.table.secondDiffs.slice(0, 3).map((d, i) => (
                     <span
                       key={i}
                       className={`px-2 py-0.5 rounded border ${
                         i === 0
                           ? 'bg-emerald-50 border-emerald-500 text-emerald-900 font-bold'
-                          : 'bg-white border-[#DCDAF0] text-[#393469]'
+                          : 'bg-white border-[var(--sk-line)] text-[var(--sk-body)]'
                       }`}
                     >
                       {d >= 0 ? `+${d}` : d}
@@ -784,7 +784,7 @@ const SequenceExplorerSandbox: React.FC = () => {
                 </div>
                 {activeSolution.kind === 'cubic' && activeSolution.table.thirdDiffs && (
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="w-16 text-[11px] text-[#5E588C] shrink-0">3rd diff:</span>
+                    <span className="w-16 text-[11px] text-[var(--sk-dim)] shrink-0">3rd diff:</span>
                     {activeSolution.table.thirdDiffs.slice(0, 2).map((d, i) => (
                       <span
                         key={i}
@@ -798,8 +798,8 @@ const SequenceExplorerSandbox: React.FC = () => {
               </div>
 
               {/* Fast Column Formulas Working */}
-              <div className="pt-2 border-t border-[#DCDAF0] space-y-1 text-xs font-mono text-[#1D1A4A]">
-                <div className="text-[11px] font-sans font-bold text-[#5B57E8]">
+              <div className="pt-2 border-t border-[var(--sk-line)] space-y-1 text-xs font-mono text-[var(--sk-ink)]">
+                <div className="text-[11px] font-sans font-bold text-[var(--sk-pri)]">
                   Fast Leading-Column Equations (from Term 1):
                 </div>
                 {activeSolution.kind === 'quadratic' ? (
@@ -811,7 +811,7 @@ const SequenceExplorerSandbox: React.FC = () => {
                     <div>
                       a + b + c = {activeSolution.u1} ⇒ c = {activeSolution.u1} − ({activeSolution.a}) − ({activeSolution.b}) = {activeSolution.c}
                     </div>
-                    <div className="text-[11px] text-[#5E588C]">
+                    <div className="text-[11px] text-[var(--sk-dim)]">
                       0th-term cross-check: u₀ = {activeSolution.u1} − ({activeSolution.d0First}) = {activeSolution.zerothTerm} (= c)
                     </div>
                   </>
@@ -827,7 +827,7 @@ const SequenceExplorerSandbox: React.FC = () => {
                     <div>
                       a + b + c + d = {activeSolution.u1} ⇒ d = {activeSolution.d}
                     </div>
-                    <div className="text-[11px] text-[#5E588C]">
+                    <div className="text-[11px] text-[var(--sk-dim)]">
                       0th-term cross-check: u₀ = {activeSolution.u1} − ({activeSolution.d1Zero}) = {activeSolution.zerothTerm} (= d)
                     </div>
                   </>
@@ -868,8 +868,8 @@ export const TopicSandbox: React.FC<TopicSandboxProps> = ({ type, topicId }) => 
       aria-label={titles[type]}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-display text-sm font-bold text-[#1D1A4A]">{titles[type]}</h3>
-        <span className="text-xs font-medium text-[#5E588C]">
+        <h3 className="font-display text-sm font-bold text-[var(--sk-ink)]">{titles[type]}</h3>
+        <span className="text-xs font-medium text-[var(--sk-dim)]">
           {isGeoGebra ? 'GeoGebra Interactive Graph' : 'Interactive Model'}
         </span>
       </div>

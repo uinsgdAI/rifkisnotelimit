@@ -7,21 +7,49 @@
     --font-sans: "DM Sans", system-ui, -apple-system, sans-serif;
     --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
 
-    /* Sakuga VFX Gallery Palette & Tactile System */
+    /* 0580 Blue Theme (Default) */
     --sk-page: #ffffff;
-    --sk-surface: #faf9ff;
-    --sk-chip: #f4f3fc;
-    --sk-ink: #1d1a4a;
-    --sk-body: #393469;
-    --sk-dim: #5e588c;
-    --sk-mute: #8580b0;
-    --sk-line: #dcdaf0;
-    --sk-soft: #b8b3ff;
-    --sk-pri: #6d69f2;
-    --sk-pri-hover: #5b57e8;
-    --sk-pri-bright: #8f8df7;
-    --sk-acc: #ff5fa8;
-    --sk-track: #c9cbe0;
+    --sk-surface: #f5f9ff;
+    --sk-chip: #eef4ff;
+    --sk-ink: #0f2557;
+    --sk-ink-hover: #173473;
+    --sk-body: #1e3a7a;
+    --sk-dim: #476299;
+    --sk-mute: #6b84b8;
+    --sk-line: #cfe0fc;
+    --sk-soft: #93c5fd;
+    --sk-pri: #2563eb;
+    --sk-pri-hover: #1d4ed8;
+    --sk-pri-bright: #60a5fa;
+    --sk-acc: #0284c7;
+    --sk-acc-ink: #0369a1;
+    --sk-acc-soft: #e0f2fe;
+    --sk-acc-line: #7dd3fc;
+    --sk-ring: rgba(37, 99, 235, 0.18);
+    --sk-track: #cbd5e1;
+  }
+
+  [data-subject="0606"] {
+    /* 0606 Additional Mathematics Red / Crimson Theme */
+    --sk-page: #ffffff;
+    --sk-surface: #fff7f7;
+    --sk-chip: #fef2f2;
+    --sk-ink: #5c0f14;
+    --sk-ink-hover: #78141b;
+    --sk-body: #7f1d1d;
+    --sk-dim: #993b3b;
+    --sk-mute: #b86565;
+    --sk-line: #fecaca;
+    --sk-soft: #fca5a5;
+    --sk-pri: #dc2626;
+    --sk-pri-hover: #b91c1c;
+    --sk-pri-bright: #f87171;
+    --sk-acc: #e11d48;
+    --sk-acc-ink: #be123c;
+    --sk-acc-soft: #fff1f2;
+    --sk-acc-line: #fda4af;
+    --sk-ring: rgba(220, 38, 38, 0.18);
+    --sk-track: #e2c8c8;
   }
 
   html {
@@ -98,7 +126,7 @@
 }
 
 .sk-btn-ink:hover:not(:disabled) {
-  background-color: #2c2769;
+  background-color: var(--sk-ink-hover);
   transform: translate(-1px, -1px);
   box-shadow: 4px 5px 0 var(--sk-soft);
 }
@@ -189,11 +217,11 @@
 }
 
 .sk-progress-fill {
-  background: linear-gradient(90deg, #8f8df7 0%, #ff5fa8 100%);
+  background: linear-gradient(90deg, var(--sk-pri-bright) 0%, var(--sk-acc) 100%);
   transition: width 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* Sakuga Inputs (white field, ink outline, lavender offset shadow matching <sakuga-input>) */
+/* Sakuga Inputs (white field, ink outline, subject-themed offset shadow) */
 .sk-input,
 .sk-input-shell {
   background-color: #ffffff;
@@ -215,7 +243,7 @@
   outline: none;
   background-color: #ffffff;
   border-color: var(--sk-ink);
-  box-shadow: 4px 4px 0 var(--sk-soft), 0 0 0 3px rgba(109, 105, 242, 0.18);
+  box-shadow: 4px 4px 0 var(--sk-soft), 0 0 0 3px var(--sk-ring);
 }
 
 .katex-display {

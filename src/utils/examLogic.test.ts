@@ -19,13 +19,16 @@ import {
 import {
   buildGoogleDocsViewerUrl,
   FALLBACK_SESSIONS,
+  FALLBACK_SESSIONS_0606,
   generateSessionPaperFallback,
   isAllowedPapaCambridgePdfUrl,
+  isAllowedPdfProxyUrl,
   parsePapersFromHtml,
   parseSessionsFromHtml,
   resolvePdfIframeUrl,
 } from './papacambridge';
 import { SYLLABUS_0580, ALL_SUBTOPICS_0580 } from '../data/syllabus0580';
+import { SYLLABUS_0606, ALL_SUBTOPICS_0606 } from '../data/syllabus0606';
 import { PRACTICE_QUESTION_BANK } from '../data/practiceBank';
 import { generateMockExamQuestions } from './questionGenerator';
 import {
@@ -726,6 +729,183 @@ test('backgroundPreloader pauses cleanly when entering Past Papers and resumes w
   assert.equal(isBackgroundWarmupPaused(), true);
   setBackgroundWarmupPaused(false);
   assert.equal(isBackgroundWarmupPaused(), false);
+});
+
+test('0606 routing, filename parsing, fallback papers, syllabus skeleton, and Worker edge cache work cleanly', async () => {
+  // 1. Routing & serialization for 0606
+  assert.deepEqual(parseAppRoute('/0606'), {
+    view: 'notes',
+    subject: '0606',
+    chapterId: 1,
+    topicId: '1.1',
+  });
+  assert.deepEqual(parseAppRoute('/0606/notes/8/8.1'), {
+    view: 'notes',
+    subject: '0606',
+    chapterId: 8,
+    topicId: '8.1',
+  });
+  assert.deepEqual(
+    parseAppRoute('/0606/past-papers/2026-may-june', '?paper=0606_s26_gt.pdf'),
+    {
+      view: 'past-papers',
+      subject: '0606',
+      sessionSlug: '2026-may-june',
+      paperFilename: '0606_s26_gt.pdf',
+    }
+  );
+  assert.deepEqual(parseAppRoute('/0606/practice/topical-paper'), {
+    view: 'practice',
+    subject: '0606',
+    mode: 'topical-paper',
+    topicId: undefined,
+  });
+
+  assert.equal(
+    buildAppRoutePath({ view: 'notes', subject: '0606', chapterId: 14, topicId: '14.1' }),
+    '/0606/notes/14/14.1'
+  );
+  assert.equal(
+    buildAppRoutePath({
+      view: 'past-papers',
+      subject: '0606',
+      sessionSlug: '2026-may-june',
+      paperFilename: '0606_s26_gt.pdf',
+    }),
+    '/0606/past-papers/2026-may-june?paper=0606_s26_gt.pdf'
+  );
+  assert.equal(
+    buildAppRoutePath({ view: 'practice', subject: '0606', mode: 'practice-test' }),
+    '/0606/practice/practice-test'
+  );
+
+  // 2. 0606 filenames & fallback sessions/papers
+  const gt0606Url =
+    'https://pastpapers.papacambridge.com/directories/CAIE/CAIE-pastpapers/upload/0606_s26_gt.pdf';
+  const qp0606 = parsePapaCambridgeFilename(
+    '0606_s24_qp_12.pdf',
+    'https://pastpapers.papacambridge.com/directories/CAIE/CAIE-pastpapers/upload/0606_s24_qp_12.pdf',
+    '2024-may-june'
+  );
+  assert.equal(qp0606.docType, 'QP');
+  assert.equal(qp0606.paperNumber, '1');
+  assert.equal(qp0606.variant, '2');
+  assert.equal(qp0606.tier, 'All');
+
+  assert.ok(isAllowedPdfProxyUrl(gt0606Url));
+  assert.ok(isAllowedPapaCambridgePdfUrl(gt0606Url));
+
+  assert.ok(FALLBACK_SESSIONS_0606.length >= 15);
+  const s26Papers = generateSessionPaperFallback('2026-may-june', '0606');
+  assert.ok(s26Papers.some((p) => p.filename === '0606_s26_gt.pdf'));
+  assert.ok(s26Papers.some((p) => p.paperNumber === '1'));
+  assert.ok(s26Papers.some((p) => p.paperNumber === '2'));
+  assert.equal(s26Papers.some((p) => p.paperNumber === '3' || p.paperNumber === '4'), false);
+
+  const sample0606SessionHtml = `
+    <a href="/papers/caie/igcse-mathematics-additional-0606-2026-may-june">May June 2026</a>
+    <a href="/papers/caie/igcse-mathematics-0580-2026-may-june">0580</a>
+  `;
+  const parsed0606Sessions = parseSessionsFromHtml(sample0606SessionHtml, '0606');
+  assert.equal(parsed0606Sessions.length, 1);
+  assert.equal(parsed0606Sessions[0].slug, '2026-may-june');
+
+  const sample0606PaperHtml = `
+    <a href="/directories/CAIE/CAIE-pastpapers/upload/0606_s26_gt.pdf">GT</a>
+    <a href="https://pastpapers.papacambridge.com/directories/CAIE/CAIE-pastpapers/upload/0580_s26_gt.pdf">0580 GT</a>
+  `;
+  const parsed0606Papers = parsePapersFromHtml(sample0606PaperHtml, '2026-may-june', '0606');
+  assert.equal(parsed0606Papers.length, 1);
+  assert.equal(parsed0606Papers[0].filename, '0606_s26_gt.pdf');
+  assert.equal(parsed0606Papers[0].url, gt0606Url);
+
+  // 3. 14-chapter modular 0606 syllabus validation & A*-E grading
+  assert.equal(SYLLABUS_0606.length, 14);
+  assert.ok(ALL_SUBTOPICS_0606.length >= 35, `Expected full modular subtopics >= 35, got ${ALL_SUBTOPICS_0606.length}`);
+  for (let i = 0; i < 14; i += 1) {
+    assert.equal(SYLLABUS_0606[i].id, i + 1);
+    assert.ok(SYLLABUS_0606[i].subtopics.length >= 1);
+    for (const sub of SYLLABUS_0606[i].subtopics) {
+      assert.ok(sub.coreObjectives.length > 0);
+      assert.ok(sub.quickCheck.prompt.length > 0);
+    }
+  }
+
+  assert.equal(estimateCambridgeGrade(88, 100, 'Extended', '0606').grade, 'A*');
+  assert.equal(estimateCambridgeGrade(75, 100, 'Extended', '0606').grade, 'A');
+  assert.equal(estimateCambridgeGrade(62, 100, 'Extended', '0606').grade, 'B');
+  assert.equal(estimateCambridgeGrade(48, 100, 'Extended', '0606').grade, 'C');
+  assert.equal(estimateCambridgeGrade(36, 100, 'Extended', '0606').grade, 'D');
+  assert.equal(estimateCambridgeGrade(25, 100, 'Extended', '0606').grade, 'E');
+  // Grades F and G do not exist in 0606
+  assert.equal(estimateCambridgeGrade(20, 100, 'Core', '0606').grade, 'U');
+
+  // 4. Worker API subject validation & Edge Cache (match + put) on sessions & papers
+  const badSubjectRes = await handleApiRequest(
+    new Request('https://igcse.rifkisnote.my.id/api/papacambridge/sessions?subject=invalid')
+  );
+  assert.ok(badSubjectRes);
+  assert.equal(badSubjectRes.status, 400);
+
+  const badPapersSubjectRes = await handleApiRequest(
+    new Request('https://igcse.rifkisnote.my.id/api/papacambridge/papers?session=2026-may-june&subject=9999')
+  );
+  assert.ok(badPapersSubjectRes);
+  assert.equal(badPapersSubjectRes.status, 400);
+
+  const cacheStore = new Map<string, Response>();
+  let matchCalls = 0;
+  let putCalls = 0;
+  const mockCache = {
+    async match(req: RequestInfo | URL) {
+      matchCalls += 1;
+      const key = req instanceof Request ? req.url : String(req);
+      const hit = cacheStore.get(key);
+      return hit ? hit.clone() : undefined;
+    },
+    async put(req: RequestInfo | URL, res: Response) {
+      putCalls += 1;
+      const key = req instanceof Request ? req.url : String(req);
+      cacheStore.set(key, res.clone());
+    },
+  } as unknown as Cache;
+
+  const mockUpstream0606: typeof fetch = async (input) => {
+    const url = String(input);
+    if (url.includes('2026-may-june')) {
+      return new Response(sample0606PaperHtml, { status: 200 });
+    }
+    return new Response(sample0606SessionHtml, { status: 200 });
+  };
+
+  const sessionsUrl = 'https://igcse.rifkisnote.my.id/api/papacambridge/sessions?subject=0606';
+  const resSess1 = await handleApiRequest(new Request(sessionsUrl), mockUpstream0606, mockCache);
+  assert.ok(resSess1);
+  assert.equal(resSess1.status, 200);
+  const sessBody = (await resSess1.json()) as { subject: string; sessions: Array<{ slug: string }> };
+  assert.equal(sessBody.subject, '0606');
+  assert.equal(sessBody.sessions[0].slug, '2026-may-june');
+  assert.equal(putCalls, 1);
+
+  const resSess2 = await handleApiRequest(new Request(sessionsUrl), mockUpstream0606, mockCache);
+  assert.ok(resSess2);
+  assert.equal(resSess2.status, 200);
+  assert.equal(matchCalls, 2);
+  assert.equal(putCalls, 1); // Second call served straight from edge cache
+
+  const papersUrl = 'https://igcse.rifkisnote.my.id/api/papacambridge/papers?session=2026-may-june&subject=0606';
+  const resPap1 = await handleApiRequest(new Request(papersUrl), mockUpstream0606, mockCache);
+  assert.ok(resPap1);
+  assert.equal(resPap1.status, 200);
+  const papBody = (await resPap1.json()) as { subject: string; papers: Array<{ filename: string }> };
+  assert.equal(papBody.subject, '0606');
+  assert.equal(papBody.papers[0].filename, '0606_s26_gt.pdf');
+  assert.equal(putCalls, 2);
+
+  const resPap2 = await handleApiRequest(new Request(papersUrl), mockUpstream0606, mockCache);
+  assert.ok(resPap2);
+  assert.equal(resPap2.status, 200);
+  assert.equal(putCalls, 2); // Served from edge cache
 });
 
 

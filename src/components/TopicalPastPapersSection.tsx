@@ -11,9 +11,7 @@ import {
   Pen,
   Search,
 } from 'lucide-react';
-import { SYLLABUS_0580 } from '../data/syllabus0580';
-import { TOPICAL_PAPERS_0580, type TopicalPaperPack } from '../data/topicalPapers0580';
-import type { AppRoute } from '../types/syllabus';
+import type { AppRoute, SubjectCode, SyllabusChapter, TopicalPaperPack } from '../types/syllabus';
 import { buildGoogleDocsViewerUrl } from '../utils/papacambridge';
 import {
   acquireFullscreenBodyLock,
@@ -28,9 +26,11 @@ import {
 } from '../utils/topicalPapers';
 import { PdfAnnotator } from './PdfAnnotator';
 import { warmSharedPdfWorker } from '../utils/pdfJsCache';
-import { triggerSakugaBurst } from '../utils/sakugaVfx';
+import { getActiveSubjectVfxVariant, triggerSakugaBurst } from '../utils/sakugaVfx';
 
 interface TopicalPastPapersSectionProps {
+  subject: SubjectCode;
+  syllabus: SyllabusChapter[];
   selectedChapterFilter: number | 'all';
   initialPackId?: string;
   onNavigate: (route: AppRoute) => void;
@@ -97,9 +97,9 @@ const NativePdfFrame: React.FC<NativePdfFrameProps> = ({
       <div
         className={`w-full ${
           fullHeight ? 'flex-1 min-h-0' : 'h-[640px]'
-        } flex flex-col items-center justify-center gap-3 text-sm text-[#5E588C] bg-[#FAF9FF]`}
+        } flex flex-col items-center justify-center gap-3 text-sm text-[var(--sk-dim)] bg-[var(--sk-surface)]`}
       >
-        <Loader2 className="w-5 h-5 animate-spin text-[#6D69F2]" />
+        <Loader2 className="w-5 h-5 animate-spin text-[var(--sk-pri)]" />
         <span>Loading native PDF viewer...</span>
       </div>
     );
@@ -110,9 +110,9 @@ const NativePdfFrame: React.FC<NativePdfFrameProps> = ({
       <div
         className={`w-full ${
           fullHeight ? 'flex-1 min-h-0' : 'h-[640px]'
-        } flex flex-col items-center justify-center gap-3 p-6 text-center bg-[#FAF9FF]`}
+        } flex flex-col items-center justify-center gap-3 p-6 text-center bg-[var(--sk-surface)]`}
       >
-        <p className="text-sm text-[#393469] max-w-md">
+        <p className="text-sm text-[var(--sk-body)] max-w-md">
           Native browser PDF could not be embedded ({error || 'blocked by network'}).
         </p>
         <div className="flex flex-wrap items-center justify-center gap-2">
@@ -148,14 +148,14 @@ const NativePdfFrame: React.FC<NativePdfFrameProps> = ({
       aria-label={title}
       data={blobUrl}
       type="application/pdf"
-      className={`w-full block bg-[#FAF9FF] ${fullHeight ? 'flex-1 min-h-0' : 'h-[640px]'}`}
+      className={`w-full block bg-[var(--sk-surface)] ${fullHeight ? 'flex-1 min-h-0' : 'h-[640px]'}`}
     >
       <div
         className={`w-full ${
           fullHeight ? 'flex-1 min-h-0' : 'h-[640px]'
-        } flex flex-col items-center justify-center gap-3 p-6 text-center bg-[#FAF9FF]`}
+        } flex flex-col items-center justify-center gap-3 p-6 text-center bg-[var(--sk-surface)]`}
       >
-        <p className="text-sm text-[#393469] max-w-md">
+        <p className="text-sm text-[var(--sk-body)] max-w-md">
           This browser does not embed Native PDF plugins inline. Use Annotate (Draw) to view &amp; scribble directly on every page, or open the PDF in a new tab.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-2">
@@ -188,22 +188,53 @@ const NativePdfFrame: React.FC<NativePdfFrameProps> = ({
 };
 
 export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> = ({
+  subject,
+  syllabus,
   selectedChapterFilter,
   initialPackId,
   onNavigate,
 }) => {
+  const [packs, setPacks] = useState<TopicalPaperPack[]>([]);
+  const [loadingPacks, setLoadingPacks] = useState(true);
   const [chapterFilter, setChapterFilter] = useState<number | 'all'>(selectedChapterFilter);
   const [paperModeFilter, setPaperModeFilter] = useState<'all' | TopicalPaperPack['paperMode']>('all');
   const [query, setQuery] = useState('');
   const [viewerMode, setViewerMode] = useState<'annotate' | 'proxy' | 'web'>('annotate');
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const [activePack, setActivePack] = useState<TopicalPaperPack | null>(() =>
-    initialPackId ? TOPICAL_PAPERS_0580.find((p) => p.id === initialPackId) || null : null
-  );
+  const [activePack, setActivePack] = useState<TopicalPaperPack | null>(null);
   const [splitAnswers, setSplitAnswers] = useState(true);
   const viewerRef = useRef<HTMLElement | null>(null);
   const [isViewerFullscreen, setIsViewerFullscreen] = useState(false);
   const enteredNativeViewerFsRef = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingPacks(true);
+    setActivePack(null);
+    setPaperModeFilter('all');
+    setQuery('');
+
+    const loader =
+      subject === '0606'
+        ? import('../data/topicalPapers0606').then((m) => m.TOPICAL_PAPERS_0606)
+        : import('../data/topicalPapers0580').then((m) => m.TOPICAL_PAPERS_0580);
+
+    loader
+      .then((loadedPacks) => {
+        if (cancelled) return;
+        setPacks(loadedPacks);
+        setLoadingPacks(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPacks([]);
+        setLoadingPacks(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [subject]);
 
   const exitViewerFullscreen = useCallback(() => {
     setIsViewerFullscreen(false);
@@ -286,34 +317,42 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
   }, [selectedChapterFilter]);
 
   useEffect(() => {
-    if (!initialPackId) return;
-    const match = TOPICAL_PAPERS_0580.find((p) => p.id === initialPackId);
+    if (!initialPackId || packs.length === 0) return;
+    const match = packs.find((p) => p.id === initialPackId);
     if (match) {
       setActivePack(match);
-      setSplitAnswers(true);
+      setSplitAnswers(Boolean(match.answersUrl));
       setViewerMode('annotate');
       const raf = window.requestAnimationFrame(() => {
         viewerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
       return () => window.cancelAnimationFrame(raf);
     }
-  }, [initialPackId]);
+  }, [initialPackId, packs]);
 
-  const chapterCounts = useMemo(() => countTopicalPapersByChapter(TOPICAL_PAPERS_0580), []);
+  const chapterCounts = useMemo(
+    () => countTopicalPapersByChapter(packs, syllabus.length),
+    [packs, syllabus.length]
+  );
   const chapterTitleMap = useMemo(() => {
     const map: Record<number, string> = {};
-    for (const ch of SYLLABUS_0580) map[ch.id] = ch.title;
+    for (const ch of syllabus) map[ch.id] = ch.title;
     return map;
-  }, []);
+  }, [syllabus]);
+
+  const hasMultiplePaperModes = useMemo(
+    () => new Set(packs.map((p) => p.paperMode)).size > 1,
+    [packs]
+  );
 
   const filteredPacks = useMemo(
     () =>
-      filterTopicalPapers(TOPICAL_PAPERS_0580, {
+      filterTopicalPapers(packs, {
         chapterId: chapterFilter,
         query,
-        paperMode: paperModeFilter,
+        paperMode: hasMultiplePaperModes ? paperModeFilter : 'all',
       }),
-    [chapterFilter, query, paperModeFilter]
+    [packs, chapterFilter, query, paperModeFilter, hasMultiplePaperModes]
   );
 
   useEffect(() => {
@@ -323,7 +362,7 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
 
   const openPack = useCallback((pack: TopicalPaperPack, withSplitAnswers: boolean) => {
     setActivePack(pack);
-    setSplitAnswers(withSplitAnswers);
+    setSplitAnswers(withSplitAnswers && Boolean(pack.answersUrl));
     setViewerMode('annotate');
     window.requestAnimationFrame(() => {
       viewerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -335,7 +374,7 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
     prefetchPdfBytes(
       buildPdfByteCandidateUrls(getTopicalPdfBytesUrl(pack.questionsUrl), pack.questionsUrl)
     );
-    if (includeAnswers) {
+    if (includeAnswers && pack.answersUrl) {
       prefetchPdfBytes(
         buildPdfByteCandidateUrls(getTopicalPdfBytesUrl(pack.answersUrl), pack.answersUrl)
       );
@@ -380,14 +419,20 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
       <div className="p-6 sk-card space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <div className="text-xs text-[#5E588C] mb-1">
-              Cambridge IGCSE 0580 · Topical Past Paper Archive ({TOPICAL_PAPERS_0580.length} Topic Packs)
+            <div className="text-xs text-[var(--sk-dim)] mb-1">
+              {subject === '0606'
+                ? `Cambridge IGCSE Additional Mathematics (0606) · PapaCambridge Topical Archive (${packs.length} Topic Packs)`
+                : `Cambridge IGCSE 0580 · Topical Past Paper Archive (${packs.length} Topic Packs)`}
             </div>
-            <h2 className="font-display text-lg font-bold text-[#1D1A4A]">
-              Topical Past Papers &amp; Worked Solutions (Annotate Q + Answers)
+            <h2 className="font-display text-lg font-bold text-[var(--sk-ink)]">
+              {subject === '0606'
+                ? '0606 Topical Past Papers (PapaCambridge · Annotate PDF)'
+                : 'Topical Past Papers & Worked Solutions (Annotate Q + Answers)'}
             </h2>
-            <p className="text-xs text-[#393469] mt-1 max-w-2xl">
-              Practise real exam-style topical PDF sheets with step-by-step worked solutions. Open any topic directly in the PDF annotator (Pen, Highlighter, Ruler, Split Questions + Answers) or jump back to its 0580 study notes.
+            <p className="text-xs text-[var(--sk-body)] mt-1 max-w-2xl">
+              {subject === '0606'
+                ? 'Practise real 0606 Additional Mathematics topical exam PDFs sourced from PapaCambridge. Open any topic directly in the S Pen PDF annotator (Pen, Highlighter, Ruler) or jump straight to its 0606 study notes.'
+                : 'Practise real exam-style topical PDF sheets with step-by-step worked solutions. Open any topic directly in the PDF annotator (Pen, Highlighter, Ruler, Split Questions + Answers) or jump back to its 0580 study notes.'}
             </p>
           </div>
 
@@ -396,34 +441,40 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
               <label htmlFor="topical-papers-search" className="sr-only">
                 Search topical past paper packs
               </label>
-              <Search className="w-4 h-4 text-[#5E588C] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
+              <Search className="w-4 h-4 text-[var(--sk-dim)] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
               <input
                 id="topical-papers-search"
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search topic or code (e.g. Surds, 2.5, Vectors)"
+                placeholder={
+                  subject === '0606'
+                    ? 'Search topic or code (e.g. Vectors, 14.3, Series)'
+                    : 'Search topic or code (e.g. Surds, 2.5, Vectors)'
+                }
                 className="w-full pl-9 pr-3 py-2 text-xs sk-input"
               />
             </div>
 
-            <div
-              role="group"
-              aria-label="Filter by calculator rule"
-              className="flex gap-1 sk-tabs"
-            >
-              {(['all', 'Non-Calc', 'Calc', 'Mixed'] as const).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  data-active={paperModeFilter === mode}
-                  onClick={() => setPaperModeFilter(mode)}
-                  className="px-2.5 py-1 text-xs font-semibold cursor-pointer whitespace-nowrap sk-tab"
-                >
-                  {mode === 'all' ? 'All Modes' : mode}
-                </button>
-              ))}
-            </div>
+            {hasMultiplePaperModes && (
+              <div
+                role="group"
+                aria-label="Filter by calculator rule"
+                className="flex gap-1 sk-tabs"
+              >
+                {(['all', 'Non-Calc', 'Calc', 'Mixed'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    data-active={paperModeFilter === mode}
+                    onClick={() => setPaperModeFilter(mode)}
+                    className="px-2.5 py-1 text-xs font-semibold cursor-pointer whitespace-nowrap sk-tab"
+                  >
+                    {mode === 'all' ? 'All Modes' : mode}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -441,9 +492,9 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
               onClick={() => setChapterFilter('all')}
               className="px-2.5 py-1.5 text-xs font-semibold cursor-pointer whitespace-nowrap sk-tab"
             >
-              All Topics ({TOPICAL_PAPERS_0580.length})
+              All Topics ({packs.length})
             </button>
-            {SYLLABUS_0580.map((ch) => (
+            {syllabus.map((ch) => (
               <button
                 key={ch.id}
                 type="button"
@@ -458,8 +509,8 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
             ))}
           </div>
 
-          <span className="text-xs font-mono font-semibold tabular-nums text-[#5E588C] shrink-0">
-            Showing {filteredPacks.length} of {TOPICAL_PAPERS_0580.length} packs
+          <span className="text-xs font-mono font-semibold tabular-nums text-[var(--sk-dim)] shrink-0">
+            Showing {filteredPacks.length} of {packs.length} packs
           </span>
         </div>
       </div>
@@ -474,25 +525,25 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
           className={
             isViewerFullscreen
               ? 'fixed inset-0 z-[65] w-screen h-screen h-[100dvh] bg-white flex flex-col overflow-hidden'
-              : 'sk-card overflow-hidden border-2 border-[#1D1A4A] shadow-[4px_5px_0_#B8B3FF] scroll-mt-20'
+              : 'sk-card overflow-hidden border-2 border-[var(--sk-ink)] shadow-[4px_5px_0_var(--sk-soft)] scroll-mt-20'
           }
         >
           <div
             className={`${
               isViewerFullscreen ? 'px-3 py-1.5 gap-2' : 'px-4 py-2.5 gap-2.5'
-            } border-b-[1.5px] border-[#DCDAF0] bg-[#FAF9FF] flex flex-wrap items-center justify-between shrink-0`}
+            } border-b-[1.5px] border-[var(--sk-line)] bg-[var(--sk-surface)] flex flex-wrap items-center justify-between shrink-0`}
           >
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="font-display font-bold text-[#1D1A4A] truncate">
+                <span className="font-display font-bold text-[var(--sk-ink)] truncate">
                   #{activePack.order} · {activePack.title}
                 </span>
-                <span className="font-mono text-[#5E588C]">({activePack.paperMode})</span>
+                <span className="font-mono text-[var(--sk-dim)]">({activePack.paperMode})</span>
               </div>
               {!isViewerFullscreen && (
-                <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] font-mono text-[#5E588C]">
+                <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] font-mono text-[var(--sk-dim)]">
                   <span>{activePack.questionsFilename}</span>
-                  {splitAnswers && (
+                  {splitAnswers && activePack.answersFilename && (
                     <>
                       <span aria-hidden="true">+</span>
                       <span className="text-emerald-800 font-semibold">
@@ -513,11 +564,12 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                     const targetChapter = Number(targetTopic.split('.')[0]) || activePack.chapterId;
                     onNavigate({
                       view: 'notes',
+                      subject,
                       chapterId: targetChapter,
                       topicId: targetTopic,
                     });
                   }}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold sk-btn-subtle text-[#5B57E8] cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold sk-btn-subtle text-[var(--sk-pri)] cursor-pointer"
                 >
                   <BookOpen className="w-3.5 h-3.5" />
                   Study {activePack.topicIds.join(', ')} Notes
@@ -525,18 +577,20 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                 </button>
               )}
 
-              <button
-                type="button"
-                onClick={() => setSplitAnswers((s) => !s)}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-xl border-[1.5px] cursor-pointer ${
-                  splitAnswers
-                    ? 'bg-emerald-50 border-emerald-600 text-emerald-900'
-                    : 'sk-btn-subtle'
-                }`}
-              >
-                <Columns2 className="w-3.5 h-3.5" />
-                {splitAnswers ? 'Showing Q + Answers' : 'Show Worked Answers'}
-              </button>
+              {activePack.answersUrl && (
+                <button
+                  type="button"
+                  onClick={() => setSplitAnswers((s) => !s)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-xl border-[1.5px] cursor-pointer ${
+                    splitAnswers
+                      ? 'bg-emerald-50 border-emerald-600 text-emerald-900'
+                      : 'sk-btn-subtle'
+                  }`}
+                >
+                  <Columns2 className="w-3.5 h-3.5" />
+                  {splitAnswers ? 'Showing Q + Answers' : 'Show Worked Answers'}
+                </button>
+              )}
 
               <div
                 role="group"
@@ -578,11 +632,11 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                   className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold sk-btn-subtle"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                  Open Q
+                  {activePack.answersUrl ? 'Open Q' : 'Open PDF'}
                 </a>
               )}
 
-              {!isViewerFullscreen && splitAnswers && (
+              {!isViewerFullscreen && splitAnswers && activePack.answersUrl && (
                 <a
                   href={activePack.answersUrl}
                   target="_blank"
@@ -632,7 +686,7 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
           </div>
 
           <div
-            className={`grid gap-px bg-[#DCDAF0] ${
+            className={`grid gap-px bg-[var(--sk-line)] ${
               isViewerFullscreen ? 'flex-1 min-h-0' : ''
             } ${
               splitAnswers
@@ -644,13 +698,13 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
           >
             <div className="bg-white min-w-0 min-h-0 flex flex-col" data-testid="topical-qp-pane">
               {!isViewerFullscreen && (
-                <div className="px-3 py-1.5 text-[11px] font-semibold text-[#5E588C] border-b border-[#DCDAF0] flex items-center justify-between gap-2 shrink-0">
+                <div className="px-3 py-1.5 text-[11px] font-semibold text-[var(--sk-dim)] border-b border-[var(--sk-line)] flex items-center justify-between gap-2 shrink-0">
                   <span>Questions — {activePack.questionsFilename}</span>
                   <a
                     href={activePack.questionsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[#5B57E8] hover:underline shrink-0"
+                    className="text-[var(--sk-pri)] hover:underline shrink-0"
                   >
                     Open in new tab
                   </a>
@@ -679,17 +733,17 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                 <iframe
                   title={activePack.questionsFilename}
                   src={buildGoogleDocsViewerUrl(activePack.questionsUrl)}
-                  className={`w-full border-0 bg-[#FAF9FF] ${
+                  className={`w-full border-0 bg-[var(--sk-surface)] ${
                     isViewerFullscreen ? 'flex-1 min-h-0' : 'h-[640px]'
                   }`}
                 />
               )}
             </div>
 
-            {splitAnswers && (
+            {splitAnswers && activePack.answersUrl && activePack.answersFilename && (
               <div className="bg-white min-w-0 min-h-0 flex flex-col" data-testid="topical-ms-pane">
                 {!isViewerFullscreen && (
-                  <div className="px-3 py-1.5 text-[11px] font-semibold text-emerald-800 border-b border-[#DCDAF0] flex items-center justify-between gap-2 shrink-0">
+                  <div className="px-3 py-1.5 text-[11px] font-semibold text-emerald-800 border-b border-[var(--sk-line)] flex items-center justify-between gap-2 shrink-0">
                     <span>Worked Solutions — {activePack.answersFilename}</span>
                     <a
                       href={activePack.answersUrl}
@@ -725,7 +779,7 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                   <iframe
                     title={activePack.answersFilename}
                     src={buildGoogleDocsViewerUrl(activePack.answersUrl)}
-                    className={`w-full border-0 bg-[#FAF9FF] ${
+                    className={`w-full border-0 bg-[var(--sk-surface)] ${
                       isViewerFullscreen ? 'flex-1 min-h-0' : 'h-[640px]'
                     }`}
                   />
@@ -738,15 +792,20 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
 
       {/* Topical Papers Table */}
       <div className="sk-card overflow-hidden">
-        {filteredPacks.length === 0 ? (
-          <div className="p-8 text-center text-sm text-[#5E588C]">
+        {loadingPacks ? (
+          <div className="p-8 text-center text-sm text-[var(--sk-dim)] flex items-center justify-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin text-[var(--sk-pri)]" />
+            Loading {subject} topical packs...
+          </div>
+        ) : filteredPacks.length === 0 ? (
+          <div className="p-8 text-center text-sm text-[var(--sk-dim)]">
             No topical packs match &quot;{query}&quot;. Try clearing your search or switching back to All Topics.
           </div>
         ) : (
           <div className="overflow-x-auto max-h-[620px] overflow-y-auto">
             <table className="w-full text-left border-collapse text-sm">
-              <thead className="sticky top-0 z-10 bg-[#F4F3FC] border-b-[1.5px] border-[#DCDAF0]">
-                <tr className="text-xs font-bold text-[#1D1A4A]">
+              <thead className="sticky top-0 z-10 bg-[var(--sk-chip)] border-b-[1.5px] border-[var(--sk-line)]">
+                <tr className="text-xs font-bold text-[var(--sk-ink)]">
                   <th className="py-3 px-4 w-12">#</th>
                   <th className="py-3 px-4">Topical Question Pack</th>
                   <th className="py-3 px-4">Syllabus Coverage</th>
@@ -754,10 +813,11 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
                   <th className="py-3 px-4 text-right">Study &amp; Annotate</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#ECEBF8]">
+              <tbody className="divide-y divide-[var(--sk-line)]">
                 {filteredPacks.map((pack) => (
                   <TopicalPackRow
                     key={pack.id}
+                    subject={subject}
                     pack={pack}
                     chapterTitle={chapterTitleMap[pack.chapterId] || `Ch. ${pack.chapterId}`}
                     isActive={activePack?.id === pack.id}
@@ -778,6 +838,7 @@ export const TopicalPastPapersSection: React.FC<TopicalPastPapersSectionProps> =
 };
 
 interface TopicalPackRowProps {
+  subject: SubjectCode;
   pack: TopicalPaperPack;
   chapterTitle: string;
   isActive: boolean;
@@ -789,6 +850,7 @@ interface TopicalPackRowProps {
 }
 
 const TopicalPackRow: React.FC<TopicalPackRowProps> = React.memo(({
+  subject,
   pack,
   chapterTitle,
   isActive,
@@ -806,16 +868,16 @@ const TopicalPackRow: React.FC<TopicalPackRowProps> = React.memo(({
   return (
     <tr
       data-testid={`topical-row-${pack.id}`}
-      className={isActive ? 'bg-[#F4F3FC]' : 'hover:bg-[#FAF9FF]'}
+      className={isActive ? 'bg-[var(--sk-chip)]' : 'hover:bg-[var(--sk-surface)]'}
     >
-      <td className="py-3 px-4 font-mono text-xs tabular-nums text-[#5E588C]">
+      <td className="py-3 px-4 font-mono text-xs tabular-nums text-[var(--sk-dim)]">
         {pack.order}
       </td>
       <td className="py-3 px-4">
-        <div className="font-bold text-xs sm:text-sm text-[#1D1A4A]">
+        <div className="font-bold text-xs sm:text-sm text-[var(--sk-ink)]">
           {pack.title}
         </div>
-        <div className="text-[11px] font-mono text-[#5E588C] mt-0.5">
+        <div className="text-[11px] font-mono text-[var(--sk-dim)] mt-0.5">
           Ch. {pack.chapterId}: {chapterTitle}
         </div>
       </td>
@@ -830,12 +892,13 @@ const TopicalPackRow: React.FC<TopicalPackRowProps> = React.memo(({
                 onClick={() =>
                   onNavigate({
                     view: 'notes',
+                    subject,
                     chapterId: ch,
                     topicId: tid,
                   })
                 }
                 title={`Open Study Notes for ${tid}`}
-                className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-mono font-semibold rounded-lg border border-[#DCDAF0] bg-[#FAF9FF] hover:bg-[#F4F3FC] hover:border-[#1D1A4A] text-[#5B57E8] cursor-pointer"
+                className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-mono font-semibold rounded-lg border border-[var(--sk-line)] bg-[var(--sk-surface)] hover:bg-[var(--sk-chip)] hover:border-[var(--sk-ink)] text-[var(--sk-pri)] cursor-pointer"
               >
                 {tid}
               </button>
@@ -847,13 +910,13 @@ const TopicalPackRow: React.FC<TopicalPackRowProps> = React.memo(({
         <span
           className={
             pack.paperMode === 'Non-Calc'
-              ? 'font-semibold text-[#C0266B]'
+              ? 'font-semibold text-[var(--sk-acc-ink)]'
               : pack.paperMode === 'Calc'
-                ? 'font-semibold text-[#1D1A4A]'
-                : 'text-[#5E588C]'
+                ? 'font-semibold text-[var(--sk-ink)]'
+                : 'text-[var(--sk-dim)]'
           }
         >
-          {pack.paperMode}
+          {pack.paperMode === 'Mixed' && subject === '0606' ? 'Paper 1 & 2' : pack.paperMode}
         </span>
       </td>
       <td className="py-3 px-4 text-right">
@@ -864,13 +927,14 @@ const TopicalPackRow: React.FC<TopicalPackRowProps> = React.memo(({
               onClick={() =>
                 onNavigate({
                   view: 'notes',
+                  subject,
                   chapterId: primaryChapter,
                   topicId: primaryTopic,
                 })
               }
               className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold sk-btn-subtle cursor-pointer"
             >
-              <BookOpen className="w-3.5 h-3.5 text-[#5B57E8]" />
+              <BookOpen className="w-3.5 h-3.5 text-[var(--sk-pri)]" />
               Notes
             </button>
           )}
@@ -879,27 +943,31 @@ const TopicalPackRow: React.FC<TopicalPackRowProps> = React.memo(({
             onPointerEnter={() => onPrefetchPack(pack, false)}
             onFocus={() => onPrefetchPack(pack, false)}
             onClick={(e) => {
-              triggerSakugaBurst(e, 'sakura');
+              triggerSakugaBurst(e, getActiveSubjectVfxVariant('accent'));
               onOpenPack(pack, false);
             }}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold sk-btn-secondary cursor-pointer"
+            className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold cursor-pointer ${
+              pack.answersUrl ? 'sk-btn-secondary' : 'font-bold sk-btn-primary'
+            }`}
           >
             <Pen className="w-3.5 h-3.5" />
-            Annotate Q
+            {pack.answersUrl ? 'Annotate Q' : 'Annotate PDF'}
           </button>
-          <button
-            type="button"
-            onPointerEnter={() => onPrefetchPack(pack, true)}
-            onFocus={() => onPrefetchPack(pack, true)}
-            onClick={(e) => {
-              triggerSakugaBurst(e, 'indigo', 'OPEN!');
-              onOpenPack(pack, true);
-            }}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold sk-btn-primary cursor-pointer"
-          >
-            <Columns2 className="w-3.5 h-3.5" />
-            Split Q + Ans
-          </button>
+          {pack.answersUrl && (
+            <button
+              type="button"
+              onPointerEnter={() => onPrefetchPack(pack, true)}
+              onFocus={() => onPrefetchPack(pack, true)}
+              onClick={(e) => {
+                triggerSakugaBurst(e, getActiveSubjectVfxVariant('primary'), 'OPEN!');
+                onOpenPack(pack, true);
+              }}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold sk-btn-primary cursor-pointer"
+            >
+              <Columns2 className="w-3.5 h-3.5" />
+              Split Q + Ans
+            </button>
+          )}
           <button
             type="button"
             onClick={() =>
@@ -908,7 +976,7 @@ const TopicalPackRow: React.FC<TopicalPackRowProps> = React.memo(({
             disabled={isDownloading}
             aria-label={`Download ${pack.questionsFilename}`}
             title="Download Questions PDF"
-            className="p-1.5 text-[#5E588C] hover:text-[#1D1A4A] rounded-lg hover:bg-[#F4F3FC] cursor-pointer disabled:opacity-50"
+            className="p-1.5 text-[var(--sk-dim)] hover:text-[var(--sk-ink)] rounded-lg hover:bg-[var(--sk-chip)] cursor-pointer disabled:opacity-50"
           >
             {isDownloading ? (
               <Loader2 className="w-4 h-4 animate-spin" />

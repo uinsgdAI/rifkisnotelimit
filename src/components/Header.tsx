@@ -1,13 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ChevronDown, ClipboardCheck, FileText, Menu, X } from 'lucide-react';
-import type { AppRoute } from '../types/syllabus';
+import type { AppRoute, SubjectCode } from '../types/syllabus';
 import type { PracticeSectionMode } from '../utils/examLogic';
-import { preloadRouteView } from '../utils/routePreloaders';
-import { triggerSakugaBurst } from '../utils/sakugaVfx';
+import { loadSubjectSyllabus, preloadRouteView } from '../utils/routePreloaders';
+import { getActiveSubjectVfxVariant, triggerSakugaBurst } from '../utils/sakugaVfx';
 
 interface HeaderProps {
+  activeSubject: SubjectCode;
   activeView: AppRoute['view'];
   activePracticeSection?: PracticeSectionMode;
+  onSwitchSubject: (subject: SubjectCode) => void;
   onNavigate: (route: AppRoute) => void;
   onGoHome: () => void;
   onOpenFormulaSheet: () => void;
@@ -18,8 +20,10 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
+  activeSubject,
   activeView,
   activePracticeSection,
+  onSwitchSubject,
   onNavigate,
   onGoHome,
   onOpenFormulaSheet,
@@ -56,20 +60,20 @@ export const Header: React.FC<HeaderProps> = ({
 
   const navigateTopical = (mode: PracticeSectionMode) => {
     setTopicalMenuOpen(false);
-    onNavigate({ view: 'practice', mode });
+    onNavigate({ view: 'practice', subject: activeSubject, mode });
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-white border-b-[1.5px] border-[#DCDAF0]">
-      <div className="max-w-[1440px] mx-auto pl-4 pr-14 sm:pl-6 sm:pr-14 h-16 flex items-center justify-between gap-3 lg:gap-8">
+    <header className="sticky top-0 z-30 bg-white border-b-[1.5px] border-[var(--sk-line)]">
+      <div className="max-w-[1440px] mx-auto pl-4 pr-14 sm:pl-6 sm:pr-14 h-16 flex items-center justify-between gap-2.5 lg:gap-6">
         {/* Zone 1: Single text element wordmark */}
         <a
-          href="/"
+          href={activeSubject === '0606' ? '/0606' : '/'}
           onClick={(e) => {
             e.preventDefault();
             onGoHome();
           }}
-          className="font-display text-lg font-extrabold tracking-tight text-[#1D1A4A] whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-[#6D69F2] rounded"
+          className="font-display text-lg font-extrabold tracking-tight text-[var(--sk-ink)] whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-[var(--sk-pri)] rounded"
         >
           Rifki&apos;s Notes
         </a>
@@ -77,15 +81,17 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Zone 2: Concise single-line nav links */}
         <nav
           aria-label="Primary Navigation"
-          className="hidden md:flex items-center gap-3.5 lg:gap-6 text-xs lg:text-sm font-semibold"
+          className="hidden md:flex items-center gap-3 lg:gap-5 text-xs lg:text-sm font-semibold"
         >
           <button
             type="button"
-            onClick={() => onNavigate({ view: 'notes', chapterId: 1, topicId: '1.1' })}
+            onClick={() =>
+              onNavigate({ view: 'notes', subject: activeSubject, chapterId: 1, topicId: '1.1' })
+            }
             className={`py-1.5 whitespace-nowrap shrink-0 border-b-[2.5px] transition-colors cursor-pointer ${
               activeView === 'notes'
-                ? 'border-[#FF5FA8] text-[#1D1A4A]'
-                : 'border-transparent text-[#5E588C] hover:text-[#1D1A4A]'
+                ? 'border-[var(--sk-pri)] text-[var(--sk-ink)]'
+                : 'border-transparent text-[var(--sk-dim)] hover:text-[var(--sk-ink)]'
             }`}
           >
             Study Notes
@@ -94,11 +100,11 @@ export const Header: React.FC<HeaderProps> = ({
             type="button"
             onPointerEnter={() => preloadRouteView('past-papers')}
             onFocus={() => preloadRouteView('past-papers')}
-            onClick={() => onNavigate({ view: 'past-papers' })}
+            onClick={() => onNavigate({ view: 'past-papers', subject: activeSubject })}
             className={`py-1.5 whitespace-nowrap shrink-0 border-b-[2.5px] transition-colors cursor-pointer ${
               activeView === 'past-papers'
-                ? 'border-[#FF5FA8] text-[#1D1A4A]'
-                : 'border-transparent text-[#5E588C] hover:text-[#1D1A4A]'
+                ? 'border-[var(--sk-pri)] text-[var(--sk-ink)]'
+                : 'border-transparent text-[var(--sk-dim)] hover:text-[var(--sk-ink)]'
             }`}
           >
             Past Papers
@@ -132,14 +138,14 @@ export const Header: React.FC<HeaderProps> = ({
               }}
               className={`inline-flex items-center gap-1 py-1.5 whitespace-nowrap shrink-0 border-b-[2.5px] transition-colors cursor-pointer ${
                 activeView === 'practice'
-                  ? 'border-[#FF5FA8] text-[#1D1A4A]'
-                  : 'border-transparent text-[#5E588C] hover:text-[#1D1A4A]'
+                  ? 'border-[var(--sk-pri)] text-[var(--sk-ink)]'
+                  : 'border-transparent text-[var(--sk-dim)] hover:text-[var(--sk-ink)]'
               }`}
             >
               <span>Topical</span>
               <ChevronDown
                 className={`w-3.5 h-3.5 transition-transform duration-150 ${
-                  topicalMenuOpen ? 'rotate-180 text-[#FF5FA8]' : ''
+                  topicalMenuOpen ? 'rotate-180 text-[var(--sk-pri)]' : ''
                 }`}
               />
             </button>
@@ -148,23 +154,25 @@ export const Header: React.FC<HeaderProps> = ({
               <div
                 id="topical-nav-dropdown"
                 data-testid="topical-nav-dropdown"
-                className="absolute left-0 top-full pt-1.5 w-60 z-50"
+                className="absolute left-0 top-full pt-1.5 w-64 z-50"
               >
-                <div className="bg-white border-2 border-[#1D1A4A] rounded-2xl shadow-[4px_5px_0_#B8B3FF] p-1.5 space-y-1">
+                <div className="bg-white border-2 border-[var(--sk-ink)] rounded-2xl shadow-[4px_5px_0_var(--sk-soft)] p-1.5 space-y-1">
                   <button
                     type="button"
                     onClick={() => navigateTopical('practice-test')}
                     className={`w-full text-left px-3 py-2.5 rounded-xl flex items-start gap-2.5 transition-colors cursor-pointer ${
                       activeView === 'practice' && activePracticeSection === 'practice-test'
-                        ? 'bg-[#F4F3FC] text-[#1D1A4A] border border-[#8F8DF7]'
-                        : 'text-[#1D1A4A] hover:bg-[#FAF9FF] border border-transparent'
+                        ? 'bg-[var(--sk-chip)] text-[var(--sk-ink)] border border-[var(--sk-pri-bright)]'
+                        : 'text-[var(--sk-ink)] hover:bg-[var(--sk-surface)] border border-transparent'
                     }`}
                   >
-                    <ClipboardCheck className="w-4 h-4 mt-0.5 text-[#6D69F2] shrink-0" />
+                    <ClipboardCheck className="w-4 h-4 mt-0.5 text-[var(--sk-pri)] shrink-0" />
                     <div>
                       <div className="text-xs font-bold leading-tight">Practice Test</div>
-                      <div className="text-[11px] font-normal text-[#5E588C] mt-0.5">
-                        Timed mocks &amp; chapter drills
+                      <div className="text-[11px] font-normal text-[var(--sk-dim)] mt-0.5">
+                        {activeSubject === '0606'
+                          ? 'Paper 1 Non-Calc & Paper 2 Calc drills'
+                          : 'Timed mocks & chapter drills'}
                       </div>
                     </div>
                   </button>
@@ -174,15 +182,17 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={() => navigateTopical('topical-paper')}
                     className={`w-full text-left px-3 py-2.5 rounded-xl flex items-start gap-2.5 transition-colors cursor-pointer ${
                       activeView === 'practice' && activePracticeSection === 'topical-paper'
-                        ? 'bg-[#FFF5FA] text-[#1D1A4A] border border-[#FF5FA8]'
-                        : 'text-[#1D1A4A] hover:bg-[#FAF9FF] border border-transparent'
+                        ? 'bg-[var(--sk-acc-soft)] text-[var(--sk-ink)] border border-[var(--sk-acc)]'
+                        : 'text-[var(--sk-ink)] hover:bg-[var(--sk-surface)] border border-transparent'
                     }`}
                   >
-                    <FileText className="w-4 h-4 mt-0.5 text-[#FF5FA8] shrink-0" />
+                    <FileText className="w-4 h-4 mt-0.5 text-[var(--sk-acc)] shrink-0" />
                     <div>
                       <div className="text-xs font-bold leading-tight">Topical Paper</div>
-                      <div className="text-[11px] font-normal text-[#5E588C] mt-0.5">
-                        78 annotatable Q + MS PDFs
+                      <div className="text-[11px] font-normal text-[var(--sk-dim)] mt-0.5">
+                        {activeSubject === '0606'
+                          ? '14 annotatable 0606 topical PDFs'
+                          : '78 annotatable Q + MS PDFs'}
                       </div>
                     </div>
                   </button>
@@ -196,7 +206,7 @@ export const Header: React.FC<HeaderProps> = ({
             onPointerEnter={() => preloadRouteView('graph')}
             onFocus={() => preloadRouteView('graph')}
             onClick={onOpenGraphTool}
-            className="py-1.5 whitespace-nowrap shrink-0 border-b-[2.5px] border-transparent text-[#5E588C] hover:text-[#1D1A4A] transition-colors cursor-pointer"
+            className="py-1.5 whitespace-nowrap shrink-0 border-b-[2.5px] border-transparent text-[var(--sk-dim)] hover:text-[var(--sk-ink)] transition-colors cursor-pointer"
           >
             Graph Tool
           </button>
@@ -205,23 +215,55 @@ export const Header: React.FC<HeaderProps> = ({
             onPointerEnter={() => preloadRouteView('formula')}
             onFocus={() => preloadRouteView('formula')}
             onClick={onOpenFormulaSheet}
-            className="py-1.5 whitespace-nowrap shrink-0 border-b-[2.5px] border-transparent text-[#5E588C] hover:text-[#1D1A4A] transition-colors cursor-pointer"
+            className="py-1.5 whitespace-nowrap shrink-0 border-b-[2.5px] border-transparent text-[var(--sk-dim)] hover:text-[var(--sk-ink)] transition-colors cursor-pointer"
           >
             Formula Sheet
           </button>
         </nav>
 
-        {/* Zone 3: 1 primary action + mobile menu trigger */}
-        <div className="flex items-center gap-3 shrink-0">
+        {/* Zone 3: Subject switcher + 1 primary action + mobile menu trigger */}
+        <div className="flex items-center gap-2 lg:gap-3 shrink-0">
+          <div
+            role="group"
+            aria-label="Select Cambridge IGCSE subject"
+            data-testid="subject-switcher"
+            className="inline-flex items-center gap-0.5 sk-tabs shrink-0"
+          >
+            {(['0580', '0606'] as const).map((code) => (
+              <button
+                key={code}
+                type="button"
+                data-testid={`subject-btn-${code}`}
+                data-active={activeSubject === code}
+                aria-pressed={activeSubject === code}
+                onPointerEnter={() => void loadSubjectSyllabus(code).catch(() => undefined)}
+                onFocus={() => void loadSubjectSyllabus(code).catch(() => undefined)}
+                onClick={() => {
+                  if (activeSubject !== code) {
+                    onSwitchSubject(code);
+                  }
+                }}
+                title={
+                  code === '0580'
+                    ? 'Cambridge IGCSE Mathematics (0580) · Blue Theme'
+                    : 'Cambridge IGCSE Additional Mathematics (0606) · Red Theme'
+                }
+                className="px-2 sm:px-2.5 py-1 text-[11px] lg:text-xs font-mono font-bold cursor-pointer whitespace-nowrap shrink-0 sk-tab"
+              >
+                {code}
+              </button>
+            ))}
+          </div>
+
           <button
             type="button"
             onPointerEnter={() => preloadRouteView('practice')}
             onFocus={() => preloadRouteView('practice')}
             onClick={(e) => {
-              triggerSakugaBurst(e, 'indigo', 'GO!');
+              triggerSakugaBurst(e, getActiveSubjectVfxVariant('primary'), 'GO!');
               onStartQuickMock();
             }}
-            className="hidden sm:inline-flex items-center justify-center px-4 py-2 text-xs font-bold sk-btn-primary whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1D1A4A]"
+            className="hidden lg:inline-flex items-center justify-center px-3.5 py-2 text-xs font-bold sk-btn-primary whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--sk-ink)]"
           >
             Start Mock Exam
           </button>
@@ -230,7 +272,7 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={onToggleMobileMenu}
             aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
             aria-expanded={mobileMenuOpen}
-            className="md:hidden p-2 rounded-xl border-[1.5px] border-[#DCDAF0] text-[#1D1A4A] hover:bg-[#F4F3FC] cursor-pointer"
+            className="md:hidden p-2 rounded-xl border-[1.5px] border-[var(--sk-line)] text-[var(--sk-ink)] hover:bg-[var(--sk-chip)] cursor-pointer"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -238,15 +280,47 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {mobileMenuOpen && (
-        <div className="md:hidden border-t-[1.5px] border-[#DCDAF0] bg-white px-4 py-3 space-y-1">
+        <div className="md:hidden border-t-[1.5px] border-[var(--sk-line)] bg-white px-4 py-3 space-y-1">
+          <div className="pb-2 mb-1 border-b border-[var(--sk-line)]">
+            <div className="px-1 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[var(--sk-dim)]">
+              Syllabus Subject
+            </div>
+            <div className="grid grid-cols-2 gap-1.5 sk-tabs">
+              <button
+                type="button"
+                data-active={activeSubject === '0580'}
+                onClick={() => {
+                  if (activeSubject !== '0580') onSwitchSubject('0580');
+                  onToggleMobileMenu();
+                }}
+                className="px-2.5 py-1.5 text-xs font-bold sk-tab cursor-pointer whitespace-nowrap"
+              >
+                0580 Maths
+              </button>
+              <button
+                type="button"
+                data-active={activeSubject === '0606'}
+                onClick={() => {
+                  if (activeSubject !== '0606') onSwitchSubject('0606');
+                  onToggleMobileMenu();
+                }}
+                className="px-2.5 py-1.5 text-xs font-bold sk-tab cursor-pointer whitespace-nowrap"
+              >
+                0606 Add Maths
+              </button>
+            </div>
+          </div>
+
           <button
             type="button"
             onClick={() => {
-              onNavigate({ view: 'notes', chapterId: 1, topicId: '1.1' });
+              onNavigate({ view: 'notes', subject: activeSubject, chapterId: 1, topicId: '1.1' });
               onToggleMobileMenu();
             }}
             className={`block w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl cursor-pointer ${
-              activeView === 'notes' ? 'bg-[#F4F3FC] text-[#1D1A4A]' : 'text-[#393469] hover:bg-[#F4F3FC]'
+              activeView === 'notes'
+                ? 'bg-[var(--sk-chip)] text-[var(--sk-ink)]'
+                : 'text-[var(--sk-body)] hover:bg-[var(--sk-chip)]'
             }`}
           >
             Study Notes
@@ -254,31 +328,33 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={() => {
-              onNavigate({ view: 'past-papers' });
+              onNavigate({ view: 'past-papers', subject: activeSubject });
               onToggleMobileMenu();
             }}
             className={`block w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl cursor-pointer ${
-              activeView === 'past-papers' ? 'bg-[#F4F3FC] text-[#1D1A4A]' : 'text-[#393469] hover:bg-[#F4F3FC]'
+              activeView === 'past-papers'
+                ? 'bg-[var(--sk-chip)] text-[var(--sk-ink)]'
+                : 'text-[var(--sk-body)] hover:bg-[var(--sk-chip)]'
             }`}
           >
             Past Papers
           </button>
 
           <div className="pt-1 pb-0.5">
-            <div className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[#5E588C]">
+            <div className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[var(--sk-dim)]">
               Topical
             </div>
             <div className="pl-2 space-y-1">
               <button
                 type="button"
                 onClick={() => {
-                  onNavigate({ view: 'practice', mode: 'practice-test' });
+                  onNavigate({ view: 'practice', subject: activeSubject, mode: 'practice-test' });
                   onToggleMobileMenu();
                 }}
                 className={`block w-full text-left px-3 py-2 text-sm font-semibold rounded-xl cursor-pointer ${
                   activeView === 'practice' && activePracticeSection === 'practice-test'
-                    ? 'bg-[#F4F3FC] text-[#1D1A4A]'
-                    : 'text-[#393469] hover:bg-[#F4F3FC]'
+                    ? 'bg-[var(--sk-chip)] text-[var(--sk-ink)]'
+                    : 'text-[var(--sk-body)] hover:bg-[var(--sk-chip)]'
                 }`}
               >
                 Practice Test
@@ -286,13 +362,13 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  onNavigate({ view: 'practice', mode: 'topical-paper' });
+                  onNavigate({ view: 'practice', subject: activeSubject, mode: 'topical-paper' });
                   onToggleMobileMenu();
                 }}
                 className={`block w-full text-left px-3 py-2 text-sm font-semibold rounded-xl cursor-pointer ${
                   activeView === 'practice' && activePracticeSection === 'topical-paper'
-                    ? 'bg-[#FFF5FA] text-[#1D1A4A]'
-                    : 'text-[#393469] hover:bg-[#F4F3FC]'
+                    ? 'bg-[var(--sk-acc-soft)] text-[var(--sk-ink)]'
+                    : 'text-[var(--sk-body)] hover:bg-[var(--sk-chip)]'
                 }`}
               >
                 Topical Paper
@@ -306,7 +382,7 @@ export const Header: React.FC<HeaderProps> = ({
               onOpenGraphTool();
               onToggleMobileMenu();
             }}
-            className="block w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl text-[#393469] hover:bg-[#F4F3FC] cursor-pointer"
+            className="block w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl text-[var(--sk-body)] hover:bg-[var(--sk-chip)] cursor-pointer"
           >
             Graph Tool
           </button>
@@ -316,14 +392,14 @@ export const Header: React.FC<HeaderProps> = ({
               onOpenFormulaSheet();
               onToggleMobileMenu();
             }}
-            className="block w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl text-[#393469] hover:bg-[#F4F3FC] cursor-pointer"
+            className="block w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl text-[var(--sk-body)] hover:bg-[var(--sk-chip)] cursor-pointer"
           >
             Formula Sheet
           </button>
           <button
             type="button"
             onClick={(e) => {
-              triggerSakugaBurst(e, 'indigo', 'GO!');
+              triggerSakugaBurst(e, getActiveSubjectVfxVariant('primary'), 'GO!');
               onStartQuickMock();
               onToggleMobileMenu();
             }}

@@ -146,7 +146,22 @@ export interface PastPaperFile {
   sessionSlug: string;
 }
 
+export type SubjectCode = '0580' | '0606';
+
+export interface TopicalPaperPack {
+  id: string;
+  order: number;
+  title: string;
+  chapterId: number;
+  topicIds: string[];
+  paperMode: 'Non-Calc' | 'Calc' | 'Mixed';
+  questionsUrl: string;
+  answersUrl?: string;
+  questionsFilename: string;
+  answersFilename?: string;
+}
+
 export type AppRoute =
-  | { view: 'notes'; chapterId: number; topicId: string }
-  | { view: 'past-papers'; sessionSlug?: string; paperFilename?: string }
-  | { view: 'practice'; mode?: string; topicId?: string; topicalPackId?: string };
+  | { view: 'notes'; subject?: SubjectCode; chapterId: number; topicId: string }
+  | { view: 'past-papers'; subject?: SubjectCode; sessionSlug?: string; paperFilename?: string }
+  | { view: 'practice'; subject?: SubjectCode; mode?: string; topicId?: string; topicalPackId?: string };

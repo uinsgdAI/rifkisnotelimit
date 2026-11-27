@@ -1,24 +1,44 @@
-import type { PastPaperFile, PastPaperSession } from '../types/syllabus';
+import type { PastPaperFile, PastPaperSession, SubjectCode } from '../types/syllabus';
 import { parsePapaCambridgeFilename } from './examLogic';
 
 export const PAPACAMBRIDGE_BASE = 'https://pastpapers.papacambridge.com';
-export const SUBJECT_PATH = '/papers/caie/igcse-mathematics-0580';
+export const SUBJECT_PATHS: Record<SubjectCode, string> = {
+  '0580': '/papers/caie/igcse-mathematics-0580',
+  '0606': '/papers/caie/igcse-mathematics-additional-0606',
+};
+export const SUBJECT_PATH = SUBJECT_PATHS['0580'];
 
-function buildFallbackSessions(): PastPaperSession[] {
+const SECONDARY_SUBJECT_PATHS: Partial<Record<SubjectCode, string[]>> = {
+  '0606': ['/papers/caie/igcse-additional-mathematics-0606'],
+};
+
+function buildFallbackSessions(subject: SubjectCode = '0580'): PastPaperSession[] {
+  const subjectPath = SUBJECT_PATHS[subject];
   const list: PastPaperSession[] = [
-    { slug: '2026-may-june', label: 'May / June 2026', year: 2026, series: 'May/June', url: `${PAPACAMBRIDGE_BASE}${SUBJECT_PATH}-2026-may-june` },
-    { slug: '2026-march', label: 'Feb / March 2026', year: 2026, series: 'March', url: `${PAPACAMBRIDGE_BASE}${SUBJECT_PATH}-2026-march` },
+    {
+      slug: '2026-may-june',
+      label: 'May / June 2026',
+      year: 2026,
+      series: 'May/June',
+      url: `${PAPACAMBRIDGE_BASE}${subjectPath}-2026-may-june`,
+    },
+    {
+      slug: '2026-march',
+      label: 'Feb / March 2026',
+      year: 2026,
+      series: 'March',
+      url: `${PAPACAMBRIDGE_BASE}${subjectPath}-2026-march`,
+    },
   ];
 
   for (let year = 2025; year >= 2002; year -= 1) {
     if (year === 2002) {
-      // Oct/Nov 2002 is the earliest session available in PapaCambridge's 0580 archive
       list.push({
         slug: '2002-nov',
         label: 'Oct / Nov 2002',
         year: 2002,
         series: 'Oct/Nov',
-        url: `${PAPACAMBRIDGE_BASE}${SUBJECT_PATH}-2002-nov`,
+        url: `${PAPACAMBRIDGE_BASE}${subjectPath}-2002-nov`,
       });
       continue;
     }
@@ -43,14 +63,14 @@ function buildFallbackSessions(): PastPaperSession[] {
       label: `Oct / Nov ${year}`,
       year,
       series: 'Oct/Nov',
-      url: `${PAPACAMBRIDGE_BASE}${SUBJECT_PATH}-${novSlug}`,
+      url: `${PAPACAMBRIDGE_BASE}${subjectPath}-${novSlug}`,
     });
     list.push({
       slug: junSlug,
       label: `May / June ${year}`,
       year,
       series: 'May/June',
-      url: `${PAPACAMBRIDGE_BASE}${SUBJECT_PATH}-${junSlug}`,
+      url: `${PAPACAMBRIDGE_BASE}${subjectPath}-${junSlug}`,
     });
     if (year >= 2016) {
       list.push({
@@ -58,7 +78,7 @@ function buildFallbackSessions(): PastPaperSession[] {
         label: `Feb / March ${year}`,
         year,
         series: 'March',
-        url: `${PAPACAMBRIDGE_BASE}${SUBJECT_PATH}-${marSlug}`,
+        url: `${PAPACAMBRIDGE_BASE}${subjectPath}-${marSlug}`,
       });
     }
   }
@@ -66,9 +86,17 @@ function buildFallbackSessions(): PastPaperSession[] {
   return list;
 }
 
-export const FALLBACK_SESSIONS: PastPaperSession[] = buildFallbackSessions();
+export const FALLBACK_SESSIONS: PastPaperSession[] = buildFallbackSessions('0580');
+export const FALLBACK_SESSIONS_0606: PastPaperSession[] = buildFallbackSessions('0606');
 
-export function formatSessionMetadata(slug: string): PastPaperSession {
+export function getFallbackSessions(subject: SubjectCode = '0580'): PastPaperSession[] {
+  return subject === '0606' ? FALLBACK_SESSIONS_0606 : FALLBACK_SESSIONS;
+}
+
+export function formatSessionMetadata(
+  slug: string,
+  subject: SubjectCode = '0580'
+): PastPaperSession {
   const yearMatch = slug.match(/(\d{4})/);
   const year = yearMatch ? Number(yearMatch[1]) : 2024;
   let series: PastPaperSession['series'] = 'May/June';
@@ -96,11 +124,14 @@ export function formatSessionMetadata(slug: string): PastPaperSession {
     label,
     year,
     series,
-    url: `${PAPACAMBRIDGE_BASE}${SUBJECT_PATH}-${slug}`,
+    url: `${PAPACAMBRIDGE_BASE}${SUBJECT_PATHS[subject]}-${slug}`,
   };
 }
 
-export function generateSessionPaperFallback(slug: string): PastPaperFile[] {
+export function generateSessionPaperFallback(
+  slug: string,
+  subject: SubjectCode = '0580'
+): PastPaperFile[] {
   const yearMatch = slug.match(/(\d{4})/);
   if (!yearMatch) return [];
   const year = Number(yearMatch[1]);
@@ -111,7 +142,7 @@ export function generateSessionPaperFallback(slug: string): PastPaperFile[] {
       : slug.includes('oct-nov') || /(?:^|-)nov(?:ember)?$/.test(slug)
         ? 'w'
         : 's';
-  const papers = ['1', '2', '3', '4'];
+  const papers = subject === '0606' ? ['1', '2'] : ['1', '2', '3', '4'];
   const files: PastPaperFile[] = [];
 
   // Cambridge introduced numbered zone variants in Oct/Nov 2009; earlier sessions (2002 – May/June 2009) used _1.._4
@@ -120,7 +151,7 @@ export function generateSessionPaperFallback(slug: string): PastPaperFile[] {
   if (isSingleVariantEra) {
     for (const p of papers) {
       for (const kind of ['qp', 'ms']) {
-        const fn = `0580_${code}${yy}_${kind}_${p}.pdf`;
+        const fn = `${subject}_${code}${yy}_${kind}_${p}.pdf`;
         files.push(
           parsePapaCambridgeFilename(
             fn,
@@ -135,7 +166,7 @@ export function generateSessionPaperFallback(slug: string): PastPaperFile[] {
     for (const p of papers) {
       for (const v of variants) {
         for (const kind of ['qp', 'ms']) {
-          const fn = `0580_${code}${yy}_${kind}_${p}${v}.pdf`;
+          const fn = `${subject}_${code}${yy}_${kind}_${p}${v}.pdf`;
           files.push(
             parsePapaCambridgeFilename(
               fn,
@@ -149,28 +180,36 @@ export function generateSessionPaperFallback(slug: string): PastPaperFile[] {
   }
 
   if (year >= 2008) {
+    const gtFn = `${subject}_${code}${yy}_gt.pdf`;
     files.push(
       parsePapaCambridgeFilename(
-        `0580_${code}${yy}_gt.pdf`,
-        `${PAPACAMBRIDGE_BASE}/directories/CAIE/CAIE-pastpapers/upload/0580_${code}${yy}_gt.pdf`,
+        gtFn,
+        `${PAPACAMBRIDGE_BASE}/directories/CAIE/CAIE-pastpapers/upload/${gtFn}`,
         slug
       )
     );
   }
 
+  const erFn = `${subject}_${code}${yy}_er.pdf`;
   files.push(
     parsePapaCambridgeFilename(
-      `0580_${code}${yy}_er.pdf`,
-      `${PAPACAMBRIDGE_BASE}/directories/CAIE/CAIE-pastpapers/upload/0580_${code}${yy}_er.pdf`,
+      erFn,
+      `${PAPACAMBRIDGE_BASE}/directories/CAIE/CAIE-pastpapers/upload/${erFn}`,
       slug
     )
   );
   return files;
 }
 
-export function parseSessionsFromHtml(html: string): PastPaperSession[] {
+export function parseSessionsFromHtml(
+  html: string,
+  subject: SubjectCode = '0580'
+): PastPaperSession[] {
   const regex =
-    /href="(?:https:\/\/pastpapers\.papacambridge\.com\/)?papers\/caie\/igcse-mathematics-0580-([a-z0-9-]+)"/gi;
+    subject === '0606'
+      ? /href="(?:https:\/\/pastpapers\.papacambridge\.com)?\/?(?:papers\/caie|directories\/CAIE\/CAIE\/igcse)\/(?:igcse-mathematics-additional-0606|igcse-additional-mathematics-0606|mathematics-additional-0606)-([a-z0-9-]+)"/gi
+      : /href="(?:https:\/\/pastpapers\.papacambridge\.com)?\/?papers\/caie\/igcse-mathematics-0580-([a-z0-9-]+)"/gi;
+
   const seenKeys = new Set<string>();
   const sessions: PastPaperSession[] = [];
 
@@ -184,7 +223,7 @@ export function parseSessionsFromHtml(html: string): PastPaperSession[] {
     ) {
       continue;
     }
-    const meta = formatSessionMetadata(slug);
+    const meta = formatSessionMetadata(slug, subject);
     const canonicalKey = `${meta.year}-${meta.series}`;
     if (!seenKeys.has(canonicalKey)) {
       seenKeys.add(canonicalKey);
@@ -195,17 +234,23 @@ export function parseSessionsFromHtml(html: string): PastPaperSession[] {
   return sessions;
 }
 
-export function parsePapersFromHtml(html: string, sessionSlug: string): PastPaperFile[] {
+export function parsePapersFromHtml(
+  html: string,
+  sessionSlug: string,
+  subject: SubjectCode = '0580'
+): PastPaperFile[] {
   const pdfRegex =
-    /(?:files=|href=")(https:\/\/pastpapers\.papacambridge\.com\/[^"&]+\.pdf)/gi;
+    /(?:files=|href=")(https:\/\/pastpapers\.papacambridge\.com\/[^"&]+\.pdf|\/directories\/CAIE\/[^"&]+\.pdf)/gi;
   const seen = new Set<string>();
   const files: PastPaperFile[] = [];
+  const prefixPattern = subject === '0606' ? /^0606[_-]/i : /^0580[_-]/i;
 
   let match: RegExpExecArray | null;
   while ((match = pdfRegex.exec(html)) !== null) {
-    const pdfUrl = match[1];
+    const rawUrl = match[1];
+    const pdfUrl = rawUrl.startsWith('/') ? `${PAPACAMBRIDGE_BASE}${rawUrl}` : rawUrl;
     const filename = pdfUrl.split('/').pop() || '';
-    if (!/^0580[_-]/i.test(filename)) {
+    if (!prefixPattern.test(filename)) {
       continue;
     }
     if (!seen.has(pdfUrl)) {
@@ -220,9 +265,12 @@ export function parsePapersFromHtml(html: string, sessionSlug: string): PastPape
 export function isAllowedPapaCambridgePdfUrl(rawUrl: string): URL | null {
   try {
     const parsed = new URL(rawUrl);
+    const host = parsed.hostname.toLowerCase();
     if (
       parsed.protocol !== 'https:' ||
-      parsed.hostname !== 'pastpapers.papacambridge.com' ||
+      Boolean(parsed.username || parsed.password) ||
+      (host !== 'pastpapers.papacambridge.com' && host !== 'www.pastpapers.papacambridge.com') ||
+      parsed.pathname.includes('..') ||
       !parsed.pathname.toLowerCase().endsWith('.pdf')
     ) {
       return null;
@@ -244,13 +292,27 @@ export function isAllowedPdfProxyUrl(rawUrl: string): URL | null {
   try {
     const parsed = new URL(rawUrl);
     const host = parsed.hostname.toLowerCase();
+    const decodedPath = decodeURIComponent(parsed.pathname).toLowerCase();
     if (
       parsed.protocol !== 'https:' ||
+      Boolean(parsed.username || parsed.password) ||
       !ALLOWED_PDF_PROXY_HOSTS.has(host) ||
-      !parsed.pathname.toLowerCase().endsWith('.pdf')
+      decodedPath.includes('..') ||
+      !decodedPath.endsWith('.pdf')
     ) {
       return null;
     }
+
+    // Strict archive path checks per domain while supporting both 0580 and 0606 PDFs
+    if (host.includes('papacambridge.com')) {
+      const validPapaPath =
+        decodedPath.startsWith('/directories/caie/') ||
+        decodedPath.startsWith('/papers/caie/') ||
+        /(?:^|\/)(?:0580|0606)[_-][^/]+\.pdf$/.test(decodedPath);
+      if (!validPapaPath) return null;
+    }
+
+    parsed.hash = '';
     return parsed;
   } catch {
     return null;
@@ -337,102 +399,124 @@ export function resolvePdfIframeUrl(
   return buildGoogleDocsViewerUrl(pdfUrl);
 }
 
-const sessionCache: { data: PastPaperSession[]; expiresAt: number } = {
-  data: [],
-  expiresAt: 0,
-};
-
+const sessionCache = new Map<SubjectCode, { data: PastPaperSession[]; expiresAt: number }>();
 const papersCache = new Map<string, { data: PastPaperFile[]; expiresAt: number }>();
 
-export async function fetchPapaCambridgeSessions(): Promise<{
+export async function fetchPapaCambridgeSessions(
+  subject: SubjectCode = '0580',
+  fetchImpl: typeof fetch = fetch
+): Promise<{
   sessions: PastPaperSession[];
   source: 'live' | 'fallback';
 }> {
-  if (sessionCache.data.length > 0 && Date.now() < sessionCache.expiresAt) {
-    return { sessions: sessionCache.data, source: 'live' };
+  const cached = fetchImpl === fetch ? sessionCache.get(subject) : undefined;
+  if (cached && cached.data.length > 0 && Date.now() < cached.expiresAt) {
+    return { sessions: cached.data, source: 'live' };
   }
 
-  try {
-    const resp = await fetch(`${PAPACAMBRIDGE_BASE}${SUBJECT_PATH}`, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; Cambridge0580StudyAssistant/1.0)',
-      },
-      signal: AbortSignal.timeout(4500),
-    });
+  const candidatePaths = [
+    SUBJECT_PATHS[subject],
+    ...(SECONDARY_SUBJECT_PATHS[subject] || []),
+  ];
 
-    if (!resp.ok) {
-      throw new Error(`HTTP ${resp.status}`);
-    }
-
-    const html = await resp.text();
-    const sessions = parseSessionsFromHtml(html);
-
-    if (sessions.length > 0) {
-      const existingKeys = new Set(sessions.map((s) => `${s.year}-${s.series}`));
-      const seriesRank: Record<PastPaperSession['series'], number> = {
-        'Oct/Nov': 3,
-        'May/June': 2,
-        March: 1,
-        Specimen: 0,
-        Topical: -1,
-      };
-      const merged = [
-        ...sessions,
-        ...FALLBACK_SESSIONS.filter((fs) => !existingKeys.has(`${fs.year}-${fs.series}`)),
-      ].sort((a, b) => {
-        if (b.year !== a.year) return b.year - a.year;
-        return (seriesRank[b.series] ?? 0) - (seriesRank[a.series] ?? 0);
+  for (const subjectPath of candidatePaths) {
+    try {
+      const resp = await fetchImpl(`${PAPACAMBRIDGE_BASE}${subjectPath}`, {
+        headers: {
+          'User-Agent': `Mozilla/5.0 (compatible; Cambridge${subject}StudyAssistant/1.0)`,
+        },
+        signal: AbortSignal.timeout(4500),
       });
-      sessionCache.data = merged;
-      sessionCache.expiresAt = Date.now() + 1000 * 60 * 30;
-      return { sessions: merged, source: 'live' };
+
+      if (!resp.ok) {
+        continue;
+      }
+
+      const html = await resp.text();
+      const sessions = parseSessionsFromHtml(html, subject);
+
+      if (sessions.length > 0) {
+        const fallbackList = getFallbackSessions(subject);
+        const existingKeys = new Set(sessions.map((s) => `${s.year}-${s.series}`));
+        const seriesRank: Record<PastPaperSession['series'], number> = {
+          'Oct/Nov': 3,
+          'May/June': 2,
+          March: 1,
+          Specimen: 0,
+          Topical: -1,
+        };
+        const merged = [
+          ...sessions,
+          ...fallbackList.filter((fs) => !existingKeys.has(`${fs.year}-${fs.series}`)),
+        ].sort((a, b) => {
+          if (b.year !== a.year) return b.year - a.year;
+          return (seriesRank[b.series] ?? 0) - (seriesRank[a.series] ?? 0);
+        });
+        sessionCache.set(subject, {
+          data: merged,
+          expiresAt: Date.now() + 1000 * 60 * 30,
+        });
+        return { sessions: merged, source: 'live' };
+      }
+    } catch {
+      // Try next candidate path or fall back cleanly
     }
-  } catch {
-    // Graceful fallback below
   }
 
-  return { sessions: FALLBACK_SESSIONS, source: 'fallback' };
+  return { sessions: getFallbackSessions(subject), source: 'fallback' };
 }
 
-export async function fetchPapaCambridgePapers(slug: string): Promise<{
+export async function fetchPapaCambridgePapers(
+  slug: string,
+  subject: SubjectCode = '0580',
+  fetchImpl: typeof fetch = fetch
+): Promise<{
   papers: PastPaperFile[];
   source: 'live' | 'fallback';
 }> {
   const safeSlug = slug.replace(/[^a-z0-9-]/gi, '');
-  const cached = papersCache.get(safeSlug);
+  const cacheKey = `${subject}:${safeSlug}`;
+  const cached = fetchImpl === fetch ? papersCache.get(cacheKey) : undefined;
   if (cached && Date.now() < cached.expiresAt) {
     return { papers: cached.data, source: 'live' };
   }
 
-  try {
-    const targetUrl = `${PAPACAMBRIDGE_BASE}${SUBJECT_PATH}-${safeSlug}`;
-    const resp = await fetch(targetUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; Cambridge0580StudyAssistant/1.0)',
-      },
-      signal: AbortSignal.timeout(4500),
-    });
+  const candidatePaths = [
+    SUBJECT_PATHS[subject],
+    ...(SECONDARY_SUBJECT_PATHS[subject] || []),
+  ];
 
-    if (!resp.ok) {
-      throw new Error(`HTTP ${resp.status}`);
-    }
-
-    const html = await resp.text();
-    const files = parsePapersFromHtml(html, safeSlug);
-
-    if (files.length > 0) {
-      papersCache.set(safeSlug, {
-        data: files,
-        expiresAt: Date.now() + 1000 * 60 * 30,
+  for (const subjectPath of candidatePaths) {
+    try {
+      const targetUrl = `${PAPACAMBRIDGE_BASE}${subjectPath}-${safeSlug}`;
+      const resp = await fetchImpl(targetUrl, {
+        headers: {
+          'User-Agent': `Mozilla/5.0 (compatible; Cambridge${subject}StudyAssistant/1.0)`,
+        },
+        signal: AbortSignal.timeout(4500),
       });
-      return { papers: files, source: 'live' };
+
+      if (!resp.ok) {
+        continue;
+      }
+
+      const html = await resp.text();
+      const files = parsePapersFromHtml(html, safeSlug, subject);
+
+      if (files.length > 0) {
+        papersCache.set(cacheKey, {
+          data: files,
+          expiresAt: Date.now() + 1000 * 60 * 30,
+        });
+        return { papers: files, source: 'live' };
+      }
+    } catch {
+      // Try next candidate path or fall back cleanly
     }
-  } catch {
-    // Graceful fallback below
   }
 
   return {
-    papers: generateSessionPaperFallback(safeSlug),
+    papers: generateSessionPaperFallback(safeSlug, subject),
     source: 'fallback',
   };
 }

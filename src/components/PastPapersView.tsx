@@ -14,12 +14,17 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import { ALL_SUBTOPICS_0580, SYLLABUS_0580 } from '../data/syllabus0580';
-import type { AppRoute, PastPaperFile, PastPaperSession } from '../types/syllabus';
+import type {
+  AppRoute,
+  PastPaperFile,
+  PastPaperSession,
+  SubjectCode,
+  SyllabusChapter,
+} from '../types/syllabus';
 import { findMatchingSyllabusTopics } from '../utils/examLogic';
 import {
-  FALLBACK_SESSIONS,
   generateSessionPaperFallback,
+  getFallbackSessions,
   resolvePdfIframeUrl,
 } from '../utils/papacambridge';
 import {
@@ -31,12 +36,14 @@ import { setBackgroundWarmupPaused } from '../utils/backgroundPreloader';
 import { warmSharedPdfWorker } from '../utils/pdfJsCache';
 import { MathText } from './MathText';
 import { PdfAnnotator } from './PdfAnnotator';
-import { triggerSakugaBurst } from '../utils/sakugaVfx';
+import { getActiveSubjectVfxVariant, triggerSakugaBurst } from '../utils/sakugaVfx';
 
-let cachedSessionsMemory: PastPaperSession[] | null = null;
-const cachedPapersBySessionMemory = new Map<string, PastPaperFile[]>();
+const cachedSessionsBySubject = new Map<SubjectCode, PastPaperSession[]>();
+const cachedPapersByKey = new Map<string, PastPaperFile[]>();
 
 interface PastPapersViewProps {
+  subject: SubjectCode;
+  syllabus: SyllabusChapter[];
   initialSessionSlug?: string;
   initialPaperFilename?: string;
   weakTopicIds: string[];
@@ -66,7 +73,7 @@ const DOC_TYPE_ORDER: Record<PastPaperFile['docType'], number> = {
   OTHER: 5,
 };
 
-const QUICK_TROUBLE_TOPICS = [
+const QUICK_TROUBLE_TOPICS_0580 = [
   { label: 'Polygon angles', query: 'polygon' },
   { label: 'Statistics & averages', query: 'statistics' },
   { label: 'Histograms', query: 'histogram' },
@@ -76,7 +83,19 @@ const QUICK_TROUBLE_TOPICS = [
   { label: 'Bearings', query: 'bearing' },
 ];
 
+const QUICK_TROUBLE_TOPICS_0606 = [
+  { label: 'Functions', query: 'functions' },
+  { label: 'Quadratic functions', query: 'quadratic' },
+  { label: 'Logarithms & exponentials', query: 'logarithmic' },
+  { label: 'Circular measure', query: 'circular' },
+  { label: 'Trigonometry', query: 'trigonometry' },
+  { label: 'Permutations & combinations', query: 'permutations' },
+  { label: 'Calculus', query: 'calculus' },
+];
+
 export const PastPapersView: React.FC<PastPapersViewProps> = ({
+  subject,
+  syllabus,
   initialSessionSlug,
   initialPaperFilename,
   weakTopicIds,
@@ -84,15 +103,23 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
   onClearWeakTopic,
   onNavigate,
 }) => {
+  const allSubtopics = useMemo(
+    () => syllabus.flatMap((c) => c.subtopics),
+    [syllabus]
+  );
+
   const [sessions, setSessions] = useState<PastPaperSession[]>(
-    () => cachedSessionsMemory || FALLBACK_SESSIONS
+    () => cachedSessionsBySubject.get(subject) || getFallbackSessions(subject)
   );
   const [selectedSession, setSelectedSession] = useState<string>(
     initialSessionSlug || '2024-may-june'
   );
   const [papers, setPapers] = useState<PastPaperFile[]>(() => {
     const slug = initialSessionSlug || '2024-may-june';
-    return cachedPapersBySessionMemory.get(slug) || generateSessionPaperFallback(slug);
+    return (
+      cachedPapersByKey.get(`${subject}:${slug}`) ||
+      generateSessionPaperFallback(slug, subject)
+    );
   });
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [loadingPapers, setLoadingPapers] = useState(false);
@@ -110,6 +137,16 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
   const [topicQuery, setTopicQuery] = useState('');
   const [isViewerFullscreen, setIsViewerFullscreen] = useState(false);
   const enteredNativeViewerFsRef = useRef(false);
+
+  useEffect(() => {
+    setActivePrimaryPdf(null);
+    setActiveSecondaryPdf(null);
+    setLocalPdf(null);
+    setPaperFilter('all');
+    setDocFilter('all');
+    setPaperSearchQuery('');
+    setTopicQuery('');
+  }, [subject]);
 
   useEffect(() => {
     setBackgroundWarmupPaused(true);
@@ -218,20 +255,25 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
   }, [localPdf]);
 
   useEffect(() => {
-    if (cachedSessionsMemory) {
-      setSessions(cachedSessionsMemory);
+    const cachedList = cachedSessionsBySubject.get(subject);
+    if (cachedList) {
+      setSessions(cachedList);
       return;
     }
+    const fallbackList = getFallbackSessions(subject);
+    setSessions(fallbackList);
     let cancelled = false;
     setLoadingSessions(true);
-    fetchJsonSafe<{ sessions?: PastPaperSession[] }>('/api/papacambridge/sessions')
+    fetchJsonSafe<{ sessions?: PastPaperSession[] }>(
+      `/api/papacambridge/sessions?subject=${encodeURIComponent(subject)}`
+    )
       .then((data) => {
         if (cancelled) return;
         const list =
           Array.isArray(data.sessions) && data.sessions.length > 0
             ? data.sessions
-            : FALLBACK_SESSIONS;
-        cachedSessionsMemory = list;
+            : fallbackList;
+        cachedSessionsBySubject.set(subject, list);
         setSessions(list);
         setApiProxyAvailable(true);
         if (!initialSessionSlug && list.length > 0) {
@@ -244,7 +286,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
         if (cancelled) return;
         setApiProxyAvailable(false);
         setViewerMode((prev) => (prev === 'proxy' || prev === 'annotate' ? 'web' : prev));
-        setSessions(FALLBACK_SESSIONS);
+        setSessions(fallbackList);
       })
       .finally(() => {
         if (!cancelled) setLoadingSessions(false);
@@ -252,11 +294,12 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [initialSessionSlug]);
+  }, [initialSessionSlug, subject]);
 
   useEffect(() => {
     if (!selectedSession) return;
-    const cachedList = cachedPapersBySessionMemory.get(selectedSession);
+    const cacheKey = `${subject}:${selectedSession}`;
+    const cachedList = cachedPapersByKey.get(cacheKey);
     if (cachedList) {
       setPapers(cachedList);
       setLoadingPapers(false);
@@ -264,19 +307,20 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
     }
 
     // Show immediate fallback list while refreshing live PapaCambridge listing in the background
-    setPapers(generateSessionPaperFallback(selectedSession));
+    const fallbackPapers = generateSessionPaperFallback(selectedSession, subject);
+    setPapers(fallbackPapers);
     let cancelled = false;
     setLoadingPapers(true);
     fetchJsonSafe<{ papers?: PastPaperFile[] }>(
-      `/api/papacambridge/papers?session=${encodeURIComponent(selectedSession)}`
+      `/api/papacambridge/papers?session=${encodeURIComponent(selectedSession)}&subject=${encodeURIComponent(subject)}`
     )
       .then((data) => {
         if (cancelled) return;
         const list =
           Array.isArray(data.papers) && data.papers.length > 0
             ? data.papers
-            : generateSessionPaperFallback(selectedSession);
-        cachedPapersBySessionMemory.set(selectedSession, list);
+            : fallbackPapers;
+        cachedPapersByKey.set(cacheKey, list);
         setPapers(list);
         setApiProxyAvailable(true);
       })
@@ -284,7 +328,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
         if (cancelled) return;
         setApiProxyAvailable(false);
         setViewerMode((prev) => (prev === 'proxy' || prev === 'annotate' ? 'web' : prev));
-        setPapers(generateSessionPaperFallback(selectedSession));
+        setPapers(fallbackPapers);
       })
       .finally(() => {
         if (!cancelled) setLoadingPapers(false);
@@ -292,7 +336,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [selectedSession]);
+  }, [selectedSession, subject]);
 
   useEffect(() => {
     if (initialSessionSlug && initialSessionSlug !== selectedSession) {
@@ -330,7 +374,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
     setSelectedSession(slug);
     setActivePrimaryPdf(null);
     setActiveSecondaryPdf(null);
-    onNavigate({ view: 'past-papers', sessionSlug: slug });
+    onNavigate({ view: 'past-papers', subject, sessionSlug: slug });
   };
 
   const handleEraChange = (era: 'all' | '2020-2026' | '2010-2019' | '2002-2009') => {
@@ -422,40 +466,59 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
     });
 
   const topicMatches = useMemo(
-    () => findMatchingSyllabusTopics(topicQuery, SYLLABUS_0580, 6),
-    [topicQuery]
+    () => findMatchingSyllabusTopics(topicQuery, syllabus, 6),
+    [topicQuery, syllabus]
   );
 
   const flaggedTopics = useMemo(
     () =>
       weakTopicIds
-        .map((id) => ALL_SUBTOPICS_0580.find((t) => t.id === id))
+        .map((id) => allSubtopics.find((t) => t.id === id))
         .filter((t): t is NonNullable<typeof t> => Boolean(t)),
-    [weakTopicIds]
+    [weakTopicIds, allSubtopics]
   );
+
+  const quickTroubleTopics =
+    subject === '0606' ? QUICK_TROUBLE_TOPICS_0606 : QUICK_TROUBLE_TOPICS_0580;
+
+  const componentFilterOptions: ReadonlyArray<'all' | '1' | '2' | '3' | '4'> =
+    subject === '0606' ? ['all', '1', '2'] : ['all', '1', '2', '3', '4'];
 
   return (
     <main className="max-w-[1440px] mx-auto px-4 sm:px-6 py-6 space-y-6">
       {/* Header Banner */}
       <section className="p-6 sk-card flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <div className="text-xs text-[#5E588C] flex items-center gap-2 mb-1">
-            <span>Cambridge IGCSE Mathematics (0580)</span>
+          <div className="text-xs text-[var(--sk-dim)] flex items-center gap-2 mb-1">
+            <span>
+              {subject === '0606'
+                ? 'Cambridge IGCSE Additional Mathematics (0606)'
+                : 'Cambridge IGCSE Mathematics (0580)'}
+            </span>
             <span aria-hidden="true">·</span>
             <span>PapaCambridge Archive</span>
           </div>
-          <h1 className="font-display text-2xl font-bold text-[#1D1A4A]">
+          <h1 className="font-display text-2xl font-bold text-[var(--sk-ink)]">
             Past Papers, Mark Schemes &amp; Grade Thresholds
           </h1>
-          <p className="text-sm text-[#393469] mt-1 max-w-2xl">
-            Browse Cambridge 0580 Question Papers, Mark Schemes, Examiner Reports, and Grade Thresholds from 2002 to 2026 via PapaCambridge, and view QP + MS side-by-side.
+          <p className="text-sm text-[var(--sk-body)] mt-1 max-w-2xl">
+            Browse Cambridge {subject} Question Papers, Mark Schemes, Examiner Reports, and Grade Thresholds from 2002 to 2026 via PapaCambridge, and view QP + MS side-by-side.
           </p>
         </div>
 
-        <div className="text-xs text-[#393469] sk-card-soft p-3.5 space-y-1 shrink-0">
-          <div className="font-bold text-[#1D1A4A]">2025–2027 Paper Structure</div>
-          <div>Core: Paper 1 (Non-Calc, 1h 30m) · Paper 3 (Calc, 1h 30m)</div>
-          <div>Extended: Paper 2 (Non-Calc, 2h) · Paper 4 (Calc, 2h)</div>
+        <div className="text-xs text-[var(--sk-body)] sk-card-soft p-3.5 space-y-1 shrink-0">
+          <div className="font-bold text-[var(--sk-ink)]">2025–2027 Paper Structure</div>
+          {subject === '0606' ? (
+            <>
+              <div>Paper 1: Non-Calculator (2h, 80 marks · 50%)</div>
+              <div>Paper 2: Calculator (2h, 80 marks · 50%)</div>
+            </>
+          ) : (
+            <>
+              <div>Core: Paper 1 (Non-Calc, 1h 30m) · Paper 3 (Calc, 1h 30m)</div>
+              <div>Extended: Paper 2 (Non-Calc, 2h) · Paper 4 (Calc, 2h)</div>
+            </>
+          )}
         </div>
       </section>
 
@@ -463,7 +526,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
       <section className="p-4 sk-card flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3">
           <div>
-            <div className="text-[11px] font-semibold text-[#5E588C] mb-1">Archive Era</div>
+            <div className="text-[11px] font-semibold text-[var(--sk-dim)] mb-1">Archive Era</div>
             <div role="group" aria-label="Filter archive by era" className="flex gap-1 sk-tabs">
               {(
                 [
@@ -487,7 +550,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
           </div>
 
           <div>
-            <label htmlFor="session-select" className="block text-[11px] font-semibold text-[#5E588C] mb-1">
+            <label htmlFor="session-select" className="block text-[11px] font-semibold text-[var(--sk-dim)] mb-1">
               Exam Session ({visibleSessions.length})
             </label>
             <select
@@ -509,9 +572,9 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
           </div>
 
           <div>
-            <div className="text-[11px] font-semibold text-[#5E588C] mb-1">Component Paper</div>
+            <div className="text-[11px] font-semibold text-[var(--sk-dim)] mb-1">Component Paper</div>
             <div role="group" aria-label="Filter by paper component" className="flex gap-1 sk-tabs">
-              {(['all', '1', '2', '3', '4'] as const).map((p) => (
+              {componentFilterOptions.map((p) => (
                 <button
                   key={p}
                   type="button"
@@ -526,7 +589,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
           </div>
 
           <div>
-            <div className="text-[11px] font-semibold text-[#5E588C] mb-1">Document Type</div>
+            <div className="text-[11px] font-semibold text-[var(--sk-dim)] mb-1">Document Type</div>
             <div role="group" aria-label="Filter by document type" className="flex gap-1 sk-tabs">
               {(['all', 'QP', 'MS', 'ER', 'GT'] as const).map((dt) => (
                 <button
@@ -548,13 +611,13 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
             <label htmlFor="past-papers-search" className="sr-only">
               Search past paper files
             </label>
-            <Search className="w-3.5 h-3.5 text-[#5E588C] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
+            <Search className="w-3.5 h-3.5 text-[var(--sk-dim)] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
             <input
               id="past-papers-search"
               type="search"
               value={paperSearchQuery}
               onChange={(e) => setPaperSearchQuery(e.target.value)}
-              placeholder="Search file (e.g. qp_42, ms)"
+              placeholder={subject === '0606' ? 'Search file (e.g. qp_12, ms)' : 'Search file (e.g. qp_42, ms)'}
               className="w-full pl-8 pr-3 py-1.5 text-xs sk-input"
             />
           </div>
@@ -571,17 +634,17 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
             onClick={() => localFileInputRef.current?.click()}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold sk-btn-secondary cursor-pointer whitespace-nowrap"
           >
-            <Upload className="w-3.5 h-3.5 text-[#5B57E8]" />
+            <Upload className="w-3.5 h-3.5 text-[var(--sk-pri-hover)]" />
             Annotate Local PDF
           </button>
-          <div className="text-xs font-mono font-semibold tabular-nums text-[#5E588C]">
+          <div className="text-xs font-mono font-semibold tabular-nums text-[var(--sk-dim)]">
             {filteredPapers.length} files available
             {loadingPapers ? ' (syncing...)' : ''}
           </div>
         </div>
       </section>
 
-      {/* Stuck on a Past Paper Question? Bridge directly to 0580 Topic Notes */}
+      {/* Stuck on a Past Paper Question? Bridge directly to Topic Notes */}
       <section
         aria-label="Jump to Study Notes from Past Paper Mistakes"
         className="p-5 sk-card space-y-4"
@@ -589,35 +652,41 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-[#5B57E8] shrink-0" />
-              <h2 className="font-display text-sm font-bold text-[#1D1A4A]">
+              <BookOpen className="w-4 h-4 text-[var(--sk-pri-hover)] shrink-0" />
+              <h2 className="font-display text-sm font-bold text-[var(--sk-ink)]">
                 Got a Question Wrong in This Past Paper? Jump to Its Notes
               </h2>
             </div>
-            <p className="text-xs text-[#393469] mt-1">
-              Type the topic you struggled with while marking (for example, polygon angles, statistics, histogram, or circle theorems) to open the exact 0580 notes or save it to your revision queue.
+            <p className="text-xs text-[var(--sk-body)] mt-1">
+              {subject === '0606'
+                ? 'Type the topic you struggled with while marking (for example, functions, logarithms, circle geometry, trigonometry, or calculus) to open the matching 0606 notes or save it to your revision queue.'
+                : 'Type the topic you struggled with while marking (for example, polygon angles, statistics, histogram, or circle theorems) to open the exact 0580 notes or save it to your revision queue.'}
             </p>
           </div>
 
           <div className="relative w-full lg:w-96 shrink-0">
             <label htmlFor="pastpaper-topic-finder" className="sr-only">
-              Find 0580 notes for a past paper question topic
+              Find {subject} notes for a past paper question topic
             </label>
-            <Search className="w-4 h-4 text-[#5E588C] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
+            <Search className="w-4 h-4 text-[var(--sk-dim)] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
             <input
               id="pastpaper-topic-finder"
               type="search"
               value={topicQuery}
               onChange={(e) => setTopicQuery(e.target.value)}
-              placeholder="What topic did you miss? (e.g. polygon, statistics)"
+              placeholder={
+                subject === '0606'
+                  ? 'What topic did you miss? (e.g. calculus, vectors)'
+                  : 'What topic did you miss? (e.g. polygon, statistics)'
+              }
               className="w-full pl-9 pr-3 py-2 text-xs sk-input"
             />
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-semibold text-[#5E588C]">Common topics:</span>
-          {QUICK_TROUBLE_TOPICS.map((item) => {
+          <span className="text-[11px] font-semibold text-[var(--sk-dim)]">Common topics:</span>
+          {quickTroubleTopics.map((item) => {
             const active = topicQuery.trim().toLowerCase() === item.query;
             return (
               <button
@@ -626,8 +695,8 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                 onClick={() => setTopicQuery(active ? '' : item.query)}
                 className={`px-2.5 py-1 text-xs font-semibold rounded-xl border-[1.5px] cursor-pointer transition-colors ${
                   active
-                    ? 'bg-[#F4F3FC] border-[#1D1A4A] text-[#1D1A4A] shadow-[2px_2px_0_#B8B3FF]'
-                    : 'bg-[#FAF9FF] border-[#DCDAF0] text-[#393469] hover:border-[#1D1A4A]'
+                    ? 'bg-[var(--sk-chip)] border-[var(--sk-ink)] text-[var(--sk-ink)] shadow-[2px_2px_0_var(--sk-soft)]'
+                    : 'bg-[var(--sk-surface)] border-[var(--sk-line)] text-[var(--sk-body)] hover:border-[var(--sk-ink)]'
                 }`}
               >
                 {item.label}
@@ -637,10 +706,10 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
         </div>
 
         {topicQuery.trim().length > 0 && (
-          <div className="pt-2 border-t border-[#DCDAF0]">
+          <div className="pt-2 border-t border-[var(--sk-line)]">
             {topicMatches.length === 0 ? (
-              <div className="text-xs text-[#5E588C] py-2">
-                No syllabus notes matched &quot;{topicQuery}&quot;. Try keywords like polygon, histogram, statistics, bearings, or surds.
+              <div className="text-xs text-[var(--sk-dim)] py-2">
+                No syllabus notes matched &quot;{topicQuery}&quot;.
               </div>
             ) : (
               <div className="grid md:grid-cols-2 gap-3">
@@ -652,14 +721,14 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                       className="p-3.5 sk-card-soft flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                     >
                       <div className="min-w-0">
-                        <div className="text-[11px] text-[#5E588C]">
+                        <div className="text-[11px] text-[var(--sk-dim)]">
                           Chapter {m.chapterId}: {m.chapterTitle} · {m.matchReason}
                         </div>
-                        <div className="font-display text-sm font-bold text-[#1D1A4A]">
-                          <span className="font-mono text-[#5B57E8] mr-1.5">{m.topic.code}</span>
+                        <div className="font-display text-sm font-bold text-[var(--sk-ink)]">
+                          <span className="font-mono text-[var(--sk-pri-hover)] mr-1.5">{m.topic.code}</span>
                           {m.topic.title}
                         </div>
-                        <p className="text-xs text-[#393469] line-clamp-1 mt-0.5">
+                        <p className="text-xs text-[var(--sk-body)] line-clamp-1 mt-0.5">
                           <MathText text={m.topic.summary} />
                         </p>
                       </div>
@@ -674,7 +743,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                           }
                           className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-xl border-[1.5px] cursor-pointer ${
                             isFlagged
-                              ? 'bg-[#FFF0F6] border-[#FF5FA8] text-[#9D174D]'
+                              ? 'bg-[var(--sk-acc-soft)] border-[var(--sk-acc)] text-[var(--sk-acc-ink)]'
                               : 'sk-btn-subtle'
                           }`}
                         >
@@ -687,6 +756,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                             onFlagWeakTopics([m.topic.id]);
                             onNavigate({
                               view: 'notes',
+                              subject,
                               chapterId: m.chapterId,
                               topicId: m.topic.id,
                             });
@@ -706,25 +776,26 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
         )}
 
         {flaggedTopics.length > 0 && (
-          <div className="pt-3 border-t border-[#DCDAF0] flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold text-[#1D1A4A] mr-1">
+          <div className="pt-3 border-t border-[var(--sk-line)] flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-[var(--sk-ink)] mr-1">
               Revision Queue ({flaggedTopics.length}):
             </span>
             {flaggedTopics.map((ft) => (
               <div
                 key={ft.id}
-                className="inline-flex items-center bg-[#FFF0F6] border-[1.5px] border-[#FF5FA8] rounded-xl overflow-hidden"
+                className="inline-flex items-center bg-[var(--sk-acc-soft)] border-[1.5px] border-[var(--sk-acc)] rounded-xl overflow-hidden"
               >
                 <button
                   type="button"
                   onClick={() =>
                     onNavigate({
                       view: 'notes',
+                      subject,
                       chapterId: ft.chapterId,
                       topicId: ft.id,
                     })
                   }
-                  className="px-2.5 py-1 text-xs font-semibold text-[#9D174D] hover:bg-[#FCE7F3] cursor-pointer"
+                  className="px-2.5 py-1 text-xs font-semibold text-[var(--sk-acc-ink)] hover:bg-[var(--sk-chip)] cursor-pointer"
                 >
                   Study {ft.code} {ft.title} →
                 </button>
@@ -732,7 +803,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                   type="button"
                   aria-label={`Remove ${ft.code} ${ft.title} from revision queue`}
                   onClick={() => onClearWeakTopic(ft.id)}
-                  className="px-1.5 py-1 text-[#C0266B] hover:text-[#1D1A4A] hover:bg-[#FCE7F3] border-l border-[#FF5FA8]/50 cursor-pointer"
+                  className="px-1.5 py-1 text-[var(--sk-acc-ink)] hover:text-[var(--sk-ink)] hover:bg-[var(--sk-chip)] border-l border-[var(--sk-acc)]/40 cursor-pointer"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -751,15 +822,15 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
           className={
             isViewerFullscreen
               ? 'fixed inset-0 z-[65] w-screen h-screen h-[100dvh] bg-white flex flex-col overflow-hidden'
-              : 'sk-card border-2 border-[#1D1A4A] shadow-[4px_5px_0_#B8B3FF] overflow-hidden scroll-mt-20'
+              : 'sk-card border-2 border-[var(--sk-ink)] shadow-[4px_5px_0_var(--sk-soft)] overflow-hidden scroll-mt-20'
           }
         >
           <div
             className={`${
               isViewerFullscreen ? 'px-3 py-1.5 gap-2' : 'px-4 py-2.5 gap-2.5'
-            } border-b-[1.5px] border-[#DCDAF0] bg-[#FAF9FF] flex flex-wrap items-center justify-between shrink-0`}
+            } border-b-[1.5px] border-[var(--sk-line)] bg-[var(--sk-surface)] flex flex-wrap items-center justify-between shrink-0`}
           >
-            <div className="flex items-center gap-2 text-xs font-mono text-[#1D1A4A] min-w-0 truncate">
+            <div className="flex items-center gap-2 text-xs font-mono text-[var(--sk-ink)] min-w-0 truncate">
               <span className="font-bold truncate">
                 {localPdf ? localPdf.filename : activePrimaryPdf?.filename}
               </span>
@@ -871,7 +942,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
           </div>
 
           <div
-            className={`grid gap-px bg-[#DCDAF0] ${
+            className={`grid gap-px bg-[var(--sk-line)] ${
               isViewerFullscreen ? 'flex-1 min-h-0' : ''
             } ${
               activeSecondaryPdf
@@ -883,7 +954,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
           >
             <div className="bg-white min-w-0 min-h-0 flex flex-col" data-testid="qp-pane">
               {!isViewerFullscreen && (
-                <div className="px-3 py-1.5 text-[11px] font-semibold text-[#5E588C] border-b border-[#DCDAF0] flex items-center justify-between gap-2 shrink-0">
+                <div className="px-3 py-1.5 text-[11px] font-semibold text-[var(--sk-dim)] border-b border-[var(--sk-line)] flex items-center justify-between gap-2 shrink-0">
                   <span>
                     {localPdf
                       ? `Local PDF Annotation — ${localPdf.filename}`
@@ -894,7 +965,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                       href={activePrimaryPdf.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[#5B57E8] hover:underline shrink-0"
+                      className="text-[var(--sk-pri-hover)] hover:underline shrink-0"
                     >
                       Open in new tab
                     </a>
@@ -924,7 +995,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                 <iframe
                   title={activePrimaryPdf.filename}
                   src={pdfIframeUrl(activePrimaryPdf)}
-                  className={`w-full border-0 bg-[#FAF9FF] ${
+                  className={`w-full border-0 bg-[var(--sk-surface)] ${
                     isViewerFullscreen ? 'flex-1 min-h-0' : 'h-[640px]'
                   }`}
                 />
@@ -934,7 +1005,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
             {activeSecondaryPdf && (
               <div className="bg-white min-w-0 min-h-0 flex flex-col" data-testid="ms-pane">
                 {!isViewerFullscreen && (
-                  <div className="px-3 py-1.5 text-[11px] font-semibold text-emerald-800 border-b border-[#DCDAF0] flex items-center justify-between gap-2 shrink-0">
+                  <div className="px-3 py-1.5 text-[11px] font-semibold text-emerald-800 border-b border-[var(--sk-line)] flex items-center justify-between gap-2 shrink-0">
                     <span>Mark Scheme — {activeSecondaryPdf.filename}</span>
                     <a
                       href={activeSecondaryPdf.url}
@@ -961,7 +1032,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                   <iframe
                     title={activeSecondaryPdf.filename}
                     src={pdfIframeUrl(activeSecondaryPdf)}
-                    className={`w-full border-0 bg-[#FAF9FF] ${
+                    className={`w-full border-0 bg-[var(--sk-surface)] ${
                       isViewerFullscreen ? 'flex-1 min-h-0' : 'h-[640px]'
                     }`}
                   />
@@ -975,27 +1046,27 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
       {/* Papers List */}
       <section className="sk-card overflow-hidden">
         {loadingPapers && papers.length === 0 ? (
-          <div className="p-12 flex items-center justify-center gap-3 text-sm text-[#5E588C]">
-            <Loader2 className="w-4 h-4 animate-spin text-[#6D69F2]" />
-            Loading 0580 papers from PapaCambridge...
+          <div className="p-12 flex items-center justify-center gap-3 text-sm text-[var(--sk-dim)]">
+            <Loader2 className="w-4 h-4 animate-spin text-[var(--sk-pri)]" />
+            Loading {subject} papers from PapaCambridge...
           </div>
         ) : filteredPapers.length === 0 ? (
-          <div className="p-8 text-center text-sm text-[#5E588C]">
+          <div className="p-8 text-center text-sm text-[var(--sk-dim)]">
             No papers match the selected filter in this session.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-sm">
               <thead>
-                <tr className="border-b-[1.5px] border-[#DCDAF0] bg-[#F4F3FC] text-xs font-bold text-[#1D1A4A]">
+                <tr className="border-b-[1.5px] border-[var(--sk-line)] bg-[var(--sk-chip)] text-xs font-bold text-[var(--sk-ink)]">
                   <th className="py-3 px-4">File</th>
                   <th className="py-3 px-4">Document</th>
                   <th className="py-3 px-4">Paper / Variant</th>
-                  <th className="py-3 px-4">Tier</th>
+                  <th className="py-3 px-4">{subject === '0606' ? 'Calculator Rule' : 'Tier'}</th>
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#ECEBF8]">
+              <tbody className="divide-y divide-[var(--sk-line)]/70">
                 {filteredPapers.map((file) => {
                   const hasMs = file.docType === 'QP' && Boolean(findMatchingMarkScheme(file));
                   const isActiveRow = activePrimaryPdf?.filename === file.filename;
@@ -1003,16 +1074,16 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                     <tr
                       key={file.filename}
                       className={`transition-colors ${
-                        isActiveRow ? 'bg-[#F4F3FC]' : 'hover:bg-[#FAF9FF]'
+                        isActiveRow ? 'bg-[var(--sk-chip)]' : 'hover:bg-[var(--sk-surface)]'
                       }`}
                     >
-                      <td className="py-3 px-4 font-mono text-xs text-[#1D1A4A] font-semibold">
+                      <td className="py-3 px-4 font-mono text-xs text-[var(--sk-ink)] font-semibold">
                         {file.filename}
                       </td>
-                      <td className="py-3 px-4 text-xs text-[#393469]">
+                      <td className="py-3 px-4 text-xs text-[var(--sk-body)]">
                         {file.docTypeLabel}
                       </td>
-                      <td className="py-3 px-4 font-mono text-xs tabular-nums text-[#5E588C]">
+                      <td className="py-3 px-4 font-mono text-xs tabular-nums text-[var(--sk-dim)]">
                         {file.paperNumber !== '-'
                           ? file.variant !== '-'
                             ? `Paper ${file.paperNumber} · Variant ${file.variant}`
@@ -1020,22 +1091,32 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                           : 'Session Document'}
                       </td>
                       <td className="py-3 px-4 text-xs">
-                        <span
-                          className={
-                            file.tier === 'Extended'
-                              ? 'text-[#C0266B] font-semibold'
-                              : 'text-[#393469]'
-                          }
-                        >
-                          {file.tier}
-                        </span>
+                        {subject === '0606' ? (
+                          <span className="text-[var(--sk-body)]">
+                            {file.paperNumber === '1'
+                              ? 'Non-Calc'
+                              : file.paperNumber === '2'
+                                ? 'Calculator'
+                                : 'Session'}
+                          </span>
+                        ) : (
+                          <span
+                            className={
+                              file.tier === 'Extended'
+                                ? 'text-[var(--sk-acc-ink)] font-semibold'
+                                : 'text-[var(--sk-body)]'
+                            }
+                          >
+                            {file.tier}
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="inline-flex items-center gap-2">
                           <button
                             type="button"
                             onClick={(e) => {
-                              triggerSakugaBurst(e, 'sakura');
+                              triggerSakugaBurst(e, getActiveSubjectVfxVariant('accent'));
                               setLocalPdf(null);
                               setActivePrimaryPdf(file);
                               setActiveSecondaryPdf(null);
@@ -1057,7 +1138,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                               }
                             }}
                             onClick={(e) => {
-                              triggerSakugaBurst(e, 'sakura');
+                              triggerSakugaBurst(e, getActiveSubjectVfxVariant('accent'));
                               setLocalPdf(null);
                               setActivePrimaryPdf(file);
                               setActiveSecondaryPdf(null);
@@ -1075,7 +1156,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                             <button
                               type="button"
                               onClick={(e) => {
-                                triggerSakugaBurst(e, 'indigo', 'OPEN!');
+                                triggerSakugaBurst(e, getActiveSubjectVfxVariant('primary'), 'OPEN!');
                                 openSplitView(file);
                               }}
                               className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold sk-btn-primary cursor-pointer"
@@ -1090,7 +1171,7 @@ export const PastPapersView: React.FC<PastPapersViewProps> = ({
                             rel={apiProxyAvailable ? undefined : 'noopener noreferrer'}
                             download={file.filename}
                             aria-label={`Download ${file.filename}`}
-                            className="p-1.5 text-[#5E588C] hover:text-[#1D1A4A] rounded-lg hover:bg-[#F4F3FC]"
+                            className="p-1.5 text-[var(--sk-dim)] hover:text-[var(--sk-ink)] rounded-lg hover:bg-[var(--sk-chip)]"
                           >
                             <Download className="w-4 h-4" />
                           </a>

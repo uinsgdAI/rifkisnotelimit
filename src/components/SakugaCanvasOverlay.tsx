@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import {
+  getActiveSubjectVfxVariant,
   prefersReducedMotion,
   stepSakugaParticle,
   subscribeSakugaBursts,
@@ -157,9 +158,13 @@ export const SakugaCanvasOverlay: React.FC = () => {
           ctx.fillStyle =
             burst.variant === 'emerald'
               ? '#15803D'
-              : burst.variant === 'sakura'
-                ? '#DB2777'
-                : '#1D1A4A';
+              : burst.variant === 'crimson'
+                ? '#B91C1C'
+                : burst.variant === 'blue'
+                  ? '#1D4ED8'
+                  : burst.variant === 'sakura'
+                    ? '#DB2777'
+                    : '#0F2557';
           ctx.fillText(burst.label, 0, 0);
           ctx.restore();
         }
@@ -216,7 +221,7 @@ export const SakugaCanvasOverlay: React.FC = () => {
           { transform: 'translateY(-4px) scale(1.04, 0.96)' },
           { transform: 'translateY(-2px) scale(1, 1)' },
         ]);
-        triggerSakugaBurst(tabEl, 'indigo', undefined, {
+        triggerSakugaBurst(tabEl, getActiveSubjectVfxVariant('primary'), undefined, {
           intensity: 'subtle',
           delegated: true,
         });
@@ -227,7 +232,7 @@ export const SakugaCanvasOverlay: React.FC = () => {
         '.sk-btn-primary, .sk-btn-secondary, .sk-btn-ink'
       ) as HTMLButtonElement | null;
       if (btnEl && !btnEl.disabled) {
-        triggerSakugaBurst(btnEl, 'indigo', undefined, {
+        triggerSakugaBurst(btnEl, getActiveSubjectVfxVariant('primary'), undefined, {
           intensity: 'subtle',
           delegated: true,
         });
@@ -258,7 +263,7 @@ export const SakugaCanvasOverlay: React.FC = () => {
 
       const rect = wrap.getBoundingClientRect();
       if (rect.width > 0 && rect.height > 0) {
-        triggerSakugaBurst(null, 'sakura', undefined, {
+        triggerSakugaBurst(null, getActiveSubjectVfxVariant('accent'), undefined, {
           intensity: 'micro',
           delegated: true,
           coords: {
@@ -278,7 +283,7 @@ export const SakugaCanvasOverlay: React.FC = () => {
       const wrap = (inputEl.closest('.sk-input-shell') as HTMLElement | null) ?? inputEl;
       const rect = wrap.getBoundingClientRect();
       if (rect.width > 0 && rect.height > 0) {
-        triggerSakugaBurst(null, 'indigo', undefined, {
+        triggerSakugaBurst(null, getActiveSubjectVfxVariant('primary'), undefined, {
           intensity: 'micro',
           delegated: true,
           coords: {

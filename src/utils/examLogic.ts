@@ -2,12 +2,96 @@ import type {
   AppRoute,
   PastPaperFile,
   PracticeQuestion,
+  SubjectCode,
   SubtopicNote,
   SyllabusChapter,
 } from '../types/syllabus';
 
+export function normalizeSubjectCode(raw?: string | null): SubjectCode | null {
+  if (raw === '0580' || raw === '0606') return raw;
+  return null;
+}
+
+export function resolveRouteSubject(route: Pick<AppRoute, 'subject'>): SubjectCode {
+  return route.subject === '0606' ? '0606' : '0580';
+}
+
+export function findSubtopicInSyllabus(
+  chapters: SyllabusChapter[],
+  chapterId: number,
+  topicId: string
+): SubtopicNote | undefined {
+  const ch = chapters.find((c) => c.id === chapterId);
+  return ch?.subtopics.find((t) => t.id === topicId);
+}
+
+export function getAdjacentSubtopicsFromSyllabus(
+  chapters: SyllabusChapter[],
+  topicId: string
+): { prev?: SubtopicNote; next?: SubtopicNote } {
+  const all = chapters.flatMap((c) => c.subtopics);
+  const idx = all.findIndex((t) => t.id === topicId);
+  if (idx === -1) return {};
+  return {
+    prev: idx > 0 ? all[idx - 1] : undefined,
+    next: idx < all.length - 1 ? all[idx + 1] : undefined,
+  };
+}
+
 export function parseAppRoute(pathname: string, search = ''): AppRoute {
   const clean = pathname.replace(/\/+$/, '') || '/';
+  const params = new URLSearchParams(search);
+  const paperParam = params.get('paper') || undefined;
+  const packParam = params.get('pack') || undefined;
+
+  // Clean 0606 routes: /0606, /0606/notes/..., /0606/past-papers/..., /0606/practice/...
+  // Also accept /notes/0606/..., /past-papers/0606/..., /practice/0606/...
+  if (clean === '/0606' || clean === '/0606/notes' || clean === '/notes/0606') {
+    return { view: 'notes', subject: '0606', chapterId: 1, topicId: '1.1' };
+  }
+
+  const notes0606Match = clean.match(/^\/(?:0606\/notes|notes\/0606)\/(\d+)\/(\d+\.\d+)$/);
+  if (notes0606Match) {
+    return {
+      view: 'notes',
+      subject: '0606',
+      chapterId: Number(notes0606Match[1]),
+      topicId: notes0606Match[2],
+    };
+  }
+
+  const chapter0606OnlyMatch = clean.match(/^\/(?:0606\/notes|notes\/0606)\/(\d+)$/);
+  if (chapter0606OnlyMatch) {
+    const ch = Number(chapter0606OnlyMatch[1]);
+    return {
+      view: 'notes',
+      subject: '0606',
+      chapterId: ch,
+      topicId: `${ch}.1`,
+    };
+  }
+
+  if (clean === '/0606/past-papers' || clean.startsWith('/0606/past-papers/') || clean === '/past-papers/0606' || clean.startsWith('/past-papers/0606/')) {
+    const parts = clean.split('/').filter(Boolean);
+    const sessionSlug = parts[2] || undefined;
+    return {
+      view: 'past-papers',
+      subject: '0606',
+      sessionSlug,
+      paperFilename: paperParam,
+    };
+  }
+
+  if (clean === '/0606/practice' || clean.startsWith('/0606/practice/') || clean === '/practice/0606' || clean.startsWith('/practice/0606/')) {
+    const parts = clean.split('/').filter(Boolean);
+    return {
+      view: 'practice',
+      subject: '0606',
+      mode: parts[2] || undefined,
+      topicId: parts[3] || undefined,
+      ...(packParam ? { topicalPackId: packParam } : {}),
+    };
+  }
 
   if (clean === '/' || clean === '/notes' || clean === '/notes/0580') {
     return { view: 'notes', chapterId: 1, topicId: '1.1' };
@@ -34,8 +118,6 @@ export function parseAppRoute(pathname: string, search = ''): AppRoute {
 
   if (clean.startsWith('/past-papers/0580')) {
     const parts = clean.split('/').filter(Boolean);
-    const params = new URLSearchParams(search);
-    const paperParam = params.get('paper') || undefined;
     return {
       view: 'past-papers',
       sessionSlug: parts[2] || undefined,
@@ -45,8 +127,6 @@ export function parseAppRoute(pathname: string, search = ''): AppRoute {
 
   if (clean.startsWith('/practice/0580')) {
     const parts = clean.split('/').filter(Boolean);
-    const params = new URLSearchParams(search);
-    const packParam = params.get('pack') || undefined;
     return {
       view: 'practice',
       mode: parts[2] || undefined,
@@ -59,23 +139,27 @@ export function parseAppRoute(pathname: string, search = ''): AppRoute {
 }
 
 export function buildAppRoutePath(route: AppRoute): string {
+  const is0606 = route.subject === '0606';
+
   if (route.view === 'notes') {
-    return `/notes/0580/${route.chapterId}/${route.topicId}`;
+    return is0606
+      ? `/0606/notes/${route.chapterId}/${route.topicId}`
+      : `/notes/0580/${route.chapterId}/${route.topicId}`;
   }
   if (route.view === 'past-papers') {
-    const base = route.sessionSlug
-      ? `/past-papers/0580/${route.sessionSlug}`
-      : '/past-papers/0580';
+    const root = is0606 ? '/0606/past-papers' : '/past-papers/0580';
+    const base = route.sessionSlug ? `${root}/${route.sessionSlug}` : root;
     return route.paperFilename
       ? `${base}?paper=${encodeURIComponent(route.paperFilename)}`
       : base;
   }
   if (route.view === 'practice') {
-    let base = '/practice/0580';
+    const root = is0606 ? '/0606/practice' : '/practice/0580';
+    let base = root;
     if (route.mode && route.topicId) {
-      base = `/practice/0580/${route.mode}/${route.topicId}`;
+      base = `${root}/${route.mode}/${route.topicId}`;
     } else if (route.mode) {
-      base = `/practice/0580/${route.mode}`;
+      base = `${root}/${route.mode}`;
     }
     return route.topicalPackId
       ? `${base}?pack=${encodeURIComponent(route.topicalPackId)}`
@@ -318,12 +402,24 @@ export interface GradeEstimate {
 export function estimateCambridgeGrade(
   earnedMarks: number,
   totalMarks: number,
-  tier: 'Core' | 'Extended'
+  tier: 'Core' | 'Extended',
+  subject: SubjectCode = '0580'
 ): GradeEstimate {
   if (totalMarks <= 0) {
     return { grade: 'U', percentage: 0, descriptor: 'Unclassified' };
   }
   const percentage = Math.round((earnedMarks / totalMarks) * 100);
+
+  if (subject === '0606') {
+    // Cambridge 0606 awards grades A* to E (or U); grades F and G are not available.
+    if (percentage >= 85) return { grade: 'A*', percentage, descriptor: 'Distinction (0606 Additional Maths)' };
+    if (percentage >= 73) return { grade: 'A', percentage, descriptor: 'High Merit (0606)' };
+    if (percentage >= 60) return { grade: 'B', percentage, descriptor: 'Merit (0606)' };
+    if (percentage >= 47) return { grade: 'C', percentage, descriptor: 'Credit Pass (0606)' };
+    if (percentage >= 35) return { grade: 'D', percentage, descriptor: 'Pass (0606)' };
+    if (percentage >= 24) return { grade: 'E', percentage, descriptor: 'Minimum Pass (0606)' };
+    return { grade: 'U', percentage, descriptor: 'Unclassified (Below Grade E)' };
+  }
 
   if (tier === 'Extended') {
     if (percentage >= 86) return { grade: 'A*', percentage, descriptor: 'Distinction (Top Extended)' };
@@ -374,11 +470,14 @@ export function parsePapaCambridgeFilename(
   const paperNumber = paperMatch ? paperMatch[1] : '-';
   const variant = paperMatch && paperMatch[2] ? paperMatch[2] : '-';
 
+  const is0606 = lower.startsWith('0606');
   let tier: PastPaperFile['tier'] = 'All';
-  if (paperNumber === '1' || paperNumber === '3') {
-    tier = 'Core';
-  } else if (paperNumber === '2' || paperNumber === '4') {
-    tier = 'Extended';
+  if (!is0606) {
+    if (paperNumber === '1' || paperNumber === '3') {
+      tier = 'Core';
+    } else if (paperNumber === '2' || paperNumber === '4') {
+      tier = 'Extended';
+    }
   }
 
   return {

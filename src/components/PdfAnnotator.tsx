@@ -2018,7 +2018,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     >
       {/* Annotation Toolbar */}
       <div
-        className={`bg-white border-b-[1.5px] border-[#DCDAF0] flex flex-wrap items-center justify-between ${
+        className={`bg-white border-b-[1.5px] border-[var(--sk-line)] flex flex-wrap items-center justify-between ${
           layout.isImmersive ? 'px-2.5 py-1.5 gap-1.5' : 'px-3 py-2 gap-2'
         }`}
       >
@@ -2073,7 +2073,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
 
           {/* Colors for Pen or Highlighter */}
           {(tool === 'pen' || tool === 'highlighter') && (
-            <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-[#F4F3FC] border-2 border-[#1D1A4A] rounded-[12px] shadow-[2px_2px_0_#B8B3FF]">
+            <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-[var(--sk-chip)] border-2 border-[var(--sk-ink)] rounded-[12px] shadow-[2px_2px_0_var(--sk-soft)]">
               {(tool === 'highlighter' ? HIGHLIGHT_COLORS : PEN_COLORS).map((c) => {
                 const selected = activeColor === c.hex;
                 return (
@@ -2087,8 +2087,8 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
                     }
                     className={`w-5 h-5 rounded-md border-2 transition-transform cursor-pointer ${
                       selected
-                        ? 'border-[#1D1A4A] scale-115 shadow-[1.5px_1.5px_0_#B8B3FF]'
-                        : 'border-[#B8B3FF] hover:scale-105'
+                        ? 'border-[var(--sk-ink)] scale-115 shadow-[1.5px_1.5px_0_var(--sk-soft)]'
+                        : 'border-[var(--sk-soft)] hover:scale-105'
                     }`}
                     style={{ backgroundColor: c.hex }}
                   />
@@ -2108,7 +2108,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
                     ? 'Highlighter stroke thickness'
                     : 'Pen stroke thickness'
               }
-              className="inline-flex items-center gap-2 px-2.5 py-1 bg-[#F4F3FC] border-2 border-[#1D1A4A] rounded-[12px] shadow-[2px_2px_0_#B8B3FF]"
+              className="inline-flex items-center gap-2 px-2.5 py-1 bg-[var(--sk-chip)] border-2 border-[var(--sk-ink)] rounded-[12px] shadow-[2px_2px_0_var(--sk-soft)]"
             >
               <span
                 aria-hidden="true"
@@ -2122,7 +2122,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
                           width: `${dotPreviewPx}px`,
                           height: `${dotPreviewPx}px`,
                           backgroundColor: 'rgba(255, 95, 168, 0.22)',
-                          border: '1.5px solid #C0266B',
+                          border: '1.5px solid var(--sk-acc-ink)',
                         }
                       : {
                           width: `${dotPreviewPx}px`,
@@ -2172,7 +2172,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
             aria-pressed={rulerEnabled}
             className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-[11px] cursor-pointer whitespace-nowrap ${
               rulerEnabled
-                ? 'bg-[#FFF5FA] border-2 border-[#1D1A4A] text-[#1D1A4A] shadow-[2px_2px_0_#FF5FA8]'
+                ? 'bg-[var(--sk-acc-soft)] border-2 border-[var(--sk-ink)] text-[var(--sk-ink)] shadow-[2px_2px_0_var(--sk-acc)]'
                 : 'sk-btn-subtle'
             }`}
           >
@@ -2193,7 +2193,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
             }
             className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-[11px] cursor-pointer whitespace-nowrap transition-transform ${
               palmLock
-                ? 'bg-[#FFF5FA] border-2 border-[#1D1A4A] text-[#1D1A4A] shadow-[2px_2px_0_#FF5FA8]'
+                ? 'bg-[var(--sk-acc-soft)] border-2 border-[var(--sk-ink)] text-[var(--sk-ink)] shadow-[2px_2px_0_var(--sk-acc)]'
                 : 'sk-btn-subtle'
             }`}
           >
@@ -2219,13 +2219,13 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
           {isFullscreen && (
             <span
               title={paperTitle}
-              className="hidden lg:inline-block max-w-[190px] truncate px-2 py-0.5 text-[11px] font-mono font-semibold text-[#5E588C] bg-[#F4F3FC] border border-[#DCDAF0] rounded-lg"
+              className="hidden lg:inline-block max-w-[190px] truncate px-2 py-0.5 text-[11px] font-mono font-semibold text-[var(--sk-dim)] bg-[var(--sk-chip)] border border-[var(--sk-line)] rounded-lg"
             >
               {paperTitle}
             </span>
           )}
           {numPages > 1 && (
-            <div className="inline-flex items-center border-2 border-[#1D1A4A] rounded-[12px] bg-white shadow-[2px_2px_0_#B8B3FF] overflow-hidden">
+            <div className="inline-flex items-center border-2 border-[var(--sk-ink)] rounded-[12px] bg-white shadow-[2px_2px_0_var(--sk-soft)] overflow-hidden">
               <button
                 type="button"
                 data-testid="pdf-prev-page-btn"
@@ -2233,11 +2233,11 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
                 disabled={visiblePage <= 1}
                 aria-label="Previous PDF page"
                 title="Previous page (one-tap jump without edge scrollbar)"
-                className="p-1.5 text-[#1D1A4A] hover:bg-[#F4F3FC] disabled:opacity-35 cursor-pointer disabled:cursor-not-allowed"
+                className="p-1.5 text-[var(--sk-ink)] hover:bg-[var(--sk-chip)] disabled:opacity-35 cursor-pointer disabled:cursor-not-allowed"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
-              <span className="px-1.5 text-[11px] font-mono tabular-nums font-bold text-[#1D1A4A] border-x border-[#DCDAF0]">
+              <span className="px-1.5 text-[11px] font-mono tabular-nums font-bold text-[var(--sk-ink)] border-x border-[var(--sk-line)]">
                 {visiblePage}/{numPages}
               </span>
               <button
@@ -2247,29 +2247,29 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
                 disabled={visiblePage >= numPages}
                 aria-label="Next PDF page"
                 title="Next page (one-tap jump without edge scrollbar)"
-                className="p-1.5 text-[#1D1A4A] hover:bg-[#F4F3FC] disabled:opacity-35 cursor-pointer disabled:cursor-not-allowed"
+                className="p-1.5 text-[var(--sk-ink)] hover:bg-[var(--sk-chip)] disabled:opacity-35 cursor-pointer disabled:cursor-not-allowed"
               >
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
           )}
-          <div className="inline-flex items-center border-2 border-[#1D1A4A] rounded-[12px] bg-white shadow-[2px_2px_0_#B8B3FF] overflow-hidden">
+          <div className="inline-flex items-center border-2 border-[var(--sk-ink)] rounded-[12px] bg-white shadow-[2px_2px_0_var(--sk-soft)] overflow-hidden">
             <button
               type="button"
               onClick={() => applyButtonZoom(-0.15)}
               aria-label="Zoom out"
-              className="p-1.5 text-[#1D1A4A] hover:bg-[#F4F3FC] cursor-pointer"
+              className="p-1.5 text-[var(--sk-ink)] hover:bg-[var(--sk-chip)] cursor-pointer"
             >
               <ZoomOut className="w-3.5 h-3.5" />
             </button>
-            <span className="px-2 text-[11px] font-mono tabular-nums font-semibold text-[#1D1A4A] border-x border-[#DCDAF0]">
+            <span className="px-2 text-[11px] font-mono tabular-nums font-semibold text-[var(--sk-ink)] border-x border-[var(--sk-line)]">
               {Math.round(zoom * pinchPreview.scale * 100)}%
             </span>
             <button
               type="button"
               onClick={() => applyButtonZoom(0.15)}
               aria-label="Zoom in"
-              className="p-1.5 text-[#1D1A4A] hover:bg-[#F4F3FC] cursor-pointer"
+              className="p-1.5 text-[var(--sk-ink)] hover:bg-[var(--sk-chip)] cursor-pointer"
             >
               <ZoomIn className="w-3.5 h-3.5" />
             </button>
@@ -2279,7 +2279,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
               disabled={!pdfDoc}
               title="Fit page width to screen"
               aria-label="Fit page width"
-              className="px-2 py-1 text-[11px] font-semibold text-[#5B57E8] hover:bg-[#F4F3FC] border-l border-[#DCDAF0] disabled:opacity-40 cursor-pointer"
+              className="px-2 py-1 text-[11px] font-semibold text-[var(--sk-pri-hover)] hover:bg-[var(--sk-chip)] border-l border-[var(--sk-line)] disabled:opacity-40 cursor-pointer"
             >
               Fit
             </button>
@@ -2308,7 +2308,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
             onClick={handleClearAll}
             disabled={totalStrokes === 0}
             aria-label="Clear all drawings"
-            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold border-[1.5px] border-[#DCDAF0] rounded-[11px] bg-white text-[#C0266B] hover:border-[#FF5FA8] hover:bg-[#FFF5FA] disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed whitespace-nowrap"
+            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold border-[1.5px] border-[var(--sk-line)] rounded-[11px] bg-white text-[var(--sk-acc-ink)] hover:border-[var(--sk-acc)] hover:bg-[var(--sk-acc-soft)] disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed whitespace-nowrap"
           >
             <Trash2 className="w-3.5 h-3.5" />
             Clear ({totalStrokes})
@@ -2378,15 +2378,15 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
             }`}
           >
             {loading && (
-              <div className="h-full min-h-[320px] flex flex-col items-center justify-center gap-3 text-sm text-[#393469]">
-                <Loader2 className="w-5 h-5 animate-spin text-[#6D69F2]" />
+              <div className="h-full min-h-[320px] flex flex-col items-center justify-center gap-3 text-sm text-[var(--sk-body)]">
+                <Loader2 className="w-5 h-5 animate-spin text-[var(--sk-pri)]" />
                 <span>Rendering PDF pages for annotation...</span>
               </div>
             )}
 
             {!loading && errorMsg && (
               <div className="max-w-lg mx-auto my-12 p-5 sk-card-accent bg-white text-center space-y-3">
-                <p className="text-sm text-[#393469] leading-relaxed">{errorMsg}</p>
+                <p className="text-sm text-[var(--sk-body)] leading-relaxed">{errorMsg}</p>
                 <input
                   ref={localUploadRef}
                   type="file"
@@ -2496,7 +2496,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
                 WebkitUserSelect: 'none',
                 userSelect: 'none',
               }}
-              className="absolute z-20 bg-amber-100/90 border-2 border-[#1D1A4A] rounded-lg shadow-[3px_3px_0_#B8B3FF] cursor-move flex items-center justify-between px-2 select-none"
+              className="absolute z-20 bg-amber-100/90 border-2 border-[var(--sk-ink)] rounded-lg shadow-[3px_3px_0_var(--sk-soft)] cursor-move flex items-center justify-between px-2 select-none"
             >
               {/* Ruler cm tick marks along top edge */}
               <div
@@ -2604,7 +2604,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
                   WebkitUserSelect: 'none',
                   userSelect: 'none',
                 }}
-                className={`absolute top-3 bottom-3 z-20 w-9 sm:w-10 rounded-[14px] border-2 border-[#1D1A4A] bg-white/95 backdrop-blur-xs shadow-[3px_3px_0_#B8B3FF] flex flex-col items-center overflow-hidden select-none transition-all duration-200 ${
+                className={`absolute top-3 bottom-3 z-20 w-9 sm:w-10 rounded-[14px] border-2 border-[var(--sk-ink)] bg-white/95 backdrop-blur-xs shadow-[3px_3px_0_var(--sk-soft)] flex flex-col items-center overflow-hidden select-none transition-all duration-200 ${
                   railSide === 'left' ? 'left-2' : 'right-2'
                 } ${
                   isRailVisible
@@ -2621,7 +2621,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
                   onContextMenu={preventContextMenu}
                   disabled={!thumbMetrics.canScroll}
                   aria-label="Scroll PDF up"
-                  className="w-full h-10 flex items-center justify-center text-[#1D1A4A] hover:bg-[#F4F3FC] active:bg-[#E7E5FA] border-b-[1.5px] border-[#DCDAF0] disabled:opacity-40 cursor-pointer disabled:cursor-default"
+                  className="w-full h-10 flex items-center justify-center text-[var(--sk-ink)] hover:bg-[var(--sk-chip)] active:bg-[#E7E5FA] border-b-[1.5px] border-[var(--sk-line)] disabled:opacity-40 cursor-pointer disabled:cursor-default"
                 >
                   <ChevronUp className="w-4 h-4" />
                 </button>
@@ -2639,7 +2639,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
                     WebkitUserSelect: 'none',
                     userSelect: 'none',
                   }}
-                  className="relative flex-1 w-full bg-[#F4F3FC] cursor-pointer"
+                  className="relative flex-1 w-full bg-[var(--sk-chip)] cursor-pointer"
                 >
                   <div
                     data-testid="pdf-scroll-thumb"
@@ -2647,7 +2647,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
                       height: `${thumbMetrics.thumbHeight}px`,
                       transform: `translateY(${thumbMetrics.thumbTop}px)`,
                     }}
-                    className="absolute inset-x-1 top-0 rounded-lg bg-[#6D69F2] hover:bg-[#5B57E8] border-[1.5px] border-[#1D1A4A] shadow-[2px_2px_0_#B8B3FF] flex flex-col items-center justify-center gap-1 pointer-events-none transition-colors"
+                    className="absolute inset-x-1 top-0 rounded-lg bg-[var(--sk-pri)] hover:bg-[var(--sk-pri-hover)] border-[1.5px] border-[var(--sk-ink)] shadow-[2px_2px_0_var(--sk-soft)] flex flex-col items-center justify-center gap-1 pointer-events-none transition-colors"
                   >
                     <span className="w-3.5 h-0.5 rounded-full bg-white/85" />
                     <span className="text-[9px] font-mono font-semibold text-white leading-none tabular-nums">
@@ -2664,7 +2664,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
                   onContextMenu={preventContextMenu}
                   disabled={!thumbMetrics.canScroll}
                   aria-label="Scroll PDF down"
-                  className="w-full h-10 flex items-center justify-center text-[#1D1A4A] hover:bg-[#F4F3FC] active:bg-[#E7E5FA] border-t-[1.5px] border-[#DCDAF0] disabled:opacity-40 cursor-pointer disabled:cursor-default"
+                  className="w-full h-10 flex items-center justify-center text-[var(--sk-ink)] hover:bg-[var(--sk-chip)] active:bg-[#E7E5FA] border-t-[1.5px] border-[var(--sk-line)] disabled:opacity-40 cursor-pointer disabled:cursor-default"
                 >
                   <ChevronDown className="w-4 h-4" />
                 </button>
@@ -2676,7 +2676,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
 
       {/* Quiet Footer Hint */}
       <div
-        className={`px-3 bg-white border-t-[1.5px] border-[#DCDAF0] flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#5E588C] ${
+        className={`px-3 bg-white border-t-[1.5px] border-[var(--sk-line)] flex flex-wrap items-center justify-between gap-2 text-[11px] text-[var(--sk-dim)] ${
           layout.isImmersive ? 'py-1' : 'py-1.5'
         }`}
       >

@@ -243,7 +243,7 @@ export const UniversalPageScroller: React.FC = () => {
           WebkitUserSelect: 'none',
           userSelect: 'none',
         }}
-        className={`fixed right-1.5 top-20 bottom-4 z-40 w-9 sm:w-10 bg-white/95 backdrop-blur-xs border-2 border-[#1D1A4A] rounded-[14px] shadow-[3px_3px_0_#B8B3FF] flex flex-col items-center overflow-hidden select-none transition-all duration-200 ${
+        className={`fixed right-1.5 top-20 bottom-4 z-40 w-9 sm:w-10 bg-white/95 backdrop-blur-xs border-2 border-[var(--sk-ink)] rounded-[14px] shadow-[3px_3px_0_var(--sk-soft)] flex flex-col items-center overflow-hidden select-none transition-all duration-200 ${
           isVisible
             ? 'opacity-100 translate-x-0 pointer-events-auto'
             : 'opacity-0 translate-x-3 pointer-events-none'
@@ -259,7 +259,7 @@ export const UniversalPageScroller: React.FC = () => {
           onContextMenu={preventContextMenu}
           aria-label="Scroll page to top"
           title="Back to top of page"
-          className="w-full h-9 flex items-center justify-center text-[#5B57E8] hover:bg-[#F4F3FC] active:bg-[#B8B3FF]/40 border-b-[1.5px] border-[#DCDAF0] cursor-pointer"
+          className="w-full h-9 flex items-center justify-center text-[var(--sk-pri-hover)] hover:bg-[var(--sk-chip)] active:bg-[var(--sk-soft)]/40 border-b-[1.5px] border-[var(--sk-line)] cursor-pointer"
         >
           <ChevronsUp className="w-4 h-4" />
         </button>
@@ -271,7 +271,7 @@ export const UniversalPageScroller: React.FC = () => {
           onContextMenu={preventContextMenu}
           aria-label="Scroll page up"
           title="Scroll page up"
-          className="w-full h-9 flex items-center justify-center text-[#1D1A4A] hover:bg-[#F4F3FC] active:bg-[#B8B3FF]/40 border-b-[1.5px] border-[#DCDAF0] cursor-pointer"
+          className="w-full h-9 flex items-center justify-center text-[var(--sk-ink)] hover:bg-[var(--sk-chip)] active:bg-[var(--sk-soft)]/40 border-b-[1.5px] border-[var(--sk-line)] cursor-pointer"
         >
           <ChevronUp className="w-4 h-4" />
         </button>
@@ -290,7 +290,7 @@ export const UniversalPageScroller: React.FC = () => {
             WebkitUserSelect: 'none',
             userSelect: 'none',
           }}
-          className="relative flex-1 w-full bg-[#F4F3FC] cursor-pointer"
+          className="relative flex-1 w-full bg-[var(--sk-chip)] cursor-pointer"
         >
           <div
             data-testid="universal-page-thumb"
@@ -298,7 +298,7 @@ export const UniversalPageScroller: React.FC = () => {
               height: `${thumb.thumbHeight}px`,
               transform: `translateY(${thumb.thumbTop}px)`,
             }}
-            className="absolute inset-x-1 top-0 rounded-lg bg-[#6D69F2] hover:bg-[#5B57E8] border border-[#1D1A4A] shadow-xs flex flex-col items-center justify-center gap-1 pointer-events-none"
+            className="absolute inset-x-1 top-0 rounded-lg bg-[var(--sk-pri)] hover:bg-[var(--sk-pri-hover)] border border-[var(--sk-ink)] shadow-xs flex flex-col items-center justify-center gap-1 pointer-events-none"
           >
             <span className="w-3.5 h-0.5 rounded-full bg-white/90" />
             <span className="text-[8px] font-mono font-bold text-white leading-none tracking-tighter">
@@ -315,7 +315,7 @@ export const UniversalPageScroller: React.FC = () => {
           onContextMenu={preventContextMenu}
           aria-label="Scroll page down"
           title="Scroll page down"
-          className="w-full h-9 flex items-center justify-center text-[#1D1A4A] hover:bg-[#F4F3FC] active:bg-[#B8B3FF]/40 border-t-[1.5px] border-[#DCDAF0] cursor-pointer"
+          className="w-full h-9 flex items-center justify-center text-[var(--sk-ink)] hover:bg-[var(--sk-chip)] active:bg-[var(--sk-soft)]/40 border-t-[1.5px] border-[var(--sk-line)] cursor-pointer"
         >
           <ChevronDown className="w-4 h-4" />
         </button>

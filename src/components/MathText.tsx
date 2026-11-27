@@ -61,7 +61,7 @@ export const MathText: React.FC<MathTextProps> = ({ text, className = '' }) => {
           return (
             <span
               key={idx}
-              className="underline decoration-[#FF5FA8] decoration-2 underline-offset-[3px] font-semibold text-[#1D1A4A] bg-[#FFF5FA]/80 px-0.5 rounded-sm"
+              className="underline decoration-[var(--sk-acc)] decoration-2 underline-offset-[3px] font-semibold text-[var(--sk-ink)] bg-[var(--sk-acc-soft)]/80 px-0.5 rounded-sm"
             >
               <MathText text={seg.content} />
             </span>
@@ -69,7 +69,7 @@ export const MathText: React.FC<MathTextProps> = ({ text, className = '' }) => {
         }
         if (seg.type === 'bold') {
           return (
-            <strong key={idx} className="font-semibold text-[#1D1A4A]">
+            <strong key={idx} className="font-semibold text-[var(--sk-ink)]">
               <MathText text={seg.content} />
             </strong>
           );
@@ -85,7 +85,7 @@ export const MathText: React.FC<MathTextProps> = ({ text, className = '' }) => {
           return (
             <span
               key={idx}
-              className="font-mono text-[0.9em] font-semibold text-[#1D1A4A] bg-[#F4F3FC] border border-[#DCDAF0] px-1.5 py-0.5 rounded-md"
+              className="font-mono text-[0.9em] font-semibold text-[var(--sk-ink)] bg-[var(--sk-chip)] border border-[var(--sk-line)] px-1.5 py-0.5 rounded-md"
             >
               {seg.content}
             </span>

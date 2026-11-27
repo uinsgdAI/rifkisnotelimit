@@ -58,10 +58,10 @@ export const SakugaSlider: React.FC<SakugaSliderProps> = ({
   const trackHeight = size === 'compact' ? 10 : 12;
   const fillColor =
     variant === 'sakura'
-      ? '#FF5FA8'
+      ? 'var(--sk-acc)'
       : variant === 'emerald'
         ? '#16A34A'
-        : '#6D69F2';
+        : 'var(--sk-pri)';
 
   const scheduleDecay = () => {
     if (decayTimerRef.current !== null) {
@@ -130,8 +130,8 @@ export const SakugaSlider: React.FC<SakugaSliderProps> = ({
         <div
           aria-hidden="true"
           style={{ height: `${trackHeight}px` }}
-          className={`w-full rounded-full border-2 border-[#1D1A4A] bg-white overflow-hidden ${
-            size === 'compact' ? '' : 'shadow-[2px_2px_0_#B8B3FF]'
+          className={`w-full rounded-full border-2 border-[var(--sk-ink)] bg-white overflow-hidden ${
+            size === 'compact' ? '' : 'shadow-[2px_2px_0_var(--sk-soft)]'
           }`}
         >
           <div
@@ -155,7 +155,7 @@ export const SakugaSlider: React.FC<SakugaSliderProps> = ({
               ? 'transform 60ms ease-out'
               : 'transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1), left 80ms ease-out',
           }}
-          className="absolute top-1/2 -translate-y-1/2 rounded-full bg-white border-[2.5px] border-[#1D1A4A] shadow-[1.5px_2px_0_#B8B3FF] pointer-events-none"
+          className="absolute top-1/2 -translate-y-1/2 rounded-full bg-white border-[2.5px] border-[var(--sk-ink)] shadow-[1.5px_2px_0_var(--sk-soft)] pointer-events-none"
         />
 
         <input
@@ -185,7 +185,7 @@ export const SakugaSlider: React.FC<SakugaSliderProps> = ({
             transform: `rotate(${fx.tiltDeg}deg)`,
             transition: 'transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1)',
           }}
-          className="shrink-0 min-w-[36px] px-1.5 py-0.5 text-center text-[11px] font-mono font-bold tabular-nums text-[#1D1A4A] bg-white border-2 border-[#1D1A4A] rounded-[8px] shadow-[1.5px_2px_0_#B8B3FF]"
+          className="shrink-0 min-w-[36px] px-1.5 py-0.5 text-center text-[11px] font-mono font-bold tabular-nums text-[var(--sk-ink)] bg-white border-2 border-[var(--sk-ink)] rounded-[8px] shadow-[1.5px_2px_0_var(--sk-soft)]"
         >
           {displayLabel}
         </span>

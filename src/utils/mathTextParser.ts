@@ -3,6 +3,16 @@ export interface MathTextSegment {
   content: string;
 }
 
+function hasBalancedDollars(text: string): boolean {
+  let count = 0;
+  for (let idx = 0; idx < text.length; idx++) {
+    if (text[idx] === '$' && (idx === 0 || text[idx - 1] !== '\\')) {
+      count += 1;
+    }
+  }
+  return count % 2 === 0;
+}
+
 export function tokenizeMathText(input: string): MathTextSegment[] {
   const segments: MathTextSegment[] = [];
   let i = 0;
@@ -32,7 +42,7 @@ export function tokenizeMathText(input: string): MathTextSegment[] {
       const end = input.indexOf('</u>', i + 3);
       if (end !== -1) {
         const inner = input.slice(i + 3, end);
-        if (inner.length > 0) {
+        if (inner.length > 0 && hasBalancedDollars(inner)) {
           flushText();
           segments.push({ type: 'underline', content: inner });
           i = end + 4;
@@ -46,7 +56,12 @@ export function tokenizeMathText(input: string): MathTextSegment[] {
       const end = input.indexOf('**', i + 2);
       if (end !== -1) {
         const inner = input.slice(i + 2, end);
-        if (inner.length > 0 && !inner.startsWith(' ') && !inner.endsWith(' ')) {
+        if (
+          inner.length > 0 &&
+          !inner.startsWith(' ') &&
+          !inner.endsWith(' ') &&
+          hasBalancedDollars(inner)
+        ) {
           flushText();
           segments.push({ type: 'bold', content: inner });
           i = end + 2;
@@ -60,7 +75,12 @@ export function tokenizeMathText(input: string): MathTextSegment[] {
       const end = input.indexOf('*', i + 1);
       if (end !== -1 && input[end + 1] !== '*') {
         const inner = input.slice(i + 1, end);
-        if (inner.length > 0 && !inner.startsWith(' ') && !inner.endsWith(' ')) {
+        if (
+          inner.length > 0 &&
+          !inner.startsWith(' ') &&
+          !inner.endsWith(' ') &&
+          hasBalancedDollars(inner)
+        ) {
           flushText();
           segments.push({ type: 'italic', content: inner });
           i = end + 1;

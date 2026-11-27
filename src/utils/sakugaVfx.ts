@@ -1,4 +1,4 @@
-export type SakugaVfxVariant = 'indigo' | 'sakura' | 'emerald';
+export type SakugaVfxVariant = 'indigo' | 'sakura' | 'emerald' | 'blue' | 'crimson';
 export type SakugaBurstIntensity = 'normal' | 'subtle' | 'micro';
 
 export interface SakugaParticle {
@@ -31,8 +31,23 @@ export interface SakugaBurstSpec {
 const VARIANT_PALETTES: Record<SakugaVfxVariant, string[]> = {
   indigo: ['#6D69F2', '#8F8DF7', '#B8B3FF', '#1D1A4A', '#FF5FA8'],
   sakura: ['#FF5FA8', '#FF8CC4', '#8F8DF7', '#B8B3FF', '#1D1A4A'],
-  emerald: ['#16A34A', '#4ADE80', '#8F8DF7', '#B8B3FF', '#1D1A4A'],
+  emerald: ['#16A34A', '#4ADE80', '#60A5FA', '#93C5FD', '#0F2557'],
+  blue: ['#2563EB', '#60A5FA', '#93C5FD', '#0F2557', '#0284C7'],
+  crimson: ['#DC2626', '#F87171', '#FCA5A5', '#5C0F14', '#E11D48'],
 };
+
+export function getActiveSubjectVfxVariant(
+  role: 'primary' | 'accent' | 'emerald' = 'primary'
+): SakugaVfxVariant {
+  if (role === 'emerald') return 'emerald';
+  const is0606 =
+    typeof document !== 'undefined' &&
+    document.documentElement?.dataset?.subject === '0606';
+  if (is0606) {
+    return 'crimson';
+  }
+  return role === 'accent' ? 'blue' : 'blue';
+}
 
 export function prefersReducedMotion(): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {

@@ -1,15 +1,5 @@
-export interface TopicalPaperPack {
-  id: string;
-  order: number;
-  title: string;
-  chapterId: number;
-  topicIds: string[];
-  paperMode: 'Non-Calc' | 'Calc' | 'Mixed';
-  questionsUrl: string;
-  answersUrl: string;
-  questionsFilename: string;
-  answersFilename: string;
-}
+import type { TopicalPaperPack } from '../types/syllabus';
+export type { TopicalPaperPack };
 
 export const TOPICAL_PAPERS_0580: TopicalPaperPack[] = [
   {

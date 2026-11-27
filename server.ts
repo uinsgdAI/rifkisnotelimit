@@ -21,19 +21,29 @@ async function startServer() {
     res.json({ ok: true });
   });
 
-  app.get('/api/papacambridge/sessions', async (_req, res) => {
-    const result = await fetchPapaCambridgeSessions();
-    res.json(result);
+  app.get('/api/papacambridge/sessions', async (req, res) => {
+    const rawSubject = typeof req.query.subject === 'string' ? req.query.subject : '0580';
+    if (rawSubject !== '0580' && rawSubject !== '0606') {
+      res.status(400).json({ error: 'Invalid subject parameter' });
+      return;
+    }
+    const result = await fetchPapaCambridgeSessions(rawSubject);
+    res.json({ subject: rawSubject, ...result });
   });
 
   app.get('/api/papacambridge/papers', async (req, res) => {
+    const rawSubject = typeof req.query.subject === 'string' ? req.query.subject : '0580';
+    if (rawSubject !== '0580' && rawSubject !== '0606') {
+      res.status(400).json({ error: 'Invalid subject parameter' });
+      return;
+    }
     const session = typeof req.query.session === 'string' ? req.query.session : '2024-may-june';
     if (!/^[a-z0-9-]+$/i.test(session)) {
       res.status(400).json({ error: 'Invalid session parameter' });
       return;
     }
-    const result = await fetchPapaCambridgePapers(session);
-    res.json(result);
+    const result = await fetchPapaCambridgePapers(session, rawSubject);
+    res.json({ subject: rawSubject, ...result });
   });
 
   const pdfProxyCache = new Map<

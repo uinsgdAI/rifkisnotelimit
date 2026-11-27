@@ -16,19 +16,29 @@ import {
   Table2,
   Zap,
 } from 'lucide-react';
-import type { AppRoute, SubtopicNote } from '../types/syllabus';
-import { getAdjacentSubtopics, SYLLABUS_0580 } from '../data/syllabus0580';
-import { gradeStudentAnswer, parsePaperReference } from '../utils/examLogic';
-import { findTopicalPapersForTopic } from '../utils/topicalPapers';
+import type {
+  AppRoute,
+  SubjectCode,
+  SubtopicNote,
+  SyllabusChapter,
+  TopicalPaperPack,
+} from '../types/syllabus';
+import {
+  getAdjacentSubtopicsFromSyllabus,
+  gradeStudentAnswer,
+  parsePaperReference,
+} from '../utils/examLogic';
 import { KaTeXFormula, MathText } from './MathText';
 import { SyllabusSidebar } from './SyllabusSidebar';
 import { TopicSandbox } from './TopicSandbox';
 import { TransformationDiagrams } from './TransformationDiagrams';
 import { TopicIllustrations } from './TopicIllustrations';
 import { getKeyFindingsForNote, highlightImportantText } from '../utils/noteKeyFindings';
-import { triggerSakugaBurst } from '../utils/sakugaVfx';
+import { getActiveSubjectVfxVariant, triggerSakugaBurst } from '../utils/sakugaVfx';
 
 interface NotesViewProps {
+  subject: SubjectCode;
+  syllabus: SyllabusChapter[];
   chapterId: number;
   topicId: string;
   note: SubtopicNote;
@@ -40,6 +50,8 @@ interface NotesViewProps {
 }
 
 export const NotesView: React.FC<NotesViewProps> = ({
+  subject,
+  syllabus,
   chapterId,
   topicId,
   note,
@@ -55,6 +67,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
   const [showHint, setShowHint] = useState(false);
   const [showSolution, setShowSolution] = useState(false);
   const [revealedMarkSchemes, setRevealedMarkSchemes] = useState<number[]>([]);
+  const [matchingTopicalPacks, setMatchingTopicalPacks] = useState<TopicalPaperPack[]>([]);
 
   useEffect(() => {
     setQuickInput('');
@@ -62,21 +75,41 @@ export const NotesView: React.FC<NotesViewProps> = ({
     setShowHint(false);
     setShowSolution(false);
     setRevealedMarkSchemes([]);
-  }, [topicId]);
+  }, [topicId, subject]);
 
-  const chapter = SYLLABUS_0580.find((c) => c.id === chapterId);
+  useEffect(() => {
+    let cancelled = false;
+    const packsLoader =
+      subject === '0606'
+        ? import('../data/topicalPapers0606').then((m) => m.TOPICAL_PAPERS_0606)
+        : import('../data/topicalPapers0580').then((m) => m.TOPICAL_PAPERS_0580);
+
+    Promise.all([import('../utils/topicalPapers'), packsLoader])
+      .then(([{ findTopicalPapersForTopic }, packs]) => {
+        if (!cancelled) {
+          setMatchingTopicalPacks(findTopicalPapersForTopic(note.id, packs));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setMatchingTopicalPacks([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [subject, note.id]);
+
+  const chapter = syllabus.find((c) => c.id === chapterId);
   const isStudied = studiedTopicIds.includes(note.id);
   const isFlaggedForReview = weakTopicIds.includes(note.id);
-  const { prev, next } = getAdjacentSubtopics(note.id);
+  const { prev, next } = getAdjacentSubtopicsFromSyllabus(syllabus, note.id);
   const parsedPaper = note.quickCheck.paperCode
     ? parsePaperReference(note.quickCheck.paperCode)
     : null;
   const otherWeakIds = weakTopicIds.filter((id) => id !== note.id);
   const nextWeakNote =
     otherWeakIds.length > 0
-      ? SYLLABUS_0580.flatMap((c) => c.subtopics).find((t) => t.id === otherWeakIds[0])
+      ? syllabus.flatMap((c) => c.subtopics).find((t) => t.id === otherWeakIds[0])
       : undefined;
-  const matchingTopicalPacks = findTopicalPapersForTopic(note.id);
   const keyFindings = getKeyFindingsForNote(note);
 
   const handleQuickSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -108,12 +141,14 @@ export const NotesView: React.FC<NotesViewProps> = ({
   return (
     <div className="w-full min-w-0 max-w-[1440px] mx-auto px-4 sm:px-6 py-6 flex flex-col lg:flex-row gap-6 items-stretch lg:items-start">
       <SyllabusSidebar
+        subject={subject}
+        syllabus={syllabus}
         activeChapterId={chapterId}
         activeTopicId={topicId}
         studiedTopicIds={studiedTopicIds}
         weakTopicIds={weakTopicIds}
         onSelectTopic={(ch, tp) =>
-          onNavigate({ view: 'notes', chapterId: ch, topicId: tp })
+          onNavigate({ view: 'notes', subject, chapterId: ch, topicId: tp })
         }
       />
 
@@ -121,17 +156,21 @@ export const NotesView: React.FC<NotesViewProps> = ({
         {/* Topic Header Card */}
         <section className="p-6 sk-card space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-2 text-xs text-[#5E588C]">
-              <span>IGCSE Mathematics (0580)</span>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--sk-dim)]">
+              <span>
+                {subject === '0606'
+                  ? 'IGCSE Additional Mathematics (0606)'
+                  : 'IGCSE Mathematics (0580)'}
+              </span>
               <span aria-hidden="true">·</span>
               <span>
                 Chapter {chapterId}: {chapter?.title}
               </span>
               <span aria-hidden="true">·</span>
-              <span className="font-mono text-[#1D1A4A] font-semibold">{note.code}</span>
+              <span className="font-mono text-[var(--sk-ink)] font-semibold">{note.code}</span>
               <span aria-hidden="true">·</span>
-              <span className={note.tier === 'Extended' ? 'text-[#C0266B] font-semibold' : 'text-[#393469]'}>
-                {note.tier}
+              <span className={note.tier === 'Extended' ? 'text-[var(--sk-acc-ink)] font-semibold' : 'text-[var(--sk-body)]'}>
+                {subject === '0606' ? '0606 (Grades A*–E)' : note.tier}
               </span>
             </div>
 
@@ -156,8 +195,8 @@ export const NotesView: React.FC<NotesViewProps> = ({
               <button
                 type="button"
                 onClick={(e) => {
-                  triggerSakugaBurst(e, 'indigo', 'PRACTICE!');
-                  onNavigate({ view: 'practice', mode: 'topical', topicId: note.id });
+                  triggerSakugaBurst(e, getActiveSubjectVfxVariant('primary'), 'PRACTICE!');
+                  onNavigate({ view: 'practice', subject, mode: 'topical', topicId: note.id });
                 }}
                 className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold sk-btn-primary cursor-pointer"
               >
@@ -169,19 +208,19 @@ export const NotesView: React.FC<NotesViewProps> = ({
 
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div className="min-w-0">
-              <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#1D1A4A] tracking-tight text-balance">
-                <span className="font-mono text-[#5B57E8] mr-2">{note.code}</span>{' '}
+              <h1 className="font-display text-2xl sm:text-3xl font-bold text-[var(--sk-ink)] tracking-tight text-balance">
+                <span className="font-mono text-[var(--sk-pri-hover)] mr-2">{note.code}</span>{' '}
                 <MathText text={note.title} />
               </h1>
-              <p className="mt-2 text-sm sm:text-base text-[#393469] leading-relaxed max-w-3xl">
+              <p className="mt-2 text-sm sm:text-base text-[var(--sk-body)] leading-relaxed max-w-3xl">
                 <MathText text={highlightImportantText(note.summary)} />
               </p>
               {note.aims && note.aims.length > 0 && (
-                <div className="mt-3 p-3.5 rounded-xl bg-[#FAF9FF] border-[1.5px] border-[#1D1A4A] shadow-[2px_3px_0_#B8B3FF] max-w-3xl space-y-1">
-                  <div className="text-xs font-bold uppercase tracking-wide text-[#5B57E8]">
+                <div className="mt-3 p-3.5 rounded-xl bg-[var(--sk-surface)] border-[1.5px] border-[var(--sk-ink)] shadow-[2px_3px_0_var(--sk-soft)] max-w-3xl space-y-1">
+                  <div className="text-xs font-bold uppercase tracking-wide text-[var(--sk-pri-hover)]">
                     Aim · Learning Target
                   </div>
-                  <ul className="space-y-1 text-xs sm:text-sm text-[#1D1A4A] list-disc pl-4">
+                  <ul className="space-y-1 text-xs sm:text-sm text-[var(--sk-ink)] list-disc pl-4">
                     {note.aims.map((aim, ai) => (
                       <li key={ai}>
                         <MathText text={highlightImportantText(aim)} />
@@ -191,8 +230,8 @@ export const NotesView: React.FC<NotesViewProps> = ({
                 </div>
               )}
               {note.coursebookRef && (
-                <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#5E588C]">
-                  <span className="font-semibold text-[#1D1A4A]">
+                <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--sk-dim)]">
+                  <span className="font-semibold text-[var(--sk-ink)]">
                     Morrison &amp; Hamshaw Coursebook (2nd Ed.)
                   </span>
                   <span aria-hidden="true">·</span>
@@ -205,7 +244,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
                 </div>
               )}
               {note.coursebookRef?.editionNote && (
-                <p className="mt-1 text-xs font-medium text-[#C0266B]">
+                <p className="mt-1 text-xs font-medium text-[var(--sk-acc-ink)]">
                   <MathText text={note.coursebookRef.editionNote} />
                 </p>
               )}
@@ -221,7 +260,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
                 aria-pressed={studyMode === 'conceptual'}
                 data-active={studyMode === 'conceptual'}
                 onClick={(e) => {
-                  triggerSakugaBurst(e, 'sakura');
+                  triggerSakugaBurst(e, getActiveSubjectVfxVariant('accent'));
                   setStudyMode('conceptual');
                 }}
                 className="px-3 py-1.5 text-xs font-semibold cursor-pointer whitespace-nowrap sk-tab"
@@ -233,18 +272,18 @@ export const NotesView: React.FC<NotesViewProps> = ({
                 aria-pressed={studyMode === 'detailed'}
                 data-active={studyMode === 'detailed'}
                 onClick={(e) => {
-                  triggerSakugaBurst(e, 'indigo');
+                  triggerSakugaBurst(e, getActiveSubjectVfxVariant('primary'));
                   setStudyMode('detailed');
                 }}
                 className="px-3 py-1.5 text-xs font-semibold cursor-pointer whitespace-nowrap sk-tab"
               >
-                Detailed Coursebook
+                {subject === '0606' ? 'Detailed Syllabus' : 'Detailed Coursebook'}
               </button>
             </div>
           </div>
 
           {isFlaggedForReview && (
-            <div className="p-3.5 rounded-xl bg-[#FFF0F6] border-[1.5px] border-[#FF5FA8]/50 flex flex-wrap items-center justify-between gap-3 text-xs text-[#831843]">
+            <div className="p-3.5 rounded-xl bg-[var(--sk-acc-soft)] border-[1.5px] border-[var(--sk-acc)]/50 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--sk-acc-ink)]">
               <span>
                 Flagged for revision from a missed practice or past paper question. Review the rules below, then click <strong>Mark as Studied</strong> once mastered.
               </span>
@@ -255,11 +294,12 @@ export const NotesView: React.FC<NotesViewProps> = ({
                     onClick={() =>
                       onNavigate({
                         view: 'notes',
+                        subject,
                         chapterId: nextWeakNote.chapterId,
                         topicId: nextWeakNote.id,
                       })
                     }
-                    className="px-2.5 py-1 font-semibold sk-btn-subtle text-[#831843] cursor-pointer"
+                    className="px-2.5 py-1 font-semibold sk-btn-subtle text-[var(--sk-acc-ink)] cursor-pointer"
                   >
                     Next Flagged: {nextWeakNote.code} →
                   </button>
@@ -267,7 +307,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
                 <button
                   type="button"
                   onClick={() => onClearWeakTopic(note.id)}
-                  className="px-2.5 py-1 font-semibold text-[#9D174D] hover:text-[#1D1A4A] cursor-pointer"
+                  className="px-2.5 py-1 font-semibold text-[var(--sk-acc-ink)] hover:text-[var(--sk-ink)] cursor-pointer"
                 >
                   Dismiss Flag
                 </button>
@@ -281,31 +321,31 @@ export const NotesView: React.FC<NotesViewProps> = ({
           <section className="p-5 sm:p-6 sk-card-accent space-y-4">
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
-                <Lightbulb className="w-4 h-4 text-[#5B57E8] shrink-0" />
-                <h2 className="font-display text-sm font-bold text-[#1D1A4A]">
+                <Lightbulb className="w-4 h-4 text-[var(--sk-pri-hover)] shrink-0" />
+                <h2 className="font-display text-sm font-bold text-[var(--sk-ink)]">
                   {studyMode === 'conceptual' ? 'Quick Concept — Core Intuition' : 'Big Idea & Core Intuition'}
                 </h2>
               </div>
-              <p className="text-sm sm:text-base text-[#1D1A4A] leading-relaxed max-w-3xl">
+              <p className="text-sm sm:text-base text-[var(--sk-ink)] leading-relaxed max-w-3xl">
                 <MathText text={highlightImportantText(note.bigIdea)} />
               </p>
             </div>
 
             {studyMode === 'conceptual' && note.rapidSummary && note.rapidSummary.length > 0 && (
-              <div className="pt-3 border-t border-[#DCDAF0] space-y-2.5">
-                <div className="text-xs font-bold text-[#1D1A4A]">
+              <div className="pt-3 border-t border-[var(--sk-line)] space-y-2.5">
+                <div className="text-xs font-bold text-[var(--sk-ink)]">
                   Key Takeaways at a Glance
                 </div>
                 <div className="grid sm:grid-cols-2 gap-3">
                   {note.rapidSummary.map((item, idx) => (
                     <div
                       key={idx}
-                      className="p-3.5 rounded-xl bg-white border-[1.5px] border-[#DCDAF0] space-y-1"
+                      className="p-3.5 rounded-xl bg-white border-[1.5px] border-[var(--sk-line)] space-y-1"
                     >
-                      <div className="font-display text-xs font-bold text-[#1D1A4A]">
+                      <div className="font-display text-xs font-bold text-[var(--sk-ink)]">
                         <MathText text={highlightImportantText(item.rule)} />
                       </div>
-                      <p className="text-xs text-[#393469] leading-relaxed">
+                      <p className="text-xs text-[var(--sk-body)] leading-relaxed">
                         <MathText text={highlightImportantText(item.detail)} />
                       </p>
                     </div>
@@ -316,7 +356,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
           </section>
         )}
 
-        {/* Key Findings & Boxed Notes (Temuan Kunci — structured notebook style for all 72 topics) */}
+        {/* Key Findings & Boxed Notes */}
         {keyFindings.length > 0 && (
           <section
             aria-label="Key Findings and Underlined Rules"
@@ -324,12 +364,12 @@ export const NotesView: React.FC<NotesViewProps> = ({
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-[#FF5FA8] shrink-0" />
-                <h2 className="font-display text-base font-bold text-[#1D1A4A]">
+                <Zap className="w-4 h-4 text-[var(--sk-acc)] shrink-0" />
+                <h2 className="font-display text-base font-bold text-[var(--sk-ink)]">
                   Key Findings &amp; Underlined Essentials (Temuan Kunci)
                 </h2>
               </div>
-              <span className="text-[11px] font-semibold text-[#5E588C]">
+              <span className="text-[11px] font-semibold text-[var(--sk-dim)]">
                 Underlined rules = must-state exam requirements
               </span>
             </div>
@@ -338,16 +378,16 @@ export const NotesView: React.FC<NotesViewProps> = ({
               {keyFindings.map((item, idx) => (
                 <div
                   key={idx}
-                  className="p-4 rounded-[16px] bg-[#FAF9FF] border-[1.5px] border-[#DCDAF0] space-y-2.5"
+                  className="p-4 rounded-[16px] bg-[var(--sk-surface)] border-[1.5px] border-[var(--sk-line)] space-y-2.5"
                 >
-                  <div className="font-display text-sm font-bold text-[#1D1A4A]">
+                  <div className="font-display text-sm font-bold text-[var(--sk-ink)]">
                     <MathText text={item.title} />
                   </div>
-                  <p className="text-sm text-[#393469] leading-relaxed">
+                  <p className="text-sm text-[var(--sk-body)] leading-relaxed">
                     <MathText text={item.finding} />
                   </p>
                   {item.noteBox && (
-                    <div className="p-3 rounded-xl bg-[#FFF5FA] border-[1.5px] border-[#1D1A4A] shadow-[2px_3px_0_#B8B3FF] text-xs sm:text-sm text-[#1D1A4A] leading-relaxed">
+                    <div className="p-3 rounded-xl bg-[var(--sk-acc-soft)] border-[1.5px] border-[var(--sk-ink)] shadow-[2px_3px_0_var(--sk-soft)] text-xs sm:text-sm text-[var(--sk-ink)] leading-relaxed">
                       <span className="font-bold mr-1.5">Note:</span>
                       <MathText text={item.noteBox} />
                     </div>
@@ -358,16 +398,16 @@ export const NotesView: React.FC<NotesViewProps> = ({
           </section>
         )}
 
-        {/* Dedicated Graph-Paper Diagrams for 7.1 Transformations */}
-        {note.id === '7.1' && <TransformationDiagrams />}
+        {/* Dedicated Graph-Paper Diagrams for 0580 7.1 Transformations */}
+        {subject === '0580' && note.id === '7.1' && <TransformationDiagrams />}
 
         {/* Visual Notebook Diagrams for Bearings & Visual Syllabus Topics */}
-        <TopicIllustrations topicId={note.id} />
+        {subject === '0580' && <TopicIllustrations topicId={note.id} />}
 
-        {/* Coursebook Margin Pedagogy: Tip & Fast Forward (Morrison & Hamshaw) */}
+        {/* Coursebook / Exam Margin Pedagogy: Tip & Fast Forward */}
         {(note.coursebookTip || (studyMode === 'detailed' && note.fastForward)) && (
           <section
-            aria-label="Coursebook Tip and Fast Forward"
+            aria-label="Exam Tip and Fast Forward"
             className={`grid gap-4 ${
               studyMode === 'detailed' && note.fastForward && note.coursebookTip
                 ? 'md:grid-cols-2'
@@ -375,22 +415,24 @@ export const NotesView: React.FC<NotesViewProps> = ({
             }`}
           >
             {note.coursebookTip && (
-              <div className="p-4 sm:p-5 rounded-[18px] bg-[#FFF5FA] border-[1.5px] border-[#F8C8E0] space-y-1.5">
-                <div className="text-xs font-bold text-[#9D174D]">
-                  Coursebook Tip · Morrison &amp; Hamshaw
+              <div className="p-4 sm:p-5 rounded-[18px] bg-[var(--sk-acc-soft)] border-[1.5px] border-[var(--sk-acc-line)] space-y-1.5">
+                <div className="text-xs font-bold text-[var(--sk-acc-ink)]">
+                  {subject === '0606'
+                    ? 'Exam Tip · Additional Mathematics (0606)'
+                    : 'Coursebook Tip · Morrison & Hamshaw'}
                 </div>
-                <p className="text-sm text-[#393469] leading-relaxed">
+                <p className="text-sm text-[var(--sk-body)] leading-relaxed">
                   <MathText text={note.coursebookTip} />
                 </p>
               </div>
             )}
             {studyMode === 'detailed' && note.fastForward && (
               <div className="p-4 sm:p-5 sk-card-soft space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-[#1D1A4A]">
-                  <Compass className="w-3.5 h-3.5 text-[#5B57E8] shrink-0" />
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--sk-ink)]">
+                  <Compass className="w-3.5 h-3.5 text-[var(--sk-pri-hover)] shrink-0" />
                   <span>Fast Forward · Where This Connects Next</span>
                 </div>
-                <p className="text-sm text-[#393469] leading-relaxed">
+                <p className="text-sm text-[var(--sk-body)] leading-relaxed">
                   <MathText text={note.fastForward} />
                 </p>
               </div>
@@ -402,16 +444,18 @@ export const NotesView: React.FC<NotesViewProps> = ({
         {studyMode === 'detailed' && (
           <section className="p-6 sk-card space-y-4">
             <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-[#5B57E8]" />
-              <h2 className="font-display text-base font-bold text-[#1D1A4A]">
+              <BookOpen className="w-4 h-4 text-[var(--sk-pri-hover)]" />
+              <h2 className="font-display text-base font-bold text-[var(--sk-ink)]">
                 Curriculum Learning Objectives (2025–2027)
               </h2>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className={`grid gap-6 ${note.extendedObjectives && note.extendedObjectives.length > 0 ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
               <div>
-                <h3 className="text-xs font-semibold text-[#5E588C] mb-2">Core Curriculum</h3>
-                <ul className="space-y-2 text-sm text-[#393469] leading-relaxed list-disc pl-5">
+                <h3 className="text-xs font-semibold text-[var(--sk-dim)] mb-2">
+                  {subject === '0606' ? '0606 Syllabus Objectives' : 'Core Curriculum'}
+                </h3>
+                <ul className="space-y-2 text-sm text-[var(--sk-body)] leading-relaxed list-disc pl-5">
                   {note.coreObjectives.map((obj, idx) => (
                     <li key={idx}>
                       <MathText text={obj} />
@@ -420,12 +464,12 @@ export const NotesView: React.FC<NotesViewProps> = ({
                 </ul>
               </div>
 
-              {note.extendedObjectives && note.extendedObjectives.length > 0 && (
+              {subject !== '0606' && note.extendedObjectives && note.extendedObjectives.length > 0 && (
                 <div>
-                  <h3 className="text-xs font-semibold text-[#C0266B] mb-2">
+                  <h3 className="text-xs font-semibold text-[var(--sk-acc-ink)] mb-2">
                     Extended Supplement
                   </h3>
-                  <ul className="space-y-2 text-sm text-[#393469] leading-relaxed list-disc pl-5">
+                  <ul className="space-y-2 text-sm text-[var(--sk-body)] leading-relaxed list-disc pl-5">
                     {note.extendedObjectives.map((obj, idx) => (
                       <li key={idx}>
                         <MathText text={obj} />
@@ -440,7 +484,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
 
         {/* Key Formulae */}
         <section className="p-6 sk-card space-y-4">
-          <h2 className="font-display text-base font-bold text-[#1D1A4A]">
+          <h2 className="font-display text-base font-bold text-[var(--sk-ink)]">
             Key Rules &amp; Formulae
           </h2>
           <div className="grid sm:grid-cols-2 gap-4">
@@ -449,14 +493,14 @@ export const NotesView: React.FC<NotesViewProps> = ({
                 key={f.label}
                 className="p-4 sk-card-soft space-y-2"
               >
-                <div className="text-xs font-semibold text-[#1D1A4A]">
+                <div className="text-xs font-semibold text-[var(--sk-ink)]">
                   <MathText text={f.label} />
                 </div>
-                <div className="overflow-x-auto text-[#1D1A4A]">
+                <div className="overflow-x-auto text-[var(--sk-ink)]">
                   <KaTeXFormula latex={f.latex} />
                 </div>
                 {f.note && (
-                  <p className="text-xs text-[#5E588C]">
+                  <p className="text-xs text-[var(--sk-dim)]">
                     <MathText text={highlightImportantText(f.note)} />
                   </p>
                 )}
@@ -469,15 +513,15 @@ export const NotesView: React.FC<NotesViewProps> = ({
         {studyMode === 'detailed' && note.stepByStepMethod && note.stepByStepMethod.length > 0 && (
           <section className="p-6 sk-card space-y-4">
             <div className="flex items-center gap-2">
-              <ListChecks className="w-4 h-4 text-[#5B57E8] shrink-0" />
-              <h2 className="font-display text-base font-bold text-[#1D1A4A]">
+              <ListChecks className="w-4 h-4 text-[var(--sk-pri-hover)] shrink-0" />
+              <h2 className="font-display text-base font-bold text-[var(--sk-ink)]">
                 Step-by-Step Exam Method
               </h2>
             </div>
             <ol className="space-y-3">
               {note.stepByStepMethod.map((step, idx) => (
-                <li key={idx} className="flex items-start gap-3 text-sm text-[#393469] leading-relaxed max-w-3xl">
-                  <span className="w-6 h-6 rounded-lg bg-[#F4F3FC] border-[1.5px] border-[#1D1A4A] text-[#1D1A4A] font-mono text-xs font-bold flex items-center justify-center shrink-0 mt-0.5 shadow-[2px_2px_0_#B8B3FF]">
+                <li key={idx} className="flex items-start gap-3 text-sm text-[var(--sk-body)] leading-relaxed max-w-3xl">
+                  <span className="w-6 h-6 rounded-lg bg-[var(--sk-chip)] border-[1.5px] border-[var(--sk-ink)] text-[var(--sk-ink)] font-mono text-xs font-bold flex items-center justify-center shrink-0 mt-0.5 shadow-[2px_2px_0_var(--sk-soft)]">
                     {idx + 1}
                   </span>
                   <span>
@@ -489,38 +533,38 @@ export const NotesView: React.FC<NotesViewProps> = ({
           </section>
         )}
 
-        {/* Structured Textbook Comparison / Reference Table (Detailed mode) */}
+        {/* Structured Reference Table (Detailed mode) */}
         {studyMode === 'detailed' && note.comparisonTable && (
           <section className="p-6 sk-card min-w-0 w-full max-w-full overflow-x-clip space-y-4">
             <div className="flex items-center gap-2">
-              <Table2 className="w-4 h-4 text-[#5B57E8] shrink-0" />
-              <h2 className="font-display text-base font-bold text-[#1D1A4A]">
+              <Table2 className="w-4 h-4 text-[var(--sk-pri-hover)] shrink-0" />
+              <h2 className="font-display text-base font-bold text-[var(--sk-ink)]">
                 <MathText text={note.comparisonTable.title} />
               </h2>
             </div>
-            <div className="w-full max-w-full overflow-x-auto border-[1.5px] border-[#DCDAF0] rounded-xl">
+            <div className="w-full max-w-full overflow-x-auto border-[1.5px] border-[var(--sk-line)] rounded-xl">
               <table className="w-full text-left border-collapse text-sm">
                 <thead>
-                  <tr className="bg-[#F4F3FC] border-b-[1.5px] border-[#DCDAF0]">
+                  <tr className="bg-[var(--sk-chip)] border-b-[1.5px] border-[var(--sk-line)]">
                     {note.comparisonTable.headers.map((header, hi) => (
                       <th
                         key={hi}
                         scope="col"
-                        className="px-4 py-2.5 text-xs font-bold text-[#1D1A4A] whitespace-nowrap"
+                        className="px-4 py-2.5 text-xs font-bold text-[var(--sk-ink)] whitespace-nowrap"
                       >
                         <MathText text={header} />
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#ECEBF8]">
+                <tbody className="divide-y divide-[var(--sk-line)]/70">
                   {note.comparisonTable.rows.map((row, ri) => (
-                    <tr key={ri} className="bg-white hover:bg-[#FAF9FF]">
+                    <tr key={ri} className="bg-white hover:bg-[var(--sk-surface)]">
                       {row.map((cell, ci) => (
                         <td
                           key={ci}
-                          className={`px-4 py-2.5 text-[#393469] align-top ${
-                            ci === 0 ? 'font-semibold text-[#1D1A4A]' : ''
+                          className={`px-4 py-2.5 text-[var(--sk-body)] align-top ${
+                            ci === 0 ? 'font-semibold text-[var(--sk-ink)]' : ''
                           }`}
                         >
                           <MathText text={cell} />
@@ -535,7 +579,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
         )}
 
         {/* Interactive Sandbox if present */}
-        {note.sandbox && note.sandbox !== 'none' && (
+        {subject === '0580' && note.sandbox && note.sandbox !== 'none' && (
           <TopicSandbox type={note.sandbox} topicId={note.id} />
         )}
 
@@ -543,26 +587,26 @@ export const NotesView: React.FC<NotesViewProps> = ({
         {studyMode === 'detailed' && (
           <section className="p-6 sk-card space-y-6">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="font-display text-base font-bold text-[#1D1A4A]">
-                Detailed Coursebook Study Notes
+              <h2 className="font-display text-base font-bold text-[var(--sk-ink)]">
+                {subject === '0606' ? 'Detailed 0606 Study Notes' : 'Detailed Coursebook Study Notes'}
               </h2>
               {note.coursebookRef && (
-                <span className="text-xs text-[#5E588C]">
+                <span className="text-xs text-[var(--sk-dim)]">
                   Aligned with Chapter {note.coursebookRef.chapter}: <MathText text={note.coursebookRef.chapterTitle} />
                 </span>
               )}
             </div>
-            <div className="space-y-6 divide-y divide-[#ECEBF8]">
+            <div className="space-y-6 divide-y divide-[var(--sk-line)]/70">
               {note.studyNotes.map((sec, idx) => (
                 <div key={idx} className={idx > 0 ? 'pt-6' : ''}>
-                  <h3 className="font-display text-sm font-bold text-[#1D1A4A] mb-2">
+                  <h3 className="font-display text-sm font-bold text-[var(--sk-ink)] mb-2">
                     <MathText text={sec.heading} />
                   </h3>
-                  <p className="text-sm text-[#393469] leading-relaxed max-w-3xl">
+                  <p className="text-sm text-[var(--sk-body)] leading-relaxed max-w-3xl">
                     <MathText text={highlightImportantText(sec.body)} />
                   </p>
                   {sec.bullets && (
-                    <ul className="mt-3 space-y-2 text-sm text-[#393469] leading-relaxed list-disc pl-5 max-w-3xl">
+                    <ul className="mt-3 space-y-2 text-sm text-[var(--sk-body)] leading-relaxed list-disc pl-5 max-w-3xl">
                       {sec.bullets.map((b, bi) => (
                         <li key={bi}>
                           <MathText text={highlightImportantText(b)} />
@@ -571,7 +615,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
                     </ul>
                   )}
                   {sec.noteBox && (
-                    <div className="mt-3 p-3 rounded-xl bg-[#FFF5FA] border-[1.5px] border-[#1D1A4A] shadow-[2px_3px_0_#B8B3FF] text-xs sm:text-sm text-[#1D1A4A] leading-relaxed max-w-3xl">
+                    <div className="mt-3 p-3 rounded-xl bg-[var(--sk-acc-soft)] border-[1.5px] border-[var(--sk-ink)] shadow-[2px_3px_0_var(--sk-soft)] text-xs sm:text-sm text-[var(--sk-ink)] leading-relaxed max-w-3xl">
                       <span className="font-bold mr-1.5">Note:</span>
                       <MathText text={highlightImportantText(sec.noteBox)} />
                     </div>
@@ -585,16 +629,16 @@ export const NotesView: React.FC<NotesViewProps> = ({
         {/* Worked Examples */}
         <section className="p-6 sk-card space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="font-display text-base font-bold text-[#1D1A4A]">
+            <h2 className="font-display text-base font-bold text-[var(--sk-ink)]">
               {studyMode === 'conceptual' ? 'Quick Walkthrough Example' : 'Worked Exam Examples'}
             </h2>
             {studyMode === 'conceptual' && (
               <button
                 type="button"
                 onClick={() => setStudyMode('detailed')}
-                className="text-xs font-bold text-[#5B57E8] hover:text-[#1D1A4A] cursor-pointer"
+                className="text-xs font-bold text-[var(--sk-pri-hover)] hover:text-[var(--sk-ink)] cursor-pointer"
               >
-                Show full objectives, tables &amp; all {note.workedExamples.length} examples (Detailed Coursebook) →
+                Show full objectives, tables &amp; all {note.workedExamples.length} examples →
               </button>
             )}
           </div>
@@ -610,19 +654,19 @@ export const NotesView: React.FC<NotesViewProps> = ({
                   className="p-5 sk-card-soft space-y-4"
                 >
                   <div className="flex items-baseline justify-between gap-4">
-                    <h3 className="font-display text-sm font-bold text-[#1D1A4A]">
+                    <h3 className="font-display text-sm font-bold text-[var(--sk-ink)]">
                       Example {idx + 1}: <MathText text={ex.title} />
                     </h3>
-                    <span className="font-mono text-xs tabular-nums text-[#5E588C] shrink-0">
+                    <span className="font-mono text-xs tabular-nums text-[var(--sk-dim)] shrink-0">
                       [{ex.marks} {ex.marks === 1 ? 'mark' : 'marks'}]
                     </span>
                   </div>
 
-                  <p className="text-sm text-[#1D1A4A] leading-relaxed">
+                  <p className="text-sm text-[var(--sk-ink)] leading-relaxed">
                     <MathText text={ex.question} />
                   </p>
 
-                  <ol className="space-y-2 text-sm text-[#393469] list-decimal pl-5">
+                  <ol className="space-y-2 text-sm text-[var(--sk-body)] list-decimal pl-5">
                     {ex.steps.map((s, si) => (
                       <li key={si}>
                         <MathText text={s} />
@@ -630,14 +674,14 @@ export const NotesView: React.FC<NotesViewProps> = ({
                     ))}
                   </ol>
 
-                  <div className="pt-3 border-t border-[#DCDAF0] flex flex-wrap items-center justify-between gap-3">
-                    <div className="text-sm font-bold text-[#5B57E8]">
+                  <div className="pt-3 border-t border-[var(--sk-line)] flex flex-wrap items-center justify-between gap-3">
+                    <div className="text-sm font-bold text-[var(--sk-pri-hover)]">
                       Answer: <MathText text={ex.answer} />
                     </div>
                     <button
                       type="button"
                       onClick={() => toggleMarkScheme(idx)}
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5E588C] hover:text-[#1D1A4A] cursor-pointer"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--sk-dim)] hover:text-[var(--sk-ink)] cursor-pointer"
                     >
                       <Eye className="w-3.5 h-3.5" />
                       {showMs ? 'Hide Mark Scheme' : 'Show Mark Scheme'}
@@ -645,7 +689,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
                   </div>
 
                   {showMs && (
-                    <div className="p-3 rounded-xl bg-white border-[1.5px] border-[#DCDAF0] text-xs text-[#393469] font-mono">
+                    <div className="p-3 rounded-xl bg-white border-[1.5px] border-[var(--sk-line)] text-xs text-[var(--sk-body)] font-mono">
                       <MathText text={ex.markSchemeNotes} />
                     </div>
                   )}
@@ -655,34 +699,34 @@ export const NotesView: React.FC<NotesViewProps> = ({
           </div>
         </section>
 
-        {/* Rapid Exam Summary Table (Detailed mode; Quick Concept already renders Takeaways cards above) */}
+        {/* Rapid Exam Summary Table */}
         {studyMode === 'detailed' && note.rapidSummary && note.rapidSummary.length > 0 && (
           <section className="p-6 sk-card min-w-0 w-full max-w-full overflow-x-clip space-y-4">
             <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-[#FF5FA8] shrink-0" />
-              <h2 className="font-display text-base font-bold text-[#1D1A4A]">
+              <Zap className="w-4 h-4 text-[var(--sk-acc)] shrink-0" />
+              <h2 className="font-display text-base font-bold text-[var(--sk-ink)]">
                 Rapid Exam Summary
               </h2>
             </div>
-            <div className="w-full max-w-full overflow-x-auto border-[1.5px] border-[#DCDAF0] rounded-xl">
+            <div className="w-full max-w-full overflow-x-auto border-[1.5px] border-[var(--sk-line)] rounded-xl">
               <table className="w-full text-left border-collapse text-sm">
                 <thead>
-                  <tr className="bg-[#F4F3FC] border-b-[1.5px] border-[#DCDAF0]">
-                    <th scope="col" className="px-4 py-2.5 text-xs font-bold text-[#1D1A4A] w-1/3">
+                  <tr className="bg-[var(--sk-chip)] border-b-[1.5px] border-[var(--sk-line)]">
+                    <th scope="col" className="px-4 py-2.5 text-xs font-bold text-[var(--sk-ink)] w-1/3">
                       Must Remember
                     </th>
-                    <th scope="col" className="px-4 py-2.5 text-xs font-bold text-[#1D1A4A]">
+                    <th scope="col" className="px-4 py-2.5 text-xs font-bold text-[var(--sk-ink)]">
                       Rule &amp; Application
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#ECEBF8]">
+                <tbody className="divide-y divide-[var(--sk-line)]/70">
                   {note.rapidSummary.map((item, ri) => (
                     <tr key={ri} className="bg-white">
-                      <td className="px-4 py-2.5 font-semibold text-[#1D1A4A] align-top">
+                      <td className="px-4 py-2.5 font-semibold text-[var(--sk-ink)] align-top">
                         <MathText text={item.rule} />
                       </td>
-                      <td className="px-4 py-2.5 text-[#393469] align-top">
+                      <td className="px-4 py-2.5 text-[var(--sk-body)] align-top">
                         <MathText text={item.detail} />
                       </td>
                     </tr>
@@ -697,10 +741,10 @@ export const NotesView: React.FC<NotesViewProps> = ({
         <div className={`grid gap-6 ${studyMode === 'detailed' ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
           {studyMode === 'detailed' && (
             <section className="p-6 sk-card space-y-3">
-              <h2 className="font-display text-base font-bold text-[#1D1A4A]">
+              <h2 className="font-display text-base font-bold text-[var(--sk-ink)]">
                 Common Exam Pitfalls
               </h2>
-              <ul className="space-y-2.5 text-sm text-[#393469] list-disc pl-5 leading-relaxed">
+              <ul className="space-y-2.5 text-sm text-[var(--sk-body)] list-disc pl-5 leading-relaxed">
                 {note.commonMistakes.map((m, i) => (
                   <li key={i}>
                     <MathText text={m} />
@@ -716,13 +760,13 @@ export const NotesView: React.FC<NotesViewProps> = ({
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h2 className="font-display text-base font-bold text-[#1D1A4A]">
+                <h2 className="font-display text-base font-bold text-[var(--sk-ink)]">
                   {parsedPaper ? 'Topical Past Paper Question' : 'Topical Concept Check'}
                 </h2>
-                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-[#5E588C]">
+                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-[var(--sk-dim)]">
                   {parsedPaper && note.quickCheck.paperCode ? (
                     <>
-                      <span className="font-mono font-semibold text-[#5B57E8]">
+                      <span className="font-mono font-semibold text-[var(--sk-pri-hover)]">
                         {note.quickCheck.paperCode}
                         {note.quickCheck.questionNumber ? ` · ${note.quickCheck.questionNumber}` : ''}
                       </span>
@@ -733,11 +777,11 @@ export const NotesView: React.FC<NotesViewProps> = ({
                     </>
                   ) : (
                     <>
-                      <span className="font-mono font-semibold text-[#1D1A4A]">
+                      <span className="font-mono font-semibold text-[var(--sk-ink)]">
                         Syllabus {note.code}
                       </span>
                       <span aria-hidden="true">·</span>
-                      <span>{note.tier}</span>
+                      <span>{subject === '0606' ? '0606 Add Maths' : note.tier}</span>
                       <span aria-hidden="true">·</span>
                       <span>{note.quickCheck.paperType ?? 'Non-Calculator'}</span>
                     </>
@@ -745,7 +789,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
                   {typeof note.quickCheck.marks === 'number' && (
                     <>
                       <span aria-hidden="true">·</span>
-                      <span className="font-mono text-[#5E588C]">
+                      <span className="font-mono text-[var(--sk-dim)]">
                         [{note.quickCheck.marks} {note.quickCheck.marks === 1 ? 'mark' : 'marks'}]
                       </span>
                     </>
@@ -759,11 +803,12 @@ export const NotesView: React.FC<NotesViewProps> = ({
                   onClick={() =>
                     onNavigate({
                       view: 'past-papers',
+                      subject,
                       sessionSlug: parsedPaper.sessionSlug,
                       paperFilename: parsedPaper.qpFilename,
                     })
                   }
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold sk-btn-subtle text-[#5B57E8] cursor-pointer shrink-0"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold sk-btn-subtle text-[var(--sk-pri-hover)] cursor-pointer shrink-0"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                   View {parsedPaper.paperCode} in Past Papers
@@ -771,16 +816,16 @@ export const NotesView: React.FC<NotesViewProps> = ({
               ) : (
                 <button
                   type="button"
-                  onClick={() => onNavigate({ view: 'past-papers' })}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold sk-btn-subtle text-[#5B57E8] cursor-pointer shrink-0"
+                  onClick={() => onNavigate({ view: 'past-papers', subject })}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold sk-btn-subtle text-[var(--sk-pri-hover)] cursor-pointer shrink-0"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                  Browse 0580 Past Papers
+                  Browse {subject} Past Papers
                 </button>
               )}
             </div>
 
-            <p className="text-sm text-[#393469] leading-relaxed">
+            <p className="text-sm text-[var(--sk-body)] leading-relaxed">
               <MathText text={note.quickCheck.prompt} />
             </p>
 
@@ -826,7 +871,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
               <button
                 type="button"
                 onClick={() => setShowHint((h) => !h)}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-[#5E588C] hover:text-[#1D1A4A] cursor-pointer"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--sk-dim)] hover:text-[var(--sk-ink)] cursor-pointer"
               >
                 <HelpCircle className="w-3.5 h-3.5" />
                 {showHint ? 'Hide Hint' : 'Show Hint'}
@@ -834,7 +879,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
               <button
                 type="button"
                 onClick={() => setShowSolution((s) => !s)}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-[#5B57E8] hover:text-[#1D1A4A] cursor-pointer"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--sk-pri-hover)] hover:text-[var(--sk-ink)] cursor-pointer"
               >
                 <Eye className="w-3.5 h-3.5" />
                 {showSolution ? 'Hide Solution' : 'Reveal Solution'}
@@ -842,12 +887,12 @@ export const NotesView: React.FC<NotesViewProps> = ({
             </div>
 
             {showHint && (
-              <p className="text-xs text-[#393469] p-3 sk-card-soft">
+              <p className="text-xs text-[var(--sk-body)] p-3 sk-card-soft">
                 <MathText text={note.quickCheck.hint} />
               </p>
             )}
             {showSolution && (
-              <p className="text-xs text-[#1D1A4A] p-3 rounded-xl bg-[#F4F3FC] border-[1.5px] border-[#8F8DF7]">
+              <p className="text-xs text-[var(--sk-ink)] p-3 rounded-xl bg-[var(--sk-chip)] border-[1.5px] border-[var(--sk-pri-bright)]">
                 <MathText text={note.quickCheck.solution} />
               </p>
             )}
@@ -862,11 +907,13 @@ export const NotesView: React.FC<NotesViewProps> = ({
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h2 className="font-display text-sm font-bold text-[#1D1A4A]">
+                <h2 className="font-display text-sm font-bold text-[var(--sk-ink)]">
                   Annotatable Topical Past Paper Sheets for {note.code} {note.title}
                 </h2>
-                <p className="text-xs text-[#5E588C] mt-0.5">
-                  Solve full exam-style topical PDFs side-by-side with worked solutions using Pen, Highlighter, and Ruler.
+                <p className="text-xs text-[var(--sk-dim)] mt-0.5">
+                  {subject === '0606'
+                    ? 'Solve real PapaCambridge 0606 topical past paper PDFs directly in the browser using Pen, Highlighter, and Ruler.'
+                    : 'Solve full exam-style topical PDFs side-by-side with worked solutions using Pen, Highlighter, and Ruler.'}
                 </p>
               </div>
             </div>
@@ -876,18 +923,22 @@ export const NotesView: React.FC<NotesViewProps> = ({
                   key={pack.id}
                   type="button"
                   onClick={(e) => {
-                    triggerSakugaBurst(e, 'indigo');
+                    triggerSakugaBurst(e, getActiveSubjectVfxVariant('primary'));
                     onNavigate({
                       view: 'practice',
+                      subject,
+                      mode: 'topical-paper',
                       topicalPackId: pack.id,
                     });
                   }}
                   className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-bold sk-btn-secondary cursor-pointer"
                 >
-                  <Columns2 className="w-3.5 h-3.5 text-[#5B57E8]" />
+                  <Columns2 className="w-3.5 h-3.5 text-[var(--sk-pri-hover)]" />
                   <span>{pack.title}</span>
-                  <span className="font-mono text-[11px] text-[#5E588C]">({pack.paperMode})</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-[#FF5FA8]" />
+                  {subject === '0580' && (
+                    <span className="font-mono text-[11px] text-[var(--sk-dim)]">({pack.paperMode})</span>
+                  )}
+                  <ArrowRight className="w-3.5 h-3.5 text-[var(--sk-acc)]" />
                 </button>
               ))}
             </div>
@@ -903,6 +954,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
                 onClick={() =>
                   onNavigate({
                     view: 'notes',
+                    subject,
                     chapterId: prev.chapterId,
                     topicId: prev.id,
                   })
@@ -920,11 +972,11 @@ export const NotesView: React.FC<NotesViewProps> = ({
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => onNavigate({ view: 'past-papers' })}
+              onClick={() => onNavigate({ view: 'past-papers', subject })}
               className="inline-flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold sk-btn-subtle cursor-pointer"
             >
-              <FileText className="w-3.5 h-3.5 text-[#5B57E8]" />
-              0580 Past Papers
+              <FileText className="w-3.5 h-3.5 text-[var(--sk-pri-hover)]" />
+              {subject} Past Papers
             </button>
             {next && (
               <button
@@ -932,6 +984,7 @@ export const NotesView: React.FC<NotesViewProps> = ({
                 onClick={() =>
                   onNavigate({
                     view: 'notes',
+                    subject,
                     chapterId: next.chapterId,
                     topicId: next.id,
                   })
