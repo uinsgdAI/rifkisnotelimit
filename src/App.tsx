@@ -7,7 +7,7 @@ import { SakugaCanvasOverlay } from './components/SakugaCanvasOverlay';
 import { UniversalPageScroller } from './components/UniversalPageScroller';
 import { ALL_SUBTOPICS_0580, findSubtopic } from './data/syllabus0580';
 import type { AppRoute } from './types/syllabus';
-import { buildAppRoutePath, parseAppRoute } from './utils/examLogic';
+import { buildAppRoutePath, parseAppRoute, resolvePracticeSection } from './utils/examLogic';
 import { startBackgroundAppWarmup, setBackgroundWarmupPaused } from './utils/backgroundPreloader';
 import {
   loadFormulaSheetModal,
@@ -28,6 +28,7 @@ export default function App() {
   const [formulaModalOpen, setFormulaModalOpen] = useState(false);
   const [graphModalOpen, setGraphModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [practiceNavNonce, setPracticeNavNonce] = useState(0);
   const [sakugaToast, setSakugaToast] = useState<string | null>(null);
   const toastTimerRef = useRef<number | null>(null);
   const [studiedTopicIds, setStudiedTopicIds] = useState<string[]>(() => {
@@ -86,6 +87,9 @@ export default function App() {
       window.history.pushState(null, '', nextPath);
     }
     setRoute(nextRoute);
+    if (nextRoute.view === 'practice') {
+      setPracticeNavNonce((n) => n + 1);
+    }
     setMobileMenuOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
@@ -146,6 +150,11 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-[#FFFFFF] text-[#1D1A4A] overflow-x-clip">
       <Header
         activeView={route.view}
+        activePracticeSection={
+          route.view === 'practice'
+            ? resolvePracticeSection(route.mode, route.topicalPackId)
+            : undefined
+        }
         onNavigate={navigate}
         onGoHome={() => navigate({ view: 'notes', chapterId: 1, topicId: '1.1' }, '/')}
         onOpenFormulaSheet={() => setFormulaModalOpen(true)}
@@ -187,6 +196,7 @@ export default function App() {
             initialMode={route.mode}
             initialTopicId={route.topicId}
             initialTopicalPackId={route.topicalPackId}
+            navNonce={practiceNavNonce}
             onOpenFormulaSheet={() => setFormulaModalOpen(true)}
             onFlagWeakTopics={flagWeakTopics}
             onNavigate={navigate}

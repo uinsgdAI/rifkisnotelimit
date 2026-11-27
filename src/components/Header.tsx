@@ -1,11 +1,13 @@
-import React from 'react';
-import { Menu, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ChevronDown, ClipboardCheck, FileText, Menu, X } from 'lucide-react';
 import type { AppRoute } from '../types/syllabus';
+import type { PracticeSectionMode } from '../utils/examLogic';
 import { preloadRouteView } from '../utils/routePreloaders';
 import { triggerSakugaBurst } from '../utils/sakugaVfx';
 
 interface HeaderProps {
   activeView: AppRoute['view'];
+  activePracticeSection?: PracticeSectionMode;
   onNavigate: (route: AppRoute) => void;
   onGoHome: () => void;
   onOpenFormulaSheet: () => void;
@@ -17,6 +19,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   activeView,
+  activePracticeSection,
   onNavigate,
   onGoHome,
   onOpenFormulaSheet,
@@ -25,6 +28,37 @@ export const Header: React.FC<HeaderProps> = ({
   mobileMenuOpen,
   onToggleMobileMenu,
 }) => {
+  const [topicalMenuOpen, setTopicalMenuOpen] = useState(false);
+  const topicalDropdownRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!topicalMenuOpen) return;
+    const handlePointerDown = (e: PointerEvent) => {
+      if (
+        topicalDropdownRef.current &&
+        !topicalDropdownRef.current.contains(e.target as Node)
+      ) {
+        setTopicalMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setTopicalMenuOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [topicalMenuOpen]);
+
+  const navigateTopical = (mode: PracticeSectionMode) => {
+    setTopicalMenuOpen(false);
+    onNavigate({ view: 'practice', mode });
+  };
+
   return (
     <header className="sticky top-0 z-30 bg-white border-b-[1.5px] border-[#DCDAF0]">
       <div className="max-w-[1440px] mx-auto pl-4 pr-14 sm:pl-6 sm:pr-14 h-16 flex items-center justify-between gap-3 lg:gap-8">
@@ -69,19 +103,94 @@ export const Header: React.FC<HeaderProps> = ({
           >
             Past Papers
           </button>
-          <button
-            type="button"
-            onPointerEnter={() => preloadRouteView('practice')}
-            onFocus={() => preloadRouteView('practice')}
-            onClick={() => onNavigate({ view: 'practice' })}
-            className={`py-1.5 whitespace-nowrap shrink-0 border-b-[2.5px] transition-colors cursor-pointer ${
-              activeView === 'practice'
-                ? 'border-[#FF5FA8] text-[#1D1A4A]'
-                : 'border-transparent text-[#5E588C] hover:text-[#1D1A4A]'
-            }`}
+
+          {/* Topical hover/click dropdown: Practice Test & Topical Paper */}
+          <div
+            ref={topicalDropdownRef}
+            className="relative"
+            onMouseEnter={() => {
+              preloadRouteView('practice');
+              setTopicalMenuOpen(true);
+            }}
+            onMouseLeave={() => setTopicalMenuOpen(false)}
           >
-            Practice Test
-          </button>
+            <button
+              type="button"
+              aria-expanded={topicalMenuOpen}
+              aria-controls="topical-nav-dropdown"
+              onPointerEnter={() => preloadRouteView('practice')}
+              onFocus={() => preloadRouteView('practice')}
+              onClick={() => {
+                preloadRouteView('practice');
+                setTopicalMenuOpen((open) => !open);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  setTopicalMenuOpen(true);
+                }
+              }}
+              className={`inline-flex items-center gap-1 py-1.5 whitespace-nowrap shrink-0 border-b-[2.5px] transition-colors cursor-pointer ${
+                activeView === 'practice'
+                  ? 'border-[#FF5FA8] text-[#1D1A4A]'
+                  : 'border-transparent text-[#5E588C] hover:text-[#1D1A4A]'
+              }`}
+            >
+              <span>Topical</span>
+              <ChevronDown
+                className={`w-3.5 h-3.5 transition-transform duration-150 ${
+                  topicalMenuOpen ? 'rotate-180 text-[#FF5FA8]' : ''
+                }`}
+              />
+            </button>
+
+            {topicalMenuOpen && (
+              <div
+                id="topical-nav-dropdown"
+                data-testid="topical-nav-dropdown"
+                className="absolute left-0 top-full pt-1.5 w-60 z-50"
+              >
+                <div className="bg-white border-2 border-[#1D1A4A] rounded-2xl shadow-[4px_5px_0_#B8B3FF] p-1.5 space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => navigateTopical('practice-test')}
+                    className={`w-full text-left px-3 py-2.5 rounded-xl flex items-start gap-2.5 transition-colors cursor-pointer ${
+                      activeView === 'practice' && activePracticeSection === 'practice-test'
+                        ? 'bg-[#F4F3FC] text-[#1D1A4A] border border-[#8F8DF7]'
+                        : 'text-[#1D1A4A] hover:bg-[#FAF9FF] border border-transparent'
+                    }`}
+                  >
+                    <ClipboardCheck className="w-4 h-4 mt-0.5 text-[#6D69F2] shrink-0" />
+                    <div>
+                      <div className="text-xs font-bold leading-tight">Practice Test</div>
+                      <div className="text-[11px] font-normal text-[#5E588C] mt-0.5">
+                        Timed mocks &amp; chapter drills
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => navigateTopical('topical-paper')}
+                    className={`w-full text-left px-3 py-2.5 rounded-xl flex items-start gap-2.5 transition-colors cursor-pointer ${
+                      activeView === 'practice' && activePracticeSection === 'topical-paper'
+                        ? 'bg-[#FFF5FA] text-[#1D1A4A] border border-[#FF5FA8]'
+                        : 'text-[#1D1A4A] hover:bg-[#FAF9FF] border border-transparent'
+                    }`}
+                  >
+                    <FileText className="w-4 h-4 mt-0.5 text-[#FF5FA8] shrink-0" />
+                    <div>
+                      <div className="text-xs font-bold leading-tight">Topical Paper</div>
+                      <div className="text-[11px] font-normal text-[#5E588C] mt-0.5">
+                        78 annotatable Q + MS PDFs
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <button
             type="button"
             onPointerEnter={() => preloadRouteView('graph')}
@@ -154,18 +263,43 @@ export const Header: React.FC<HeaderProps> = ({
           >
             Past Papers
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              onNavigate({ view: 'practice' });
-              onToggleMobileMenu();
-            }}
-            className={`block w-full text-left px-3 py-2.5 text-sm font-semibold rounded-xl cursor-pointer ${
-              activeView === 'practice' ? 'bg-[#F4F3FC] text-[#1D1A4A]' : 'text-[#393469] hover:bg-[#F4F3FC]'
-            }`}
-          >
-            Practice Test
-          </button>
+
+          <div className="pt-1 pb-0.5">
+            <div className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[#5E588C]">
+              Topical
+            </div>
+            <div className="pl-2 space-y-1">
+              <button
+                type="button"
+                onClick={() => {
+                  onNavigate({ view: 'practice', mode: 'practice-test' });
+                  onToggleMobileMenu();
+                }}
+                className={`block w-full text-left px-3 py-2 text-sm font-semibold rounded-xl cursor-pointer ${
+                  activeView === 'practice' && activePracticeSection === 'practice-test'
+                    ? 'bg-[#F4F3FC] text-[#1D1A4A]'
+                    : 'text-[#393469] hover:bg-[#F4F3FC]'
+                }`}
+              >
+                Practice Test
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onNavigate({ view: 'practice', mode: 'topical-paper' });
+                  onToggleMobileMenu();
+                }}
+                className={`block w-full text-left px-3 py-2 text-sm font-semibold rounded-xl cursor-pointer ${
+                  activeView === 'practice' && activePracticeSection === 'topical-paper'
+                    ? 'bg-[#FFF5FA] text-[#1D1A4A]'
+                    : 'text-[#393469] hover:bg-[#F4F3FC]'
+                }`}
+              >
+                Topical Paper
+              </button>
+            </div>
+          </div>
+
           <button
             type="button"
             onClick={() => {

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   parseAppRoute,
   buildAppRoutePath,
+  resolvePracticeSection,
   evaluateStudentAnswer,
   estimateCambridgeGrade,
   gradeStudentAnswer,
@@ -99,6 +100,33 @@ test('buildAppRoutePath serializes routes cleanly', () => {
     }),
     '/past-papers/0580/2024-may-june?paper=0580_s24_qp_42.pdf'
   );
+});
+
+test('resolvePracticeSection separates Practice Test and Topical Paper dropdown routes cleanly', () => {
+  assert.deepEqual(parseAppRoute('/practice/0580/practice-test'), {
+    view: 'practice',
+    mode: 'practice-test',
+    topicId: undefined,
+  });
+  assert.deepEqual(parseAppRoute('/practice/0580/topical-paper'), {
+    view: 'practice',
+    mode: 'topical-paper',
+    topicId: undefined,
+  });
+  assert.equal(
+    buildAppRoutePath({ view: 'practice', mode: 'practice-test' }),
+    '/practice/0580/practice-test'
+  );
+  assert.equal(
+    buildAppRoutePath({ view: 'practice', mode: 'topical-paper' }),
+    '/practice/0580/topical-paper'
+  );
+  assert.equal(resolvePracticeSection(undefined, undefined), 'practice-test');
+  assert.equal(resolvePracticeSection('practice-test', undefined), 'practice-test');
+  assert.equal(resolvePracticeSection('mock-extended', undefined), 'practice-test');
+  assert.equal(resolvePracticeSection('topical', undefined), 'practice-test');
+  assert.equal(resolvePracticeSection('topical-paper', undefined), 'topical-paper');
+  assert.equal(resolvePracticeSection(undefined, 'surds-non-calc'), 'topical-paper');
 });
 
 test('evaluateStudentAnswer handles currency, fractions, and numeric tolerances', () => {

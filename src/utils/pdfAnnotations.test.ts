@@ -435,11 +435,19 @@ test('clampStrokeSize and resolveStrokeSizeFromPreset enforce manual slider boun
   assert.equal(resolveStrokeSizeFromPreset('eraser', 'bold'), 28);
 });
 
-test('Palm Lock blocks accidental single-touch draw/pan while allowing S Pen, mouse, and explicit Scroll tool', () => {
+test('S Pen Mode restricts Pen/Highlight/Eraser to S Pen & mouse while allowing finger touch to scroll smoothly', () => {
   assert.equal(
     shouldIgnoreSinglePointerForPalmLock({
       palmLockActive: true,
       activeTool: 'pen',
+      pointerType: 'touch',
+    }),
+    true
+  );
+  assert.equal(
+    shouldIgnoreSinglePointerForPalmLock({
+      palmLockActive: true,
+      activeTool: 'highlighter',
       pointerType: 'touch',
     }),
     true
@@ -477,16 +485,65 @@ test('Palm Lock blocks accidental single-touch draw/pan while allowing S Pen, mo
     false
   );
 
-  // Margin touch cannot trigger single-finger scroll when Palm Lock is ON
+  // In S Pen Mode, finger touch inside paper OR on margin triggers single-finger scroll
   assert.equal(
     shouldStartSinglePointerBackgroundPan({
       activeTool: 'pen',
+      hasDocument: true,
+      isInteractiveControl: false,
+      isInsidePaperPage: true,
+      activeTouchCount: 1,
+      isMultiTouchActive: false,
+      pointerType: 'touch',
+      button: 0,
+      palmLockActive: true,
+      isStylusActiveRecently: false,
+    }),
+    true
+  );
+  assert.equal(
+    shouldStartSinglePointerBackgroundPan({
+      activeTool: 'eraser',
       hasDocument: true,
       isInteractiveControl: false,
       isInsidePaperPage: false,
       activeTouchCount: 1,
       isMultiTouchActive: false,
       pointerType: 'touch',
+      button: 0,
+      palmLockActive: true,
+      isStylusActiveRecently: false,
+    }),
+    true
+  );
+
+  // While S Pen is actively touching or hovering, resting palm touch must NOT trigger accidental scroll
+  assert.equal(
+    shouldStartSinglePointerBackgroundPan({
+      activeTool: 'pen',
+      hasDocument: true,
+      isInteractiveControl: false,
+      isInsidePaperPage: true,
+      activeTouchCount: 1,
+      isMultiTouchActive: false,
+      pointerType: 'touch',
+      button: 0,
+      palmLockActive: true,
+      isStylusActiveRecently: true,
+    }),
+    false
+  );
+
+  // S Pen itself never pans when Pen/Eraser is active
+  assert.equal(
+    shouldStartSinglePointerBackgroundPan({
+      activeTool: 'pen',
+      hasDocument: true,
+      isInteractiveControl: false,
+      isInsidePaperPage: false,
+      activeTouchCount: 0,
+      isMultiTouchActive: false,
+      pointerType: 'pen',
       button: 0,
       palmLockActive: true,
     }),

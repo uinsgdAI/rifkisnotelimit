@@ -119,7 +119,6 @@ interface PdfPageCanvasProps {
   multiTouchSignal: number;
   palmLock: boolean;
   onDetectStylus?: () => void;
-  onPalmBlockedTouch?: () => void;
   getRulerGeometry: () => RulerClientGeometry | null;
   onCommitStroke: (pageNumber: number, stroke: AnnotationStroke) => void;
   onEraseSegment: (
@@ -152,7 +151,6 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
   multiTouchSignal,
   palmLock,
   onDetectStylus,
-  onPalmBlockedTouch,
   getRulerGeometry,
   onCommitStroke,
   onEraseSegment,
@@ -558,7 +556,7 @@ const PdfPageCanvas: React.FC<PdfPageCanvasProps> = React.memo(({
         pointerType: e.pointerType,
       })
     ) {
-      onPalmBlockedTouch?.();
+      // Let single-finger touch bubble up cleanly to scroll container in S Pen Mode
       return;
     }
     const isHardwarePenEraser =
@@ -754,17 +752,21 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     }
     return 'left';
   });
+  // S Pen Mode ON by default: S Pen & mouse draw/highlight/erase; finger touch scrolls
   const [palmLock, setPalmLock] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
+    if (typeof window === 'undefined') return true;
     try {
-      return window.localStorage.getItem(PALM_LOCK_STORAGE_KEY) === 'true';
+      const saved = window.localStorage.getItem(PALM_LOCK_STORAGE_KEY);
+      if (saved === 'false') return false;
+      if (saved === 'true') return true;
     } catch {
-      return false;
+      // ignore
     }
+    return true;
   });
   const manualPalmOverrideRef = useRef(false);
-  const [palmBlockedFlash, setPalmBlockedFlash] = useState(false);
-  const palmBlockedTimerRef = useRef<number | null>(null);
+  const activePenPointerIdsRef = useRef<Set<number>>(new Set());
+  const lastStylusActivityAtRef = useRef<number>(0);
 
   const [history, setHistory] = useState<AnnotationHistoryState>(() =>
     createInitialAnnotationHistory(loadPaperAnnotations(paperKey))
@@ -967,23 +969,11 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
   }, []);
 
   const handleTogglePalmLock = useCallback(() => {
-    setPalmBlockedFlash(false);
     setPalmLock((prev) => {
       const next = !prev;
       manualPalmOverrideRef.current = !next;
       return next;
     });
-  }, []);
-
-  const triggerPalmBlockedFlash = useCallback(() => {
-    setPalmBlockedFlash(true);
-    if (palmBlockedTimerRef.current !== null) {
-      window.clearTimeout(palmBlockedTimerRef.current);
-    }
-    palmBlockedTimerRef.current = window.setTimeout(() => {
-      setPalmBlockedFlash(false);
-      palmBlockedTimerRef.current = null;
-    }, 1500);
   }, []);
 
   const handleCycleRailSide = useCallback(() => {
@@ -1626,8 +1616,11 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
 
   const handleViewportPointerDownCapture = (e: React.PointerEvent<HTMLDivElement>) => {
     const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    // If S Pen presses down while resting palm or stale OS-rejected touches lingered, clear idle touches so S Pen never locks out
+    // If S Pen presses down, record active stylus state, cancel any accidental palm pan, and prune stale touches
     if (e.pointerType === 'pen') {
+      activePenPointerIdsRef.current.add(e.pointerId);
+      lastStylusActivityAtRef.current = nowMs;
+      singlePanRef.current.active = false;
       pruneStaleTouchPointers(nowMs, 180);
       if (!twoFingerSessionRef.current.pinchEngaged && activeTouchPointersRef.current.size < 2) {
         isMultiTouchActiveRef.current = false;
@@ -1675,6 +1668,10 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
   };
 
   const handleViewportPointerMoveCapture = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'pen') {
+      lastStylusActivityAtRef.current = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      return;
+    }
     if (e.pointerType !== 'touch') return;
     if (!activeTouchPointersRef.current.has(e.pointerId)) return;
     const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -1802,16 +1799,25 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
   );
 
   const handleViewportPointerEndCapture = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'pen') {
+      activePenPointerIdsRef.current.delete(e.pointerId);
+      lastStylusActivityAtRef.current = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      return;
+    }
     if (e.pointerType !== 'touch') return;
     releaseTouchPointer(e.pointerId);
   };
 
-  // Single-finger / mouse drag 2D pan: always allowed outside the paper (background/margins),
-  // and inside the paper when Scroll ('pan') tool is active; inside paper with drawing tools requires 2 fingers.
+  // Single-finger / mouse drag 2D pan:
+  // - When S Pen Mode is ON: finger touch scrolls anywhere while S Pen draws/erases.
+  // - When S Pen Mode is OFF: finger draws on paper, scrolls on margins, or 2-finger scrolls inside paper.
   const handleContainerPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement | null;
     const isInteractiveControl = Boolean(target?.closest('button, a, input, select'));
     const isInsidePaperPage = Boolean(target?.closest('[data-pdf-page]'));
+    const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const isStylusActiveRecently =
+      activePenPointerIdsRef.current.size > 0 || nowMs - lastStylusActivityAtRef.current < 180;
 
     if (
       !shouldStartSinglePointerBackgroundPan({
@@ -1824,6 +1830,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
         pointerType: e.pointerType,
         button: e.button,
         palmLockActive: palmLock,
+        isStylusActiveRecently,
       })
     ) {
       return;
@@ -1876,6 +1883,9 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
       syncScrollMetrics();
     };
     const onWindowPointerUp = (e: PointerEvent) => {
+      if (e.pointerType === 'pen') {
+        activePenPointerIdsRef.current.delete(e.pointerId);
+      }
       if (singlePanRef.current.pointerId === e.pointerId) {
         singlePanRef.current.active = false;
       }
@@ -1885,6 +1895,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
     };
     const clearTransientTouchState = () => {
       singlePanRef.current.active = false;
+      activePenPointerIdsRef.current.clear();
       activeTouchPointersRef.current.clear();
       isMultiTouchActiveRef.current = false;
       twoFingerSessionRef.current.active = false;
@@ -2169,7 +2180,7 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
             Ruler
           </button>
 
-          {/* S Pen Palm Rejection Lock (ignores accidental single-finger/palm touches while writing) */}
+          {/* S Pen Mode: S Pen & mouse draw/erase; finger touch scrolls smoothly */}
           <button
             type="button"
             data-testid="pdf-palm-lock-btn"
@@ -2177,19 +2188,17 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
             aria-pressed={palmLock}
             title={
               palmLock
-                ? 'Palm Lock ON: S Pen & mouse draw/erase; 1-finger/palm touch blocked (tap to allow finger touch)'
-                : 'Enable Palm Lock when writing with S Pen so your right palm cannot scroll or draw dots'
+                ? 'S Pen Mode ON: Pen/Brush only draws with S Pen & mouse; dragging with your finger scrolls the PDF. Tap to allow finger drawing.'
+                : 'Finger Draw ON: Both finger touch and S Pen can draw on the PDF. Tap to switch back to S Pen Mode (finger scrolls).'
             }
             className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-[11px] cursor-pointer whitespace-nowrap transition-transform ${
-              palmBlockedFlash
-                ? 'bg-[#FFE4F1] border-2 border-[#C0266B] text-[#C0266B] scale-105 shadow-[2px_2px_0_#FF5FA8]'
-                : palmLock
-                  ? 'bg-[#FFF5FA] border-2 border-[#1D1A4A] text-[#1D1A4A] shadow-[2px_2px_0_#FF5FA8]'
-                  : 'sk-btn-subtle'
+              palmLock
+                ? 'bg-[#FFF5FA] border-2 border-[#1D1A4A] text-[#1D1A4A] shadow-[2px_2px_0_#FF5FA8]'
+                : 'sk-btn-subtle'
             }`}
           >
             <Shield className="w-3.5 h-3.5" />
-            {palmBlockedFlash ? 'S Pen Only (Tap to Unlock)' : 'Palm Lock'}
+            {palmLock ? 'S Pen Mode' : 'Finger Draw'}
           </button>
 
           {/* Scroll Rail Placement (Left default for right-handed users, Right, or Off) */}
@@ -2456,7 +2465,6 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
                     multiTouchSignal={multiTouchSignal}
                     palmLock={palmLock}
                     onDetectStylus={handleDetectStylus}
-                    onPalmBlockedTouch={triggerPalmBlockedFlash}
                     getRulerGeometry={getRulerGeometry}
                     onCommitStroke={handleCommitStroke}
                     onEraseSegment={handleEraseSegment}
@@ -2675,10 +2683,8 @@ export const PdfAnnotator: React.FC<PdfAnnotatorProps> = ({
         <span>
           {numPages > 0
             ? palmLock
-              ? `Page ${visiblePage}/${numPages} · Palm Lock ON (S Pen draws · 2-finger scroll/zoom · ‹ › to jump pages)`
-              : `Page ${visiblePage}/${numPages} · 2-finger scroll/zoom · Use ‹ › page buttons or auto-hide ${
-                  railSide === 'off' ? 'off' : `${railSide}`
-                } rail`
+              ? `Page ${visiblePage}/${numPages} · S Pen draws/erases · Finger scrolls · 2-finger pinch-zoom`
+              : `Page ${visiblePage}/${numPages} · Finger & S Pen draw · 2-finger scroll/zoom · ‹ › to jump pages`
             : 'Preparing PDF canvas'}
         </span>
         <span className="font-mono tabular-nums">

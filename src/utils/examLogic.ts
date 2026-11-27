@@ -84,6 +84,18 @@ export function buildAppRoutePath(route: AppRoute): string {
   return '/notes/0580/1/1.16';
 }
 
+export type PracticeSectionMode = 'practice-test' | 'topical-paper';
+
+export function resolvePracticeSection(
+  mode?: string,
+  topicalPackId?: string
+): PracticeSectionMode {
+  if (topicalPackId || mode === 'topical-paper') {
+    return 'topical-paper';
+  }
+  return 'practice-test';
+}
+
 export interface ParsedPaperReference {
   paperCode: string;
   sessionSlug: string;

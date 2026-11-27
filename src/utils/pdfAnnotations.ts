@@ -1559,7 +1559,7 @@ export function acquireFullscreenBodyLock(): () => void {
 export type ScrollRailSide = 'left' | 'right' | 'off';
 
 export const SCROLL_RAIL_SIDE_STORAGE_KEY = 'cambridge_0580_annotator_rail_side_v1';
-export const PALM_LOCK_STORAGE_KEY = 'cambridge_0580_annotator_palm_lock_v1';
+export const PALM_LOCK_STORAGE_KEY = 'cambridge_0580_annotator_spen_mode_v2';
 
 export function nextScrollRailSide(current: ScrollRailSide): ScrollRailSide {
   if (current === 'left') return 'right';
@@ -1619,6 +1619,7 @@ export function shouldStartSinglePointerBackgroundPan(params: {
   pointerType: string;
   button: number;
   palmLockActive?: boolean;
+  isStylusActiveRecently?: boolean;
 }): boolean {
   const {
     activeTool,
@@ -1630,16 +1631,25 @@ export function shouldStartSinglePointerBackgroundPan(params: {
     pointerType,
     button,
     palmLockActive = false,
+    isStylusActiveRecently = false,
   } = params;
 
   if (!hasDocument || isInteractiveControl) return false;
   if (isMultiTouchActive || activeTouchCount >= 2) return false;
   if (pointerType === 'mouse' && button !== 0) return false;
-  if (palmLockActive && pointerType === 'touch' && activeTool !== 'pan') {
-    return false;
-  }
 
   if (activeTool === 'pan') return true;
+
+  // In S Pen Mode: S Pen draws/erases on paper, while finger touch scrolls anywhere (unless stylus is actively touching/hovering)
+  if (palmLockActive) {
+    if (pointerType === 'touch') {
+      return !isStylusActiveRecently;
+    }
+    if (pointerType === 'pen') {
+      return false;
+    }
+  }
+
   return !isInsidePaperPage;
 }
 

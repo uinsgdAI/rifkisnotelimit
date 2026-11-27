@@ -18,6 +18,7 @@ import {
   extractWeakTopicsFromResults,
   formatCountdown,
   gradeStudentAnswer,
+  resolvePracticeSection,
 } from '../utils/examLogic';
 import {
   generateMockExamQuestions,
@@ -31,6 +32,7 @@ interface PracticeExamViewProps {
   initialMode?: string;
   initialTopicId?: string;
   initialTopicalPackId?: string;
+  navNonce?: number;
   onOpenFormulaSheet: () => void;
   onFlagWeakTopics?: (topicIds: string[]) => void;
   onNavigate: (route: AppRoute) => void;
@@ -70,10 +72,12 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
   initialMode,
   initialTopicId,
   initialTopicalPackId,
+  navNonce = 0,
   onOpenFormulaSheet,
   onFlagWeakTopics,
   onNavigate,
 }) => {
+  const activeSection = resolvePracticeSection(initialMode, initialTopicalPackId);
   const [selectedChapterFilter, setSelectedChapterFilter] = useState<number | 'all'>('all');
   const [activeExam, setActiveExam] = useState<ActiveExamSession | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -252,8 +256,9 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
   );
 
   useEffect(() => {
-    if (initialTopicalPackId) {
+    if (initialTopicalPackId || initialMode === 'topical-paper' || initialMode === 'practice-test') {
       setActiveExam(null);
+      handledRouteKeyRef.current = '';
       return;
     }
     const routeKey = `${initialMode || ''}:${initialTopicId || ''}`;
@@ -281,7 +286,15 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
       const ext = presets.find((p) => p.id === 'mock-ext-p2');
       if (ext) startPreset(ext);
     }
-  }, [initialMode, initialTopicId, initialTopicalPackId, presets, launchGeneratedSession, startPreset]);
+  }, [
+    initialMode,
+    initialTopicId,
+    initialTopicalPackId,
+    navNonce,
+    presets,
+    launchGeneratedSession,
+    startPreset,
+  ]);
 
   useEffect(() => {
     if (!activeExam || submitted) return;
@@ -315,151 +328,190 @@ export const PracticeExamView: React.FC<PracticeExamViewProps> = ({
     });
 
     return (
-      <main className="max-w-[1440px] mx-auto px-4 sm:px-6 py-6 space-y-8">
-        <section className="p-6 sk-card flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="text-xs text-[#5E588C] mb-1">
-              Cambridge IGCSE Mathematics (0580) · Timed Exam &amp; Topical Drills
-            </div>
-            <h1 className="font-display text-2xl font-bold text-[#1D1A4A]">
-              IGCSE 0580 Practice Tests
-            </h1>
-            <p className="text-sm text-[#393469] mt-1 max-w-2xl">
-              Practise with Multiple Choice, Numeric, and Exact Fraction questions under Non-Calculator (Papers 1/2) or Calculator (Papers 3/4) rules. Every retry generates fresh questions with new numbers and scenarios.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onOpenFormulaSheet}
-            className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold sk-btn-secondary cursor-pointer shrink-0 whitespace-nowrap"
-          >
-            <FileSpreadsheet className="w-4 h-4 text-[#5B57E8]" />
-            View 0580 Formula Sheet
-          </button>
-        </section>
-
-        {/* Timed Mock Exam Presets */}
-        <section className="space-y-3">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="font-display text-base font-bold text-[#1D1A4A]">
-              Timed IGCSE Mock Papers
-            </h2>
-            <span className="text-xs text-[#5E588C]">
-              Unlimited retries — every retake swaps in brand-new questions
-            </span>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {presets.map((preset) => (
-              <article
-                key={preset.id}
-                className={`p-5 flex flex-col justify-between gap-4 ${
-                  preset.id === 'mock-full'
-                    ? 'md:col-span-2 lg:col-span-2 sk-card-accent'
-                    : 'sk-card'
-                }`}
-              >
-                <div className="space-y-2">
-                  <div
-                    className={`flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-[#5E588C] ${
-                      preset.id === 'mock-full' ? 'items-center justify-between' : 'flex-col'
-                    }`}
-                  >
-                    <span
-                      className={
-                        preset.tier === 'Extended'
-                          ? 'text-[#C0266B] font-bold'
-                          : 'text-[#1D1A4A] font-bold'
-                      }
-                    >
-                      {preset.tier} Tier · {preset.formatLabel}
-                    </span>
-                    <span className="font-mono tabular-nums">{preset.questionCountLabel}</span>
-                  </div>
-                  <h3 className="font-display text-base font-bold text-[#1D1A4A]">
-                    {preset.title}
-                  </h3>
-                  <p className="text-xs text-[#393469] leading-relaxed">{preset.subtitle}</p>
-                </div>
-
-                <div>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      triggerSakugaBurst(e, 'indigo', 'GO!');
-                      startPreset(preset);
-                    }}
-                    className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold sk-btn-primary cursor-pointer"
-                  >
-                    <Play className="w-3.5 h-3.5" />
-                    Begin Paper
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        {/* Topical Practice Builder */}
-        <section className="p-6 sk-card space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="font-display text-base font-bold text-[#1D1A4A]">
-                Topical Practice by Syllabus Chapter
-              </h2>
-              <p className="text-xs text-[#5E588C] mt-0.5">
-                Target a specific chapter from the 0580 curriculum with non-repeating variants
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={(e) => {
-                triggerSakugaBurst(e, 'sakura', 'DRILL!');
-                startChapterDrill(selectedChapterFilter, 1);
-              }}
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold sk-btn-ink cursor-pointer shrink-0"
-            >
-              <Play className="w-3.5 h-3.5" />
-              Start Drill ({previewSample.questions.length} Fresh Questions)
-            </button>
-          </div>
-
+      <main className="max-w-[1440px] mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {/* Topical Section Switcher (matches Topical nav dropdown: Practice Test & Topical Paper) */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div
             role="tablist"
-            aria-label="Filter practice drill by chapter"
-            className="flex flex-wrap gap-1.5 sk-tabs"
+            aria-label="Topical section view"
+            className="inline-flex sk-tabs"
           >
             <button
               type="button"
               role="tab"
-              aria-selected={selectedChapterFilter === 'all'}
-              data-active={selectedChapterFilter === 'all'}
-              onClick={() => setSelectedChapterFilter('all')}
-              className="px-3 py-1.5 text-xs font-semibold cursor-pointer whitespace-nowrap sk-tab"
+              aria-selected={activeSection === 'practice-test'}
+              data-active={activeSection === 'practice-test'}
+              onClick={() => onNavigate({ view: 'practice', mode: 'practice-test' })}
+              className="px-4 py-1.5 text-xs font-bold cursor-pointer whitespace-nowrap sk-tab"
             >
-              All Chapters
+              Practice Test
             </button>
-            {SYLLABUS_0580.map((ch) => (
-              <button
-                key={ch.id}
-                type="button"
-                role="tab"
-                aria-selected={selectedChapterFilter === ch.id}
-                data-active={selectedChapterFilter === ch.id}
-                onClick={() => setSelectedChapterFilter(ch.id)}
-                className="px-3 py-1.5 text-xs font-semibold cursor-pointer whitespace-nowrap sk-tab"
-              >
-                {ch.id}. {ch.title}
-              </button>
-            ))}
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeSection === 'topical-paper'}
+              data-active={activeSection === 'topical-paper'}
+              onClick={() => onNavigate({ view: 'practice', mode: 'topical-paper' })}
+              className="px-4 py-1.5 text-xs font-bold cursor-pointer whitespace-nowrap sk-tab"
+            >
+              Topical Paper
+            </button>
           </div>
-        </section>
+          <span className="text-xs text-[#5E588C]">
+            {activeSection === 'practice-test'
+              ? 'Timed Mock Exams & Auto-Graded Chapter Drills'
+              : '78 Annotatable Topical Question & Worked Solution PDFs'}
+          </span>
+        </div>
 
-        {/* Topical Past Papers & Worked Solutions (Annotatable Q + Answers) */}
-        <TopicalPastPapersSection
-          selectedChapterFilter={selectedChapterFilter}
-          initialPackId={initialTopicalPackId}
-          onNavigate={onNavigate}
-        />
+        {activeSection === 'practice-test' ? (
+          <div className="space-y-8">
+            <section className="p-6 sk-card flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div className="text-xs text-[#5E588C] mb-1">
+                  Cambridge IGCSE Mathematics (0580) · Timed Exam &amp; Topical Drills
+                </div>
+                <h1 className="font-display text-2xl font-bold text-[#1D1A4A]">
+                  IGCSE 0580 Practice Tests
+                </h1>
+                <p className="text-sm text-[#393469] mt-1 max-w-2xl">
+                  Practise with Multiple Choice, Numeric, and Exact Fraction questions under Non-Calculator (Papers 1/2) or Calculator (Papers 3/4) rules. Every retry generates fresh questions with new numbers and scenarios.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onOpenFormulaSheet}
+                className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold sk-btn-secondary cursor-pointer shrink-0 whitespace-nowrap"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-[#5B57E8]" />
+                View 0580 Formula Sheet
+              </button>
+            </section>
+
+            {/* Timed Mock Exam Presets */}
+            <section className="space-y-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="font-display text-base font-bold text-[#1D1A4A]">
+                  Timed IGCSE Mock Papers
+                </h2>
+                <span className="text-xs text-[#5E588C]">
+                  Unlimited retries — every retake swaps in brand-new questions
+                </span>
+              </div>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {presets.map((preset) => (
+                  <article
+                    key={preset.id}
+                    className={`p-5 flex flex-col justify-between gap-4 ${
+                      preset.id === 'mock-full'
+                        ? 'md:col-span-2 lg:col-span-2 sk-card-accent'
+                        : 'sk-card'
+                    }`}
+                  >
+                    <div className="space-y-2">
+                      <div
+                        className={`flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-[#5E588C] ${
+                          preset.id === 'mock-full' ? 'items-center justify-between' : 'flex-col'
+                        }`}
+                      >
+                        <span
+                          className={
+                            preset.tier === 'Extended'
+                              ? 'text-[#C0266B] font-bold'
+                              : 'text-[#1D1A4A] font-bold'
+                          }
+                        >
+                          {preset.tier} Tier · {preset.formatLabel}
+                        </span>
+                        <span className="font-mono tabular-nums">{preset.questionCountLabel}</span>
+                      </div>
+                      <h3 className="font-display text-base font-bold text-[#1D1A4A]">
+                        {preset.title}
+                      </h3>
+                      <p className="text-xs text-[#393469] leading-relaxed">{preset.subtitle}</p>
+                    </div>
+
+                    <div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          triggerSakugaBurst(e, 'indigo', 'GO!');
+                          startPreset(preset);
+                        }}
+                        className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold sk-btn-primary cursor-pointer"
+                      >
+                        <Play className="w-3.5 h-3.5" />
+                        Begin Paper
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            {/* Topical Practice Builder */}
+            <section className="p-6 sk-card space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h2 className="font-display text-base font-bold text-[#1D1A4A]">
+                    Topical Practice by Syllabus Chapter
+                  </h2>
+                  <p className="text-xs text-[#5E588C] mt-0.5">
+                    Target a specific chapter from the 0580 curriculum with non-repeating variants
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    triggerSakugaBurst(e, 'sakura', 'DRILL!');
+                    startChapterDrill(selectedChapterFilter, 1);
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold sk-btn-ink cursor-pointer shrink-0"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  Start Drill ({previewSample.questions.length} Fresh Questions)
+                </button>
+              </div>
+
+              <div
+                role="tablist"
+                aria-label="Filter practice drill by chapter"
+                className="flex flex-wrap gap-1.5 sk-tabs"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={selectedChapterFilter === 'all'}
+                  data-active={selectedChapterFilter === 'all'}
+                  onClick={() => setSelectedChapterFilter('all')}
+                  className="px-3 py-1.5 text-xs font-semibold cursor-pointer whitespace-nowrap sk-tab"
+                >
+                  All Chapters
+                </button>
+                {SYLLABUS_0580.map((ch) => (
+                  <button
+                    key={ch.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={selectedChapterFilter === ch.id}
+                    data-active={selectedChapterFilter === ch.id}
+                    onClick={() => setSelectedChapterFilter(ch.id)}
+                    className="px-3 py-1.5 text-xs font-semibold cursor-pointer whitespace-nowrap sk-tab"
+                  >
+                    {ch.id}. {ch.title}
+                  </button>
+                ))}
+              </div>
+            </section>
+          </div>
+        ) : (
+          /* Topical Past Papers & Worked Solutions (Annotatable Q + Answers) */
+          <TopicalPastPapersSection
+            selectedChapterFilter={selectedChapterFilter}
+            initialPackId={initialTopicalPackId}
+            onNavigate={onNavigate}
+          />
+        )}
       </main>
     );
   }
