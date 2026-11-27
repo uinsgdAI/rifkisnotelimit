@@ -10,6 +10,8 @@ import {
   regularPolygonVertices,
   computeHistogramBins,
   interpolateCumulativeX,
+  computeStemAndLeafStats,
+  computeGroupedChartStats,
 } from './topicDiagrams.ts';
 
 test('formatThreeFigureBearing pads single and double digits with leading zeros', () => {
@@ -109,4 +111,46 @@ test('interpolateCumulativeX finds Q1, median, and Q3 on cumulative curve', () =
   assert.equal(interpolateCumulativeX(pts, 20), 32.5);
   assert.equal(interpolateCumulativeX(pts, 40), 48.75);
   assert.equal(interpolateCumulativeX(pts, 60), 62.5);
+});
+
+test('computeStemAndLeafStats reconstructs values via key and computes mode, median, mean, and range', () => {
+  const stats = computeStemAndLeafStats([
+    { stem: 1, leaves: [4, 7, 9] },
+    { stem: 2, leaves: [3, 5, 5, 8] },
+    { stem: 3, leaves: [0, 2, 6] },
+    { stem: 4, leaves: [1, 6] },
+  ]);
+  assert.equal(stats.count, 12);
+  assert.equal(stats.min, 14);
+  assert.equal(stats.max, 46);
+  assert.equal(stats.range, 32);
+  assert.equal(stats.mode, 25);
+  assert.equal(stats.median, 26.5);
+  assert.equal(stats.mean, 28);
+
+  const decimalStats = computeStemAndLeafStats(
+    [
+      { stem: 4, leaves: [2, 5, 5] },
+      { stem: 5, leaves: [1, 7] },
+    ],
+    1,
+    0.1
+  );
+  assert.equal(decimalStats.mode, 4.5);
+  assert.equal(decimalStats.median, 4.5);
+  assert.equal(decimalStats.range, 1.5);
+  assert.equal(decimalStats.mean, 4.8);
+});
+
+test('computeGroupedChartStats computes histogram mean, 50%-area median, and modal frequency vs density', () => {
+  const stats = computeGroupedChartStats([
+    { start: 0, end: 10, frequency: 12 },
+    { start: 10, end: 20, frequency: 28 },
+    { start: 20, end: 40, frequency: 40 },
+  ]);
+  assert.equal(stats.totalFrequency, 80);
+  assert.equal(stats.estimatedMean, 21);
+  assert.equal(stats.estimatedMedian, 20);
+  assert.equal(stats.modalFrequencyLabel, '20–40');
+  assert.equal(stats.modalDensityLabel, '10–20');
 });

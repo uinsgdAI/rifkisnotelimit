@@ -113,6 +113,18 @@ export const CHAPTER_9_NOTES: SubtopicNote[] = [
         heading: 'Estimated mean from grouped tables',
         body: '1. Find the MIDPOINT of each class interval (add endpoints and divide by $2$). 2. Multiply each midpoint by its frequency ($f \\times x_{\\text{mid}}$). 3. Divide the sum $\\sum fx$ by the TOTAL FREQUENCY $\\sum f$ — NEVER divide by the number of rows!',
       },
+      {
+        heading: 'How to extract Mean, Median & Mode from ANY chart',
+        body: 'Do not memorise separate rules per diagram — every statistical chart encodes a value $x$ and a frequency $f$. Convert the visual into $(x, f)$ pairs first (bar height, pictogram symbols $\\times$ key, pie sector angle $\\theta$, stem + leaf digits, or histogram bar AREA $= \\text{width} \\times \\text{FD}$), then compute Mode, Median, and Mean.',
+        bullets: [
+          'Bar chart / Pictogram: Mode = tallest bar / most icons; Median = running sum of bar heights reaching $\\frac{N+1}{2}$; Mean $= \\frac{\\sum (x \\cdot f)}{\\sum f}$ (numerical $x$-axis only).',
+          'Pie chart: Mode = largest sector angle $\\theta$; Median = running angle crossing $180^\\circ$; Mean $= \\frac{\\sum (x \\cdot \\theta)}{360^\\circ}$ (works even when total $N$ is not given!).',
+          'Stem-and-leaf: Reconstruct values via the Key first. Mode = repeated leaf in the SAME stem row; Median = $\\frac{n+1}{2}$-th leaf in ascending order; Mean = sum of all full values $\\div n$.',
+          'Frequency polygon / Grouped table: Modal class = highest peak / frequency; Median class = interval holding $\\frac{N}{2}$; Estimated Mean $= \\frac{\\sum (f \\cdot x_{\\text{mid}})}{\\sum f}$.',
+          'Cumulative frequency curve / Box plot: Median read directly at $\\frac{N}{2}$ (or central line of box); Modal class = steepest interval; Mean requires recovering $f_i = \\text{CF}_i - \\text{CF}_{i-1}$ and multiplying by midpoints.',
+          'Histogram (unequal widths): Frequency = AREA ($\\text{width} \\times \\text{FD}$), NOT height! Modal density = tallest bar, highest frequency = largest area; Median splits total area in half ($\\frac{N}{2}$); Estimated Mean $= \\frac{\\sum (\\text{Area} \\cdot x_{\\text{mid}})}{\\sum \\text{Area}}$.',
+        ],
+      },
     ],
     workedExamples: [
       {
@@ -131,6 +143,7 @@ export const CHAPTER_9_NOTES: SubtopicNote[] = [
     commonMistakes: [
       'Dividing $\\sum fx$ by the number of class intervals ($3$) instead of total frequency ($20$).',
       'Forgetting to sort numbers in ascending order before finding the median.',
+      'Reading raw bar height as frequency on an unequal-width histogram instead of computing Width × Frequency Density.',
     ],
     quickCheck: {
       id: 'qc-9.3',
@@ -157,8 +170,14 @@ export const CHAPTER_9_NOTES: SubtopicNote[] = [
     ],
     studyNotes: [
       {
-        heading: 'Stem-and-leaf diagrams require an ordered list and a KEY',
-        body: 'Always draw a rough unordered stem-and-leaf first, then rewrite it neatly with leaves in ascending order AND include a clear Key (e.g. `Key: 3 | 4 means 34`). Missing the key always costs 1 mark!',
+        heading: 'Stem-and-leaf diagrams: structure, Key, and ordering',
+        body: 'A stem-and-leaf diagram splits each number into a leading **Stem** (left of the vertical line) and a final single-digit **Leaf** (right of the line), preserving every exact data value while showing the shape of the distribution. Always sketch an unordered diagram first, rewrite the leaves in **ascending order**, and include an explicit **Key**.',
+        bullets: [
+          'Choosing Stem & Leaf: for $2$-digit values ($34$), stem $= 3$, leaf $= 4$ (`Key: 3 | 4 = 34`). For decimals ($4.7$), stem $= 4$, leaf $= 7$ (`Key: 4 | 7 = 4.7`). For $3$-digit values ($128$), stem $= 12$, leaf $= 8$ (`Key: 12 | 8 = 128`).',
+          'Equal spacing: align leaf digits neatly in vertical columns so row lengths act like a horizontal bar chart.',
+          'Finding Mode, Median, Mean & Range: NEVER read the leaf digit alone — always attach its stem! Mode = repeated leaf in the same row; Median = value at position $\\frac{n+1}{2}$ counting row-by-row; Range $= \\text{Max} - \\text{Min}$; Mean = sum of all reconstructed numbers $\\div n$.',
+        ],
+        noteBox: 'Missing the Key on a Cambridge stem-and-leaf question always drops 1 mark — write it immediately after drawing the stem line.',
       },
     ],
     workedExamples: [
@@ -173,9 +192,24 @@ export const CHAPTER_9_NOTES: SubtopicNote[] = [
         answer: '$24$',
         markSchemeNotes: 'M1 for $\\frac{48}{360} \\times 180$, A1 for $24$.',
       },
+      {
+        title: 'Mode, Median, Mean & Range from a Stem-and-Leaf Diagram',
+        question: 'An ordered stem-and-leaf diagram (`Key: 2 | 3 = 23`) has rows: `1 | 4 7 9`, `2 | 3 5 5 8`, `3 | 0 2 6`, `4 | 1 6`. Find (a) the mode, (b) the median, (c) the range, and (d) the mean.',
+        marks: 5,
+        steps: [
+          'Count total values: $n = 3 + 4 + 3 + 2 = 12$. Values are $14, 17, 19, 23, 25, 25, 28, 30, 32, 36, 41, 46$.',
+          '(a) Mode: leaf `5` repeats twice in stem `2`, so Mode $= 25$ (NOT $5$).',
+          '(b) Median position $= \\frac{12 + 1}{2} = 6.5$th (average of $6$th and $7$th values): $6$th $= 25$, $7$th $= 28 \\implies \\text{Median} = \\frac{25 + 28}{2} = 26.5$.',
+          '(c) Range $= 46 - 14 = 32$.',
+          '(d) Mean $= \\frac{14+17+19+23+25+25+28+30+32+36+41+46}{12} = \\frac{336}{12} = 28$.',
+        ],
+        answer: 'Mode $= 25$, Median $= 26.5$, Range $= 32$, Mean $= 28$',
+        markSchemeNotes: 'B1 Mode $25$, M1+A1 Median $26.5$, B1 Range $32$, B1 Mean $28$.',
+      },
     ],
     commonMistakes: [
-      'Omitting the Key on a stem-and-leaf diagram.',
+      'Omitting the Key on a stem-and-leaf diagram, or writing the mode as just the leaf digit (`5`) instead of the full number (`25`).',
+      'Ordering the left side of a back-to-back stem-and-leaf left-to-right instead of centre-outward (right-to-left).',
       'Plotting frequency against endpoints instead of class MIDPOINTS for a frequency polygon.',
     ],
     quickCheck: {

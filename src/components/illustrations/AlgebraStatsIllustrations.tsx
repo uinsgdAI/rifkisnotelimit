@@ -235,7 +235,102 @@ export const ConditionalProbIllustration: React.FC = () => (
   </section>
 );
 
-/* 9.4 Pie Chart & Frequency Polygon */
+/* 9.3 Mean, Median & Mode Across Every Chart */
+export const AveragesAcrossChartsIllustration: React.FC = () => (
+  <section aria-label="Finding Mean, Median and Mode in Every Chart" className="p-5 sm:p-6 sk-card space-y-4">
+    <div>
+      <h2 className="font-display text-base font-bold text-[#1D1A4A]">
+        Visual Notebook Guide · Finding Mean, Median &amp; Mode in Every Chart
+      </h2>
+      <p className="text-xs text-[#5E588C] mt-0.5">
+        Every chart hides the same frequencies <span className="font-mono font-semibold">f</span> — read <span className="font-mono font-semibold">f</span> first (height, angle, or bar area), then apply the exact average rule.
+      </p>
+    </div>
+
+    <div className="grid md:grid-cols-3 gap-3.5">
+      {/* Panel 1: Bar Chart */}
+      <div className="p-3 bg-white border-2 border-[#1D1A4A] rounded-[14px] shadow-[2px_3px_0_#B8B3FF] space-y-1.5">
+        <svg viewBox="0 0 240 165" className="w-full h-auto" role="img" aria-label="Bar chart showing Mode at tallest bar, Median at cumulative midpoint, Mean via sum of x times frequency">
+          <rect x="0" y="0" width="240" height="165" fill="#FAF9FF" rx="8" />
+          <line x1="30" y1="120" x2="222" y2="120" stroke="#1D1A4A" strokeWidth="1.8" />
+          <line x1="30" y1="22" x2="30" y2="120" stroke="#1D1A4A" strokeWidth="1.8" />
+          {[
+            { xVal: '0', f: 3, bx: 42, fill: '#EDE9FE' },
+            { xVal: '1', f: 6, bx: 76, fill: '#EDE9FE' },
+            { xVal: '2', f: 8, bx: 110, fill: '#FCE7F3' },
+            { xVal: '3', f: 5, bx: 144, fill: '#EDE9FE' },
+            { xVal: '4', f: 3, bx: 178, fill: '#EDE9FE' },
+          ].map((bar) => {
+            const h = bar.f * 10;
+            const y = 120 - h;
+            const isMode = bar.xVal === '2';
+            return (
+              <g key={bar.xVal}>
+                <rect x={bar.bx} y={y} width="24" height={h} fill={bar.fill} stroke={isMode ? '#C0266B' : '#1D1A4A'} strokeWidth="1.8" rx="3" />
+                <text x={bar.bx + 12} y={y - 4} textAnchor="middle" fontSize="9" fontWeight="800" fill={isMode ? '#C0266B' : '#1D1A4A'}>{bar.f}</text>
+                <text x={bar.bx + 12} y="133" textAnchor="middle" fontSize="9.5" fontWeight="700" fill="#5E588C">{bar.xVal}</text>
+              </g>
+            );
+          })}
+          <text x="122" y="20" textAnchor="middle" fontSize="9" fontWeight="800" fill="#C0266B">Mode = 2 (tallest)</text>
+          <text x="120" y="152" textAnchor="middle" fontSize="8.8" fontWeight="700" fill="#393469">Med: 13th = 2 · Mean: 49÷25 = 1.96</text>
+        </svg>
+        <div className="text-xs font-bold text-[#1D1A4A] text-center">Bar Chart / Frequency Graph</div>
+      </div>
+
+      {/* Panel 2: Pie Chart */}
+      <div className="p-3 bg-white border-2 border-[#1D1A4A] rounded-[14px] shadow-[2px_3px_0_#B8B3FF] space-y-1.5">
+        <svg viewBox="0 0 240 165" className="w-full h-auto" role="img" aria-label="Pie chart showing Mode as widest angle 144 degrees, Median at 180 degree cumulative split, Mean weighted by angle over 360">
+          <rect x="0" y="0" width="240" height="165" fill="#FAF9FF" rx="8" />
+          {/* Total 360 deg: 0 goals=72°, 1 goal=144°, 2 goals=108°, 3 goals=36° */}
+          {/* 0..72 deg */}
+          <path d="M 68 76 L 68 28 A 48 48 0 0 1 113.65 61.17 Z" fill="#EDE9FE" stroke="#1D1A4A" strokeWidth="1.8" />
+          {/* 72..216 deg (144 deg mode!) */}
+          <path d="M 68 76 L 113.65 61.17 A 48 48 0 0 1 39.79 114.83 Z" fill="#FCE7F3" stroke="#C0266B" strokeWidth="2" />
+          {/* 216..324 deg (108 deg) */}
+          <path d="M 68 76 L 39.79 114.83 A 48 48 0 0 1 39.79 37.17 Z" fill="#DBEAFE" stroke="#1D1A4A" strokeWidth="1.8" />
+          {/* 324..360 deg (36 deg) */}
+          <path d="M 68 76 L 39.79 37.17 A 48 48 0 0 1 68 28 Z" fill="#D1FAE5" stroke="#1D1A4A" strokeWidth="1.8" />
+          {/* 180 deg cumulative line straight down */}
+          <line x1="68" y1="22" x2="68" y2="128" stroke="#5B57E8" strokeWidth="1.5" strokeDasharray="3 2" />
+          <text x="128" y="42" fontSize="9.5" fontWeight="800" fill="#C0266B">Mode = widest θ (144°)</text>
+          <text x="128" y="64" fontSize="9.2" fontWeight="700" fill="#5B57E8">Median = 180° mark</text>
+          <text x="128" y="84" fontSize="9" fontWeight="700" fill="#1D1A4A">f = (θ ÷ 360°) × N</text>
+          <text x="128" y="104" fontSize="9" fontWeight="700" fill="#393469">Mean = Σ(x·θ) ÷ 360°</text>
+          <text x="120" y="152" textAnchor="middle" fontSize="8.8" fontWeight="700" fill="#393469">Works even if total N is unknown!</text>
+        </svg>
+        <div className="text-xs font-bold text-[#1D1A4A] text-center">Pie Chart (Angles = Weights)</div>
+      </div>
+
+      {/* Panel 3: Histogram */}
+      <div className="p-3 bg-white border-2 border-[#1D1A4A] rounded-[14px] shadow-[2px_3px_0_#B8B3FF] space-y-1.5">
+        <svg viewBox="0 0 240 165" className="w-full h-auto" role="img" aria-label="Histogram showing frequency equals bar area, median splits total area in half, mean uses midpoints">
+          <rect x="0" y="0" width="240" height="165" fill="#FAF9FF" rx="8" />
+          <line x1="28" y1="120" x2="220" y2="120" stroke="#1D1A4A" strokeWidth="1.8" />
+          <line x1="28" y1="24" x2="28" y2="120" stroke="#1D1A4A" strokeWidth="1.8" />
+          {/* 0-10 (f=12, FD=1.2), 10-20 (f=28, FD=2.8), 20-40 (f=40, FD=2.0) */}
+          <rect x="36" y="84" width="42" height="36" fill="#EDE9FE" stroke="#1D1A4A" strokeWidth="1.8" />
+          <rect x="78" y="36" width="42" height="84" fill="#FCE7F3" stroke="#C0266B" strokeWidth="1.8" />
+          <rect x="120" y="60" width="84" height="60" fill="#DBEAFE" stroke="#1D1A4A" strokeWidth="1.8" />
+          {/* 50% Area median line at x=20 (px=120) */}
+          <line x1="120" y1="24" x2="120" y2="126" stroke="#059669" strokeWidth="2" strokeDasharray="4 2" />
+          <text x="57" y="106" textAnchor="middle" fontSize="8.5" fontWeight="800" fill="#4338CA">A=12</text>
+          <text x="99" y="76" textAnchor="middle" fontSize="8.5" fontWeight="800" fill="#C0266B">A=28</text>
+          <text x="162" y="92" textAnchor="middle" fontSize="8.5" fontWeight="800" fill="#1D4ED8">A=40</text>
+          <text x="120" y="20" textAnchor="middle" fontSize="8.8" fontWeight="800" fill="#059669">50% Area = Median (20)</text>
+          <text x="36" y="133" textAnchor="middle" fontSize="8.5" fontWeight="700" fill="#5E588C">0</text>
+          <text x="78" y="133" textAnchor="middle" fontSize="8.5" fontWeight="700" fill="#5E588C">10</text>
+          <text x="120" y="133" textAnchor="middle" fontSize="8.5" fontWeight="800" fill="#059669">20</text>
+          <text x="204" y="133" textAnchor="middle" fontSize="8.5" fontWeight="700" fill="#5E588C">40</text>
+          <text x="120" y="152" textAnchor="middle" fontSize="8.8" fontWeight="700" fill="#393469">Freq = Area · Mean ≈ Σ(A·mid)÷80 = 21</text>
+        </svg>
+        <div className="text-xs font-bold text-[#1D1A4A] text-center">Histogram (Unequal Widths)</div>
+      </div>
+    </div>
+  </section>
+);
+
+/* 9.4 Pie Chart, Frequency Polygon & Stem-and-Leaf */
 export const ChartsIllustration: React.FC = () => (
   <section aria-label="Pie Chart and Frequency Polygon Visuals" className="p-5 sm:p-6 sk-card space-y-4">
     <div>
@@ -279,6 +374,78 @@ export const ChartsIllustration: React.FC = () => (
           ))}
         </svg>
         <div className="text-xs font-bold text-[#1D1A4A] text-center">Frequency Polygon: Plot at Class Midpoints</div>
+      </div>
+    </div>
+
+    {/* Dedicated Stem-and-Leaf + Back-to-Back visual panel */}
+    <div className="grid md:grid-cols-2 gap-4">
+      <div className="p-3 bg-white border-2 border-[#1D1A4A] rounded-[14px] shadow-[2px_3px_0_#B8B3FF] space-y-1.5">
+        <svg viewBox="0 0 320 175" className="w-full h-auto" role="img" aria-label="Ordered stem-and-leaf diagram with Key 2 bar 3 equals 23, Mode 25, Median 26.5, Mean 28">
+          <rect x="0" y="0" width="320" height="175" fill="#FAF9FF" rx="8" />
+          <text x="14" y="20" fontSize="10.5" fontWeight="800" fill="#1D1A4A">Ordered Stem-and-Leaf (n = 12)</text>
+          <rect x="202" y="8" width="106" height="22" rx="6" fill="#FFF5FA" stroke="#FF5FA8" strokeWidth="1.5" />
+          <text x="255" y="22.5" textAnchor="middle" fontSize="9.5" fontWeight="800" fill="#C0266B">Key: 2 | 3 = 23</text>
+
+          {/* Header & divider line */}
+          <text x="38" y="42" textAnchor="middle" fontSize="9.5" fontWeight="800" fill="#5B57E8">Stem</text>
+          <text x="122" y="42" fontSize="9.5" fontWeight="800" fill="#5B57E8">Leaves (ordered ascending →)</text>
+          <line x1="60" y1="32" x2="60" y2="128" stroke="#1D1A4A" strokeWidth="2" />
+          <line x1="16" y1="47" x2="296" y2="47" stroke="#DCDAF0" strokeWidth="1.2" />
+
+          {/* Rows */}
+          <text x="38" y="66" textAnchor="middle" fontSize="12" fontWeight="800" fill="#1D1A4A">1</text>
+          <text x="76" y="66" fontSize="12" fontWeight="700" fill="#393469" fontFamily="monospace">4   7   9</text>
+
+          <text x="38" y="86" textAnchor="middle" fontSize="12" fontWeight="800" fill="#1D1A4A">2</text>
+          {/* Highlight 5, 5 (Mode=25) and midpoint between 5 and 8 (Median=26.5) */}
+          <rect x="94" y="74" width="38" height="16" rx="4" fill="#FCE7F3" stroke="#FF5FA8" strokeWidth="1.2" />
+          <text x="76" y="86" fontSize="12" fontWeight="800" fill="#1D1A4A" fontFamily="monospace">3   5   5   8</text>
+
+          <text x="38" y="106" textAnchor="middle" fontSize="12" fontWeight="800" fill="#1D1A4A">3</text>
+          <text x="76" y="106" fontSize="12" fontWeight="700" fill="#393469" fontFamily="monospace">0   2   6</text>
+
+          <text x="38" y="124" textAnchor="middle" fontSize="12" fontWeight="800" fill="#1D1A4A">4</text>
+          <text x="76" y="124" fontSize="12" fontWeight="700" fill="#393469" fontFamily="monospace">1   6</text>
+
+          {/* Bottom summary strip */}
+          <rect x="14" y="136" width="292" height="30" rx="6" fill="#F4F3FC" stroke="#8F8DF7" strokeWidth="1.2" />
+          <text x="160" y="149" textAnchor="middle" fontSize="9.2" fontWeight="800" fill="#C0266B">Mode = 25 (NOT 5!) · Median = ½(25+28) = 26.5</text>
+          <text x="160" y="161" textAnchor="middle" fontSize="9" fontWeight="700" fill="#1D1A4A">Range = 46 − 14 = 32 · Mean = 336 ÷ 12 = 28</text>
+        </svg>
+        <div className="text-xs font-bold text-[#1D1A4A] text-center">Single Stem-and-Leaf: Read Stem + Leaf Together</div>
+      </div>
+
+      <div className="p-3 bg-white border-2 border-[#1D1A4A] rounded-[14px] shadow-[2px_3px_0_#B8B3FF] space-y-1.5">
+        <svg viewBox="0 0 320 175" className="w-full h-auto" role="img" aria-label="Back-to-back stem-and-leaf diagram comparing Class A on the left and Class B on the right">
+          <rect x="0" y="0" width="320" height="175" fill="#FAF9FF" rx="8" />
+          <text x="14" y="20" fontSize="10.5" fontWeight="800" fill="#1D1A4A">Back-to-Back Stem-and-Leaf</text>
+          <text x="306" y="20" textAnchor="end" fontSize="9" fontWeight="800" fill="#5B57E8">Key: 4 | 2 | 1 → A=24, B=21</text>
+
+          <text x="74" y="42" textAnchor="middle" fontSize="9.5" fontWeight="800" fill="#C0266B">← Class A (outward)</text>
+          <text x="160" y="42" textAnchor="middle" fontSize="9.5" fontWeight="800" fill="#1D1A4A">Stem</text>
+          <text x="246" y="42" textAnchor="middle" fontSize="9.5" fontWeight="800" fill="#059669">Class B (outward) →</text>
+
+          <line x1="142" y1="32" x2="142" y2="128" stroke="#1D1A4A" strokeWidth="2" />
+          <line x1="178" y1="32" x2="178" y2="128" stroke="#1D1A4A" strokeWidth="2" />
+          <line x1="14" y1="47" x2="306" y2="47" stroke="#DCDAF0" strokeWidth="1.2" />
+
+          <text x="132" y="68" textAnchor="end" fontSize="12" fontWeight="700" fill="#C0266B" fontFamily="monospace">8   5</text>
+          <text x="160" y="68" textAnchor="middle" fontSize="12" fontWeight="800" fill="#1D1A4A">1</text>
+          <text x="188" y="68" textAnchor="start" fontSize="12" fontWeight="700" fill="#059669" fontFamily="monospace">2   7</text>
+
+          <text x="132" y="92" textAnchor="end" fontSize="12" fontWeight="700" fill="#C0266B" fontFamily="monospace">9   4   1</text>
+          <text x="160" y="92" textAnchor="middle" fontSize="12" fontWeight="800" fill="#1D1A4A">2</text>
+          <text x="188" y="92" textAnchor="start" fontSize="12" fontWeight="700" fill="#059669" fontFamily="monospace">1   5   8</text>
+
+          <text x="132" y="116" textAnchor="end" fontSize="12" fontWeight="700" fill="#C0266B" fontFamily="monospace">3</text>
+          <text x="160" y="116" textAnchor="middle" fontSize="12" fontWeight="800" fill="#1D1A4A">3</text>
+          <text x="188" y="116" textAnchor="start" fontSize="12" fontWeight="700" fill="#059669" fontFamily="monospace">0   4   6</text>
+
+          <rect x="14" y="136" width="292" height="30" rx="6" fill="#FFF5FA" stroke="#FF5FA8" strokeWidth="1.2" />
+          <text x="160" y="149" textAnchor="middle" fontSize="9" fontWeight="800" fill="#C0266B">Left side ascends RIGHT-TO-LEFT: 15, 18, 21, 24, 29, 33</text>
+          <text x="160" y="161" textAnchor="middle" fontSize="9" fontWeight="700" fill="#047857">Right side ascends LEFT-TO-RIGHT: 12, 17, 21, 25, 28, 30, 34, 36</text>
+        </svg>
+        <div className="text-xs font-bold text-[#1D1A4A] text-center">Back-to-Back Stem-and-Leaf: Read Outward From Centre</div>
       </div>
     </div>
   </section>

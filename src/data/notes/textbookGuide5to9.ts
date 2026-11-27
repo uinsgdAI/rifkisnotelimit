@@ -996,26 +996,35 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
     ],
   },
   '9.3': {
-    bigIdea: 'Mean balances total sum across every value ($\\frac{\\sum x}{n}$), Median picks the middle value after sorting, Mode picks the most frequent value, and for grouped tables we estimate the mean using class **midpoints**.',
+    bigIdea: 'Mean balances total sum across every value ($\\frac{\\sum x}{n}$), Median picks the middle value after sorting, Mode picks the most frequent value, and for ANY chart (bar, pictogram, pie, stem-and-leaf, polygon, cumulative curve, or histogram) you extract $(x, f)$ first — or bar Area for histograms!',
     stepByStepMethod: [
-      'Raw list: SORT ascending first for Median ($\\frac{n+1}{2}$-th position) and Range ($\\text{Max} - \\text{Min}$).',
-      'Ungrouped frequency table: multiply $x \\times f$ row-by-row, sum $\\sum xf$, and divide by $\\sum f$ (TOTAL frequency, never number of rows!).',
-      'Grouped frequency table: find MIDPOINT $x_{\\text{mid}} = \\frac{\\text{low} + \\text{high}}{2}$ of each class first, then $\\bar{x} \\approx \\frac{\\sum f x_{\\text{mid}}}{\\sum f}$.',
+      'Raw list / Dot plot: SORT ascending first for Median ($\\frac{n+1}{2}$-th position) and Range ($\\text{Max} - \\text{Min}$).',
+      'Bar chart / Pictogram / Ungrouped table: read height $f$ (or symbols $\\times$ key). Mode = tallest bar; Median = $\\frac{\\sum f + 1}{2}$-th item via running totals; Mean $= \\frac{\\sum (x \\cdot f)}{\\sum f}$.',
+      'Pie chart: Mode = widest sector angle $\\theta$; Median = running angle hitting $180^\\circ$; Mean $= \\frac{\\sum (x \\cdot \\theta)}{360^\\circ}$ (or convert $f = \\frac{\\theta}{360^\\circ}\\times N$).',
+      'Grouped table / Frequency polygon / Histogram: find midpoint $x_{\\text{mid}} = \\frac{\\text{low} + \\text{high}}{2}$ (and for histograms, compute Frequency $= \\text{Width} \\times \\text{FD}$ first!), then $\\bar{x} \\approx \\frac{\\sum f x_{\\text{mid}}}{\\sum f}$.',
     ],
     comparisonTable: {
-      title: 'Mean vs Median vs Mode vs Range',
-      headers: ['Statistic', 'How to Compute', 'Advantage / Weakness'],
+      title: 'Master Cheat-Sheet: Finding Mode, Median & Mean in EVERY Chart',
+      headers: ['Chart / Table Type', 'Mode / Modal Class', 'Median', 'Mean'],
       rows: [
-        ['Mean ($\\bar{x}$)', '$\\frac{\\sum fx}{\\sum f}$', 'Uses all data, but distorted by extreme outliers'],
-        ['Median', 'Middle value at position $\\frac{n+1}{2}$', 'Unaffected by extreme outliers'],
-        ['Mode / Modal class', 'Highest frequency value / group', 'Only average valid for non-numeric categories'],
-        ['Range', '$\\text{Largest} - \\text{Smallest}$', 'Sensitive to single outliers (unlike IQR)'],
+        ['Raw List / Dot Plot', 'Most frequent value (tallest dot stack)', 'Sort ascending; value at $\\frac{n+1}{2}$', '$\\frac{\\sum x}{n}$'],
+        ['Bar Chart / Pictogram', 'Tallest bar / row with most icons', 'Accumulate bar heights to $\\frac{N+1}{2}$', '$\\frac{\\sum (x \\cdot f)}{\\sum f}$ (numeric $x$-axis only!)'],
+        ['Pie Chart', 'Largest sector angle $\\theta$', 'Order categories; cross $180^\\circ$ cumulative angle', '$\\frac{\\sum (x \\cdot \\theta)}{360^\\circ}$ (or use $f = \\frac{\\theta}{360^\\circ}N$)'],
+        ['Stem-and-Leaf', 'Repeated leaf in SAME stem row (read `stem|leaf`)', 'Count leaves in order to $\\frac{n+1}{2}$', 'Sum all reconstructed values $\\div n$'],
+        ['Ungrouped Freq. Table', '$x$ with highest frequency $f$', 'Running CF reaches $\\frac{N+1}{2}$', '$\\frac{\\sum (x \\cdot f)}{\\sum f}$ (divide by $\\sum f$, NOT rows)'],
+        ['Grouped Table / Freq. Polygon', 'Highest frequency class / highest vertex', 'Class containing $\\frac{N}{2}$ (or interpolate)', 'Est. Mean $\\approx \\frac{\\sum (f \\cdot x_{\\text{mid}})}{\\sum f}$'],
+        ['Cumulative Freq. Curve / Box Plot', 'Steepest gradient segment (highest FD)', 'Read horizontally at $\\frac{N}{2}$ (line inside box)', 'Recover $f_i = \\text{CF}_i - \\text{CF}_{i-1}$, use $\\frac{\\sum f_i x_{\\text{mid}}}{N}$'],
+        ['Histogram (Unequal Widths)', 'Tallest bar = highest FD; largest Area = highest $f$', 'Split total bar AREA ($N$) in half at $\\frac{N}{2}$', 'Use Area $= W \\times \\text{FD}$: $\\frac{\\sum (\\text{Area} \\cdot x_{\\text{mid}})}{N}$'],
       ],
     },
     extraStudyNotes: [
       {
         heading: 'Reverse Mean & Combined Mean Problems (Exam Favourite)',
         body: 'Whenever a question says "The mean of $8$ numbers is $15$. Another number is added and the mean becomes $16$", multiply immediately to unlock the **total sum**: Original sum $= 8 \\times 15 = 120$; New sum $= 9 \\times 16 = 144$; Added number $= 144 - 120 = 24$!',
+      },
+      {
+        heading: 'Qualitative vs Quantitative Charts — When Mean & Median DO NOT Exist',
+        body: 'If the horizontal axis of a bar chart or sectors of a pie chart represent non-numerical words (e.g. "Bus, Walk, Car, Train"), **only the Mode** (most common category) exists — you CANNOT compute a Mean or Median of "Walk" and "Car"! Mean and Median only apply when categories are numbers (e.g. number of siblings, goals scored, shoe size, or test marks).',
       },
     ],
     extraWorkedExamples: [
@@ -1031,6 +1040,30 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
         markSchemeNotes: 'M1 for position $\\frac{25+1}{2} = 13$ or cumulative counts, A1 for $4$.',
       },
       {
+        title: 'Mode, Median & Mean from a Bar Chart',
+        question: 'A bar chart shows books read per student: $0$ books ($f=3$), $1$ book ($f=6$), $2$ books ($f=8$), $3$ books ($f=5$), $4$ books ($f=3$). Find the mode, median, and mean.',
+        marks: 4,
+        steps: [
+          'Mode: tallest bar has height $8$ at $2$ books $\\implies \\text{Mode} = 2$.',
+          'Total students $N = 3 + 6 + 8 + 5 + 3 = 25$. Median position $= \\frac{25+1}{2} = 13$th. Cumulative heights: $3, 9, 17$ — the $13$th sits in $2$ books $\\implies \\text{Median} = 2$.',
+          'Mean $= \\frac{0(3) + 1(6) + 2(8) + 3(5) + 4(3)}{25} = \\frac{0 + 6 + 16 + 15 + 12}{25} = \\frac{49}{25} = 1.96$ books.',
+        ],
+        answer: 'Mode $= 2$, Median $= 2$, Mean $= 1.96$',
+        markSchemeNotes: 'B1 Mode $2$, M1+A1 Median $2$, M1 $\\sum xf \\div 25$, A1 $1.96$.',
+      },
+      {
+        title: 'Mode, Median & Mean from a Pie Chart (Using Angles Directly)',
+        question: 'A pie chart shows goals scored per match: $0$ goals ($72^\\circ$), $1$ goal ($144^\\circ$), $2$ goals ($108^\\circ$), $3$ goals ($36^\\circ$). Find the mode, median, and mean number of goals.',
+        marks: 4,
+        steps: [
+          'Mode: widest sector angle is $144^\\circ$ ($1$ goal) $\\implies \\text{Mode} = 1$.',
+          'Median: cumulative angles from $0$ goals: $72^\\circ$, then $72^\\circ + 144^\\circ = 216^\\circ$. Since $180^\\circ$ falls inside $1$ goal, $\\text{Median} = 1$.',
+          'Mean weighted by angles (no total $N$ needed!): $\\bar{x} = \\frac{0(72) + 1(144) + 2(108) + 3(36)}{360} = \\frac{0 + 144 + 216 + 108}{360} = \\frac{468}{360} = 1.3$ goals.',
+        ],
+        answer: 'Mode $= 1$, Median $= 1$, Mean $= 1.3$ goals',
+        markSchemeNotes: 'B1 Mode $1$, B1 Median $1$, M1 $\\sum (x\\theta)\\div 360$, A1 $1.3$.',
+      },
+      {
         title: 'Combined mean of two unequal groups',
         question: 'In a mathematics test, $12$ boys achieve a mean score of $78$ and $18$ girls achieve a mean score of $63$. Calculate the overall mean score of all $30$ students.',
         marks: 3,
@@ -1044,30 +1077,32 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
     ],
     rapidSummary: [
       { rule: 'Grouped mean uses MIDPOINTS', detail: 'Always compute $\\sum(f \\times x_{\\text{mid}}) \\div \\sum f$.' },
+      { rule: 'Pie charts & Bar charts', detail: 'Use bar height $f$ or pie angle $\\theta/360^\\circ$; cumulative $180^\\circ$ gives Pie Median.' },
       { rule: 'Combined sums', detail: '$\\text{Sum} = \\text{Mean} \\times \\text{Count}$.' },
     ],
   },
   '9.4': {
-    bigIdea: 'Statistical charts turn numbers into geometry: pie charts map proportions to fractions of $360^\\circ$, stem-and-leaf plots preserve raw digits sorted visually, and frequency polygons connect class midpoints.',
+    bigIdea: 'Statistical charts turn numbers into geometry: pie charts map proportions to fractions of $360^\\circ$, stem-and-leaf plots preserve raw digits sorted visually via a **Key**, and frequency polygons connect class midpoints.',
     stepByStepMethod: [
       'Pie chart angle: $\\theta = \\frac{\\text{Category Frequency}}{\\text{Total Frequency}} \\times 360^\\circ$; reverse count: $\\text{Frequency} = \\frac{\\theta}{360^\\circ} \\times \\text{Total}$.',
-      'Stem-and-leaf: sort leaves in ascending order outward from the stem AND always write a `Key` (e.g. `4 | 2 represents 42`).',
-      'Frequency polygon: plot $(x_{\\text{mid}},\\ f)$ at class MIDPOINTS and connect adjacent points with straight ruler lines.',
+      'Stem-and-leaf (Stage 1 & 2): list stems vertically, jot unordered leaves first, then rewrite leaves in ascending order outward from the stem AND always write an explicit `Key` (e.g. `2 | 3 = 23` or `4 | 7 = 4.7`).',
+      'Stem-and-leaf averages: read every number as `stem + leaf` using the Key — never report just the leaf digit! Count $\\frac{n+1}{2}$ along rows for Median, check repeated leaves in the same row for Mode.',
+      'Frequency polygon: plot $(x_{\\text{mid}},\\ f)$ at class MIDPOINTS and connect adjacent points with straight ruler lines (Modal class = highest vertex; Estimated Mean $= \\frac{\\sum f x_{\\text{mid}}}{\\sum f}$).',
     ],
     comparisonTable: {
-      title: 'Charts Construction Checklist',
-      headers: ['Diagram', 'What to Plot', 'Mandatory Feature'],
+      title: 'Charts Construction & Averages Checklist',
+      headers: ['Diagram', 'What to Plot & Mandatory Feature', 'Reading Mode / Median / Mean'],
       rows: [
-        ['Pie chart', 'Sector angles summing to $360^\\circ$', 'Label every sector cleanly'],
-        ['Bar chart', 'Equal-width bars with equal gaps', 'Label axes & uniform vertical scale'],
-        ['Stem-and-leaf', 'Ordered leaves per stem row', 'Always include an explicit **Key**'],
-        ['Frequency polygon', 'Straight lines between $(x_{\\text{mid}}, f)$', 'Plot at class MIDPOINTS, not endpoints'],
+        ['Pie chart', 'Sector angles summing to $360^\\circ$; label sectors cleanly', 'Mode = largest $\\theta$; Median = $180^\\circ$ mark; Mean $= \\frac{\\sum x\\theta}{360^\\circ}$'],
+        ['Bar chart / Pictogram', 'Equal-width bars with equal gaps / symbol Key', 'Mode = tallest bar; Median at $\\frac{N+1}{2}$; Mean $= \\frac{\\sum xf}{\\sum f}$'],
+        ['Stem-and-leaf', 'Ordered leaves outward from stem + explicit **Key**', 'Reconstruct via Key: Mode = repeat in same row, Median at $\\frac{n+1}{2}$'],
+        ['Frequency polygon', 'Straight lines between $(x_{\\text{mid}}, f)$ at class **MIDPOINTS**', 'Modal class = peak; Median class holds $\\frac{N}{2}$; Est. Mean $= \\frac{\\sum f x_{\\text{mid}}}{\\sum f}$'],
       ],
     },
     extraStudyNotes: [
       {
-        heading: 'Back-to-Back Stem-and-Leaf Diagrams',
-        body: 'When comparing two datasets across a shared central stem, read leaves from the centre OUTWARD (so left leaves increase right-to-left!). Note also that a pie chart shows proportions ONLY — two unequal-sized groups can have identical angles!',
+        heading: 'Back-to-Back Stem-and-Leaf Diagrams (Ordering Left vs Right)',
+        body: 'When comparing two datasets across a shared central stem (`Class A | Stem | Class B`), always read leaves **from the centre OUTWARD**: the right side increases left-to-right (`2 | 1 5 8` $\\to 21, 25, 28$), while the left side increases **right-to-left** (`9 4 1 | 2` $\\to 21, 24, 29$). Note also that a pie chart shows proportions ONLY — two unequal-sized groups can have identical angles!',
       },
     ],
     extraWorkedExamples: [
@@ -1082,9 +1117,22 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
         answer: '$144$ students',
         markSchemeNotes: 'M1 for $42 \\times \\frac{360}{105}$, A1 for $144$.',
       },
+      {
+        title: 'Reading a Back-to-Back Stem-and-Leaf Diagram',
+        question: 'A back-to-back stem-and-leaf diagram (`Key: 4 | 2 | 1` means Class A $= 24$, Class B $= 21$) shows Class A (left): `8 5 | 1`, `9 4 1 | 2`, `3 | 3` and Class B (right): `1 | 2 7`, `2 | 1 5 8`, `3 | 0 4 6`. Find the median and range of Class A.',
+        marks: 3,
+        steps: [
+          'Read Class A outward from the central stem (right-to-left): $15, 18, 21, 24, 29, 33$ ($n = 6$ values).',
+          'Median position $= \\frac{6+1}{2} = 3.5$th $\\implies \\frac{21 + 24}{2} = 22.5$.',
+          'Range $= 33 - 15 = 18$.',
+        ],
+        answer: 'Median $= 22.5$, Range $= 18$',
+        markSchemeNotes: 'B1 sorted Class A list, M1+A1 Median $22.5$, B1 Range $18$.',
+      },
     ],
     rapidSummary: [
-      { rule: 'Stem-and-leaf Key required', detail: 'Missing the `Key` always drops $1$ mark.' },
+      { rule: 'Stem-and-leaf Key required', detail: 'Missing the `Key` always drops $1$ mark; combine `stem + leaf` for Mode/Median/Mean.' },
+      { rule: 'Back-to-back leaves go outward', detail: 'Left side grows smaller-to-larger right-to-left away from the central stem.' },
       { rule: 'Pie charts show ratios, not totals', detail: 'A $90^\\circ$ sector means $25\\%$ of whichever total sample was surveyed.' },
     ],
   },
@@ -1152,6 +1200,10 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
         heading: '"More Than" & Box-Plot Links (Paper 4)',
         body: 'Because the vertical axis counts values **less than or equal to** $x$, whenever asked "How many students scored *more than* $70$ marks?", read cumulative count $c$ at $x = 70$ and subtract **$N - c$**! On a box-and-whisker plot, the five markers are $\\text{Min}, Q_1, Q_2, Q_3, \\text{Max}$.',
       },
+      {
+        heading: 'Finding Mean, Median & Modal Class from a Cumulative Curve',
+        body: 'Read the **Median ($Q_2$)** straight from $\\frac{N}{2}$ on the vertical axis. For the **Estimated Mean** or **Modal Class**, convert the cumulative table back into separate class frequencies using subtraction ($f_i = \\text{CF}_i - \\text{CF}_{i-1}$), then apply $\\bar{x} \\approx \\frac{\\sum f_i x_{\\text{mid}}}{N}$ (and for modal class with equal widths, look for the steepest vertical jump on the ogive!).',
+      },
     ],
     extraWorkedExamples: [
       {
@@ -1205,6 +1257,10 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
         heading: 'Reverse Histogram Calibration ("Complete the Table and Draw Missing Bars")',
         body: 'In almost every Paper 4 Extended session, one bar is already drawn AND its frequency row is given in the table (e.g. $0 < t \\le 10$ has frequency $15$ and bar height $3\\text{ cm}$). Since true $\\text{FD} = 15 \\div 10 = 1.5$, you know $1.5\\text{ FD} = 3\\text{ cm}$ (i.e. $1\\text{ unit of FD} = 2\\text{ cm}$, or count small squares: total squares in that bar represent $15$ items!). Both **Frequency Density** and **Area-per-Square** give the exact right missing frequencies and bar heights.',
       },
+      {
+        heading: 'Finding Mean, Median & Modal Class from a Histogram',
+        body: '1. **Recover every bar\'s Frequency** first via $\\text{Area} = \\text{Class Width} \\times \\text{FD}$. 2. **Estimated Mean**: multiply each bar\'s Frequency (Area) by its class midpoint and divide by total area $N$. 3. **Median**: find the vertical cut line where cumulative bar area from the left reaches $\\frac{N}{2}$ (using linear interpolation inside that bar). 4. **Modal Density vs Greatest Frequency**: the tallest bar has the highest Frequency Density, while the bar with the largest AREA contains the most items!',
+      },
     ],
     extraWorkedExamples: [
       {
@@ -1218,6 +1274,19 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
         ],
         answer: '(a) $6\\text{ cm}$, (b) $45$',
         markSchemeNotes: 'B1 ref FD $= 2.0$, M1 scale $\\times 2$ + FD $3.0$, A1 $6\\text{ cm}$; M1 $3.0\\times 15$, A1 $45$.',
+      },
+      {
+        title: 'Estimated Mean & Median directly from a Histogram',
+        question: 'A histogram has three bars: $0 < x \\le 10$ ($\\text{FD}=1.2$), $10 < x \\le 20$ ($\\text{FD}=2.8$), and $20 < x \\le 40$ ($\\text{FD}=2.0$). Find (a) the estimated mean, (b) the median, and (c) which bar has the highest frequency vs highest frequency density.',
+        marks: 5,
+        steps: [
+          'Recover frequencies (Area $= \\text{Width} \\times \\text{FD}$): $10\\times 1.2 = 12$, $10\\times 2.8 = 28$, $20\\times 2.0 = 40$. Total $N = 12 + 28 + 40 = 80$.',
+          '(a) Midpoints $5, 15, 30$: Estimated Mean $= \\frac{12(5) + 28(15) + 40(30)}{80} = \\frac{60 + 420 + 1200}{80} = \\frac{1680}{80} = 21$.',
+          '(b) Median sits at $\\frac{80}{2} = 40$th item from the left. Cumulative area: first bar gives $12$, first + second bar gives $12 + 28 = 40$ exactly at the boundary $\\implies \\text{Median} = 20$.',
+          '(c) Highest frequency (largest area) is $20 < x \\le 40$ ($f=40$), whereas the tallest bar (highest FD) is $10 < x \\le 20$ ($\\text{FD}=2.8$).',
+        ],
+        answer: '(a) $21$, (b) $20$, (c) Highest freq: $20 < x \\le 40$; Tallest bar (FD): $10 < x \\le 20$',
+        markSchemeNotes: 'M1 frequencies $12, 28, 40$, M1+A1 Mean $21$, B1 Median $20$, B1 highest freq vs FD.',
       },
       {
         title: 'Estimating frequency in a partial interval (Histogram Interpolation)',
@@ -1234,6 +1303,7 @@ export const TEXTBOOK_GUIDE_5_TO_9: Record<string, TextbookEnrichment> = {
     ],
     rapidSummary: [
       { rule: 'Frequency = Area = Width $\\times$ FD', detail: 'Never plot raw frequency on the vertical axis when widths vary.' },
+      { rule: 'Histogram Median & Mean', detail: 'Split total area $N$ in half for Median; use Area $\\times x_{\\text{mid}}$ for Mean.' },
       { rule: 'Touching bars', detail: 'Continuous histograms have zero gaps between adjacent bars.' },
     ],
   },

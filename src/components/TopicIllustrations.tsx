@@ -15,6 +15,7 @@ import {
   Trigonometry3DIllustration,
 } from './illustrations/GeometryAndTrigIllustrations';
 import {
+  AveragesAcrossChartsIllustration,
   ChartsIllustration,
   ConditionalProbIllustration,
   CumulativeFreqBoxIllustration,
@@ -65,6 +66,8 @@ export const TopicIllustrations: React.FC<TopicIllustrationsProps> = ({ topicId 
       return <ProbabilityTreeDiagramIllustration />;
     case '8.4':
       return <ConditionalProbIllustration />;
+    case '9.3':
+      return <AveragesAcrossChartsIllustration />;
     case '9.4':
       return <ChartsIllustration />;
     case '9.5':

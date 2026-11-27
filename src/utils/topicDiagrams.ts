@@ -197,3 +197,129 @@ export function interpolateCumulativeX(
   }
   return points[points.length - 1].x;
 }
+
+export interface StemAndLeafRow {
+  stem: number;
+  leaves: number[];
+}
+
+export interface StemAndLeafStats {
+  values: number[];
+  count: number;
+  min: number;
+  max: number;
+  range: number;
+  mode: number | null;
+  median: number;
+  mean: number;
+}
+
+/**
+ * Reconstructs ordered numeric values from a stem-and-leaf diagram and computes
+ * count, min, max, range, mode, median, and mean.
+ */
+export function computeStemAndLeafStats(
+  rows: StemAndLeafRow[],
+  stemMultiplier = 10,
+  leafMultiplier = 1
+): StemAndLeafStats {
+  const values = rows
+    .flatMap((row) =>
+      row.leaves.map((leaf) =>
+        Number((row.stem * stemMultiplier + leaf * leafMultiplier).toFixed(6))
+      )
+    )
+    .sort((a, b) => a - b);
+
+  const count = values.length;
+  if (count === 0) {
+    return { values: [], count: 0, min: 0, max: 0, range: 0, mode: null, median: 0, mean: 0 };
+  }
+
+  const min = values[0];
+  const max = values[count - 1];
+  const range = Number((max - min).toFixed(6));
+
+  const freqMap = new Map<number, number>();
+  let sum = 0;
+  for (const v of values) {
+    sum += v;
+    freqMap.set(v, (freqMap.get(v) || 0) + 1);
+  }
+
+  let mode: number | null = null;
+  let bestFreq = 1;
+  for (const [val, freq] of freqMap.entries()) {
+    if (freq > bestFreq) {
+      bestFreq = freq;
+      mode = val;
+    }
+  }
+
+  const median =
+    count % 2 === 1
+      ? values[(count - 1) / 2]
+      : Number(((values[count / 2 - 1] + values[count / 2]) / 2).toFixed(6));
+  const mean = Number((sum / count).toFixed(6));
+
+  return { values, count, min, max, range, mode, median, mean };
+}
+
+export interface GroupedChartStats {
+  totalFrequency: number;
+  estimatedMean: number;
+  estimatedMedian: number;
+  modalFrequencyLabel: string;
+  modalDensityLabel: string;
+}
+
+/**
+ * Computes estimated mean (via midpoints), 50%-area median, highest-frequency class,
+ * and highest-density class (tallest bar) from grouped/histogram bins.
+ */
+export function computeGroupedChartStats(
+  rawBins: Array<{ start: number; end: number; frequency: number }>
+): GroupedChartStats {
+  const bins = computeHistogramBins(rawBins);
+  const totalFrequency = bins.reduce((acc, b) => acc + b.frequency, 0);
+  if (totalFrequency <= 0) {
+    return {
+      totalFrequency: 0,
+      estimatedMean: 0,
+      estimatedMedian: 0,
+      modalFrequencyLabel: '',
+      modalDensityLabel: '',
+    };
+  }
+
+  let fxSum = 0;
+  let maxFreqBin = bins[0];
+  let maxFdBin = bins[0];
+  for (const b of bins) {
+    const mid = (b.start + b.end) / 2;
+    fxSum += b.frequency * mid;
+    if (b.frequency > maxFreqBin.frequency) maxFreqBin = b;
+    if (b.frequencyDensity > maxFdBin.frequencyDensity) maxFdBin = b;
+  }
+
+  const half = totalFrequency / 2;
+  let running = 0;
+  let estimatedMedian = bins[bins.length - 1].end;
+  for (const b of bins) {
+    if (running + b.frequency >= half) {
+      const needed = half - running;
+      const frac = b.frequency > 0 ? needed / b.frequency : 0;
+      estimatedMedian = Number((b.start + frac * b.width).toFixed(4));
+      break;
+    }
+    running += b.frequency;
+  }
+
+  return {
+    totalFrequency,
+    estimatedMean: Number((fxSum / totalFrequency).toFixed(4)),
+    estimatedMedian,
+    modalFrequencyLabel: maxFreqBin.label,
+    modalDensityLabel: maxFdBin.label,
+  };
+}
